@@ -134,6 +134,12 @@ verdadeira:
   Não existe campo `complemento`: o texto livre do motivo já o absorve.
 - **[DECIDIDO 16/09/2026]** só o **engenheiro** retifica lançamento em dia
   fechado, e retifica o de **qualquer autor**, inclusive os dele. Decisão 22.1.
+- **[DECIDIDO 16/09/2026]** marcar como parado um dia que **já tem atividade
+  lançada** é rejeitado, com mensagem pedindo para remover as atividades antes.
+  Decisão 24.1. Nada é apagado em silêncio para acomodar a troca de estado.
+- **[DECIDIDO 16/09/2026]** consultar o RDO de um dia **fora do período da
+  obra** não gera documento; a tela diz que a data está fora do contrato.
+  Decisão 23.1. Sem isso o número do RDO sairia negativo.
 
 ## 6. Composição do RDO diário
 
