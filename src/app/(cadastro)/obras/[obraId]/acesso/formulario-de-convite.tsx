@@ -11,6 +11,11 @@
  *
  * O link é exibido uma vez. Quem perder gera outro; não há reexibição, porque o
  * banco guarda só o hash.
+ *
+ * O tipo de acesso é escolhido aqui (decisão 34.1), e o padrão é `encarregado`,
+ * que é o convite do dia a dia. A escolha **não** é controle de acesso: o
+ * servidor confere de novo que quem convida é engenheiro daquela obra, e
+ * recusa qualquer valor fora dos dois.
  */
 
 import { useActionState } from 'react';
@@ -29,6 +34,15 @@ export function FormularioDeConvite({ obraId }: { obraId: string }) {
     <>
       <form action={acao}>
         <input type="hidden" name="obraId" value={obraId} />
+        <label className={estilos.campo}>
+          <span>Tipo de acesso *</span>
+          <select name="perfil" required defaultValue="encarregado">
+            <option value="encarregado">Encarregado — lança o dia no canteiro</option>
+            <option value="engenheiro">
+              Engenheiro — fecha o dia, exporta o RDO e cadastra
+            </option>
+          </select>
+        </label>
         <button className={estilos.botao} type="submit" disabled={enviando}>
           Gerar link de convite
         </button>
@@ -43,8 +57,9 @@ export function FormularioDeConvite({ obraId }: { obraId: string }) {
       {estado.link === null ? null : (
         <>
           <p>
-            Envie este link ao encarregado. Ele vale por <strong>7 dias</strong> e serve{' '}
-            <strong>uma vez só</strong>. Não será exibido de novo.
+            Envie este link a quem vai entrar como <strong>{estado.perfil}</strong>. Ele
+            vale por <strong>7 dias</strong> e serve <strong>uma vez só</strong>. Não será
+            exibido de novo.
           </p>
           <code className={estilos.link}>{estado.link}</code>
         </>

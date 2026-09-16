@@ -38,9 +38,16 @@ export const usuario = sqliteTable(
      * enquanto `acesso.perfil` diz o que a pessoa pode fazer *naquela* obra. Só
      * quem tem esta coluna ligada cria obra (decisão 25.1).
      *
-     * **Liga só pelo comando `npm run criar-engenheiro`.** Nenhum caminho da
-     * web a liga: não há cadastro público e convite só cria encarregado (14.0).
-     * O dia em que existir "promover a engenheiro", será decisão de produto.
+     * **Dois caminhos ligam esta coluna, e são só estes dois:**
+     *
+     * 1. o comando `npm run criar-engenheiro`, que cria a primeira conta fora
+     *    da web (25.1, `modules/acesso/instalacao.ts`);
+     * 2. o **aceite de convite de engenheiro** (34.1,
+     *    `modules/acesso/convite.ts`), na mesma transação do acesso.
+     *
+     * Não há cadastro público, e convite de **encarregado** não liga nada.
+     * Quem acrescentar um terceiro caminho está mudando quem pode criar obra,
+     * e isso é decisão de produto, não efeito colateral.
      *
      * O padrão é falso de propósito: a conta que nasce por engano nasce sem
      * poder nenhum.

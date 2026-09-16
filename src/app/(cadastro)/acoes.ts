@@ -18,6 +18,7 @@ import { redirect } from 'next/navigation';
 import {
   aceitaConviteEEntra,
   iniciaSessaoComSenha,
+  perfilDeConvite,
   registraUsuario,
 } from '../../modules/acesso';
 import {
@@ -227,18 +228,29 @@ export async function acrescentarTermoAction(dados: FormData): Promise<void> {
  * (CT-085). Por isso esta é a única ação da tela de cadastro que devolve
  * estado em vez de redirecionar.
  */
+/**
+ * Gera o link de convite, no perfil escolhido (decisão 34.1).
+ *
+ * O perfil vem do formulário e é hostil como qualquer campo: passa por
+ * `perfilDeConvite` antes de existir como `Perfil`. Quem pode convidar
+ * continua sendo o engenheiro **daquela obra**, conferido no servidor por
+ * `geraConviteProtegido` — o `select` da tela não é controle de acesso.
+ */
 export async function gerarConviteAction(
   _estado: EstadoDoConvite,
   dados: FormData,
 ): Promise<EstadoDoConvite> {
   const obraId = obraDaForma(dados);
   const ator = await atorDaRequisicao();
-  if (ator === null) return { link: null, erro: 'Entre para continuar.' };
+  if (ator === null) return { link: null, perfil: null, erro: 'Entre para continuar.' };
 
-  const gerado = geraConviteProtegido(ator, obraId);
-  if (!gerado.ok) return { link: null, erro: gerado.erro.mensagem };
+  const perfil = perfilDeConvite(texto(dados, 'perfil'));
+  if (!perfil.ok) return { link: null, perfil: null, erro: perfil.erro.mensagem };
 
-  return { link: `/convite/${gerado.valor.token}`, erro: null };
+  const gerado = geraConviteProtegido(ator, obraId, perfil.valor);
+  if (!gerado.ok) return { link: null, perfil: null, erro: gerado.erro.mensagem };
+
+  return { link: `/convite/${gerado.valor.token}`, perfil: perfil.valor, erro: null };
 }
 
 export async function revogarAcessoAction(dados: FormData): Promise<void> {

@@ -80,7 +80,12 @@ async function contaDaInstalacao(email: string): Promise<Ator> {
 /** Conta nascida na web pelo aceite de convite, que é o único caminho público. */
 async function contaVindaDeConvite(email: string, engenheiroDaObra: Ator) {
   const obraId = criaObraDoPrd(engenheiroDaObra, cenario.amb);
-  const convite = geraConviteProtegido(engenheiroDaObra, obraId, cenario.amb);
+  const convite = geraConviteProtegido(
+    engenheiroDaObra,
+    obraId,
+    'encarregado',
+    cenario.amb,
+  );
   if (!convite.ok) throw new Error(convite.erro.mensagem);
 
   const criado = await registraUsuario(

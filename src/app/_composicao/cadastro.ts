@@ -26,6 +26,7 @@ import {
   type Ator,
   type ConviteGerado,
   type ObraResumo,
+  type Perfil,
 } from '../../modules/acesso';
 import {
   analisaCadastrarEquipamento,
@@ -486,12 +487,21 @@ export function listaSugestoesDeMotivoProtegida(
 
 // ---------------------------------------------------------------- passo 3
 
+/**
+ * Gera o link de convite no perfil pedido (34.1).
+ *
+ * `perfil` é `Perfil`, não `string`: quem chama já passou pela conversão de
+ * `perfilDeConvite`, e a Server Action não tem como empurrar texto cru daqui
+ * para dentro. Quem convida continua tendo de ser engenheiro **daquela obra**,
+ * e quem confere isso é `geraConvite`, contra a tabela `acesso`.
+ */
 export function geraConviteProtegido(
   ator: Ator,
   obraId: ObraId,
+  perfil: Perfil,
   amb: Amb = ambienteDeCadastroPadrao(),
 ): Resposta<ConviteGerado> {
-  const gerado = geraConvite(obraId, ator, paraAcesso(amb));
+  const gerado = geraConvite(obraId, perfil, ator, paraAcesso(amb));
   if (!gerado.ok) return erro(gerado.erro);
   return ok(gerado.valor);
 }

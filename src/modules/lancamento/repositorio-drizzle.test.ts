@@ -374,4 +374,80 @@ describe('módulo lancamento contra o esquema físico', () => {
 
     expect(acumulado.ok && acumulado.valor[0]?.quantidade.toString()).toBe('10.006');
   });
+
+  /**
+   * Decisão 30.1, contra o esquema físico. Os casos de uso já provam a regra
+   * contra a dupla em memória; o que se pergunta aqui é outra coisa: o
+   * `UPDATE` de exclusão passa pelos CHECK do banco, e o que volta da leitura
+   * é o objeto `exclusao` montado das três colunas?
+   */
+  it('excluir marca as três colunas e não apaga a linha do banco', async () => {
+    const casos = casosDoBanco();
+    const lancada = await casos.lancaAtividade(
+      {
+        obraId: OBRA,
+        data: dia('2026-09-03'),
+        descricao: 'Fresagem da Rua A',
+        status: { tipo: 'id', id: STATUS },
+        chaveDeRascunho: null,
+      },
+      { usuarioId: C1 },
+    );
+    if (!lancada.ok) throw new Error('Preparação do teste falhou');
+
+    const r = await casos.excluiLancamento(
+      {
+        obraId: OBRA,
+        lancamentoId: lancada.valor.id,
+        tipo: 'atividade',
+        motivo: 'Lançada na data errada',
+      },
+      { usuarioId: E1 },
+    );
+
+    expect(r.ok).toBe(true);
+    expect(
+      conexao.sqlite
+        .prepare(
+          `SELECT excluido_por, motivo_exclusao, count(*) AS total
+             FROM lancamento_atividade`,
+        )
+        .get(),
+    ).toEqual({
+      excluido_por: E1,
+      motivo_exclusao: 'Lançada na data errada',
+      total: 1,
+    });
+    const lista = await casos.listaAtividadesVigentes(OBRA, dia('2026-09-03'));
+    expect(lista.ok && lista.valor).toHaveLength(0);
+  });
+
+  it('excluída a pluviometria do dia, o dia aceita uma leitura nova', async () => {
+    // O índice único de UMA cadeia por dia ignora a excluída: senão excluir a
+    // leitura errada trancaria o bloco 9 do dia para sempre.
+    const casos = casosDoBanco();
+    const primeira = await casos.recebePluviometria(
+      { obraId: OBRA, data: '2026-09-03', manha: 'C', indiceMm: '4' },
+      { usuarioId: C1 },
+    );
+    if (!primeira.ok) throw new Error('Preparação do teste falhou');
+    await casos.excluiLancamento(
+      {
+        obraId: OBRA,
+        lancamentoId: primeira.valor.id,
+        tipo: 'pluviometria',
+        motivo: 'Leitura do pluviômetro de outro canteiro',
+      },
+      { usuarioId: E1 },
+    );
+
+    const segunda = await casos.recebePluviometria(
+      { obraId: OBRA, data: '2026-09-03', manha: 'B', indiceMm: '0' },
+      { usuarioId: C1 },
+    );
+
+    expect(segunda.ok).toBe(true);
+    const vigente = await casos.obtemPluviometriaVigente(OBRA, dia('2026-09-03'));
+    expect(vigente.ok && vigente.valor?.manha).toBe('B');
+  });
 });

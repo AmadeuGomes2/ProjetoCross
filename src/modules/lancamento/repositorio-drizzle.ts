@@ -34,6 +34,7 @@ import {
 import type { Colecao, ColecaoDeProducao, RepositorioDeLancamento } from './repositorio';
 import type {
   DiaDeObra,
+  Exclusao,
   LinhaComum,
   LinhaDeAtividade,
   LinhaDeObservacao,
@@ -52,7 +53,23 @@ type LinhaCrua = {
   raizId: LancamentoId;
   retificaId: LancamentoId | null;
   chaveDeRascunho: string | null;
+  excluidoPor: UsuarioId | null;
+  excluidoEm: string | null;
+  motivoExclusao: string | null;
 };
+
+/**
+ * As três colunas da exclusão viram um objeto só, ou nada.
+ *
+ * O CHECK do esquema garante que elas são nulas juntas ou preenchidas juntas,
+ * então a conversão não tem caso do meio. `motivoExclusao` entra na condição
+ * para que o compilador não precise de `as` nem de `!`.
+ */
+function exclusaoDoBanco(linha: LinhaCrua): Exclusao | null {
+  if (linha.excluidoPor === null || linha.excluidoEm === null) return null;
+  if (linha.motivoExclusao === null) return null;
+  return { por: linha.excluidoPor, em: linha.excluidoEm, motivo: linha.motivoExclusao };
+}
 
 function comumDoBanco(linha: LinhaCrua): LinhaComum {
   return {
@@ -66,6 +83,7 @@ function comumDoBanco(linha: LinhaCrua): LinhaComum {
     raizId: linha.raizId,
     retificaId: linha.retificaId,
     chaveDeRascunho: linha.chaveDeRascunho,
+    exclusao: exclusaoDoBanco(linha),
   };
 }
 
@@ -81,6 +99,18 @@ function comumParaOBanco(linha: LinhaComum): LinhaCrua {
     raizId: linha.raizId,
     retificaId: linha.retificaId,
     chaveDeRascunho: linha.chaveDeRascunho,
+    excluidoPor: linha.exclusao?.por ?? null,
+    excluidoEm: linha.exclusao?.em ?? null,
+    motivoExclusao: linha.exclusao?.motivo ?? null,
+  };
+}
+
+/** As três colunas do `UPDATE` de exclusão. Uma forma, quatro tabelas. */
+function colunasDaExclusao(exclusao: Exclusao) {
+  return {
+    excluidoPor: exclusao.por,
+    excluidoEm: exclusao.em,
+    motivoExclusao: exclusao.motivo,
   };
 }
 
@@ -160,9 +190,11 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
           ),
         );
     },
-    exclui: async (obraId, id) => {
+    // `UPDATE`, nunca `DELETE`: a linha do lançamento excluído fica (30.1).
+    marcaExcluido: async (obraId, id, exclusao) => {
       await db
-        .delete(lancamentoAtividade)
+        .update(lancamentoAtividade)
+        .set(colunasDaExclusao(exclusao))
         .where(
           and(eq(lancamentoAtividade.obraId, obraId), eq(lancamentoAtividade.id, id)),
         );
@@ -246,9 +278,10 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
           ),
         );
     },
-    exclui: async (obraId, id) => {
+    marcaExcluido: async (obraId, id, exclusao) => {
       await db
-        .delete(lancamentoProducao)
+        .update(lancamentoProducao)
+        .set(colunasDaExclusao(exclusao))
         .where(and(eq(lancamentoProducao.obraId, obraId), eq(lancamentoProducao.id, id)));
     },
   };
@@ -333,9 +366,10 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
           ),
         );
     },
-    exclui: async (obraId, id) => {
+    marcaExcluido: async (obraId, id, exclusao) => {
       await db
-        .delete(lancamentoPluviometria)
+        .update(lancamentoPluviometria)
+        .set(colunasDaExclusao(exclusao))
         .where(
           and(
             eq(lancamentoPluviometria.obraId, obraId),
@@ -415,9 +449,10 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
           ),
         );
     },
-    exclui: async (obraId, id) => {
+    marcaExcluido: async (obraId, id, exclusao) => {
       await db
-        .delete(lancamentoObservacao)
+        .update(lancamentoObservacao)
+        .set(colunasDaExclusao(exclusao))
         .where(
           and(eq(lancamentoObservacao.obraId, obraId), eq(lancamentoObservacao.id, id)),
         );

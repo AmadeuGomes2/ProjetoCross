@@ -74,7 +74,7 @@ describe('F3.1 — convite do encarregado', () => {
     expect(outra.ok).toBe(true);
     if (!outra.ok) return;
 
-    const convite = geraConviteProtegido(e1, obraId, cenario.amb);
+    const convite = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
     expect(convite.ok).toBe(true);
     if (!convite.ok) return;
 
@@ -87,7 +87,7 @@ describe('F3.1 — convite do encarregado', () => {
   });
 
   it('CT-073 o acesso registra que foi liberado por quem gerou o convite', () => {
-    const convite = geraConviteProtegido(e1, obraId, cenario.amb);
+    const convite = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
     expect(convite.ok).toBe(true);
     if (!convite.ok) return;
 
@@ -115,7 +115,7 @@ describe('F3.1 — convite do encarregado', () => {
     );
     expect(outra.ok).toBe(true);
 
-    const convite = geraConviteProtegido(e1, obraId, cenario.amb);
+    const convite = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
     expect(convite.ok).toBe(true);
     if (!convite.ok) return;
     const c1 = cenario.novoAtor('c1@exemplo.invalido');
@@ -138,7 +138,7 @@ describe('F3.1 — convite do encarregado', () => {
     expect(outra.ok).toBe(true);
     if (!outra.ok) return;
 
-    const convite = geraConviteProtegido(e1, obraId, cenario.amb);
+    const convite = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
     expect(convite.ok).toBe(true);
     if (!convite.ok) return;
     const c1 = cenario.novoAtor('c1@exemplo.invalido');
@@ -160,17 +160,17 @@ describe('F3.1 — convite do encarregado', () => {
   });
 
   it('CT-076 o encarregado não gera convite', () => {
-    const convite = geraConviteProtegido(e1, obraId, cenario.amb);
+    const convite = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
     expect(convite.ok).toBe(true);
     if (!convite.ok) return;
     const c1 = cenario.novoAtor('c1@exemplo.invalido');
     aceitaConvite(convite.valor.token, c1.usuarioId, ambDeAcesso());
 
-    expect(geraConviteProtegido(c1, obraId, cenario.amb).ok).toBe(false);
+    expect(geraConviteProtegido(c1, obraId, 'encarregado', cenario.amb).ok).toBe(false);
   });
 
   it('CT-077 o convite é de uso único: o segundo aceite é recusado', () => {
-    const convite = geraConviteProtegido(e1, obraId, cenario.amb);
+    const convite = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
     expect(convite.ok).toBe(true);
     if (!convite.ok) return;
 
@@ -190,7 +190,7 @@ describe('F3.1 — convite do encarregado', () => {
     const relogio = relogioMovel('2026-09-01T10:00:00.000Z');
     const amb: Ambiente = { db: cenario.amb.db, relogio: relogio.agora };
 
-    const convite = geraConvite(obraId, e1, amb);
+    const convite = geraConvite(obraId, 'encarregado', e1, amb);
     expect(convite.ok).toBe(true);
     if (!convite.ok) return;
 
@@ -205,7 +205,7 @@ describe('F3.1 — convite do encarregado', () => {
     const relogio = relogioMovel('2026-09-01T10:00:00.000Z');
     const amb: Ambiente = { db: cenario.amb.db, relogio: relogio.agora };
 
-    const convite = geraConvite(obraId, e1, amb);
+    const convite = geraConvite(obraId, 'encarregado', e1, amb);
     expect(convite.ok).toBe(true);
     if (!convite.ok) return;
 
@@ -221,8 +221,8 @@ describe('F3.1 — convite do encarregado', () => {
   });
 
   it('CT-080 a mesma obra aceita dois encarregados', () => {
-    const primeiro = geraConviteProtegido(e1, obraId, cenario.amb);
-    const segundo = geraConviteProtegido(e1, obraId, cenario.amb);
+    const primeiro = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
+    const segundo = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
     expect(primeiro.ok && segundo.ok).toBe(true);
     if (!primeiro.ok || !segundo.ok) return;
 
@@ -240,7 +240,7 @@ describe('F3.1 — convite do encarregado', () => {
   });
 
   it('CT-081 a revogação vale já na requisição seguinte', () => {
-    const convite = geraConviteProtegido(e1, obraId, cenario.amb);
+    const convite = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
     expect(convite.ok).toBe(true);
     if (!convite.ok) return;
     const c1 = cenario.novoAtor('c1@exemplo.invalido');
@@ -254,7 +254,7 @@ describe('F3.1 — convite do encarregado', () => {
   });
 
   it('CT-082 revogar não apaga a linha de acesso nem o histórico', () => {
-    const convite = geraConviteProtegido(e1, obraId, cenario.amb);
+    const convite = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
     expect(convite.ok).toBe(true);
     if (!convite.ok) return;
     const c1 = cenario.novoAtor('c1@exemplo.invalido');
@@ -272,8 +272,8 @@ describe('F3.1 — convite do encarregado', () => {
   });
 
   it('CT-083 um encarregado não revoga o acesso do outro', () => {
-    const primeiro = geraConviteProtegido(e1, obraId, cenario.amb);
-    const segundo = geraConviteProtegido(e1, obraId, cenario.amb);
+    const primeiro = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
+    const segundo = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
     if (!primeiro.ok || !segundo.ok) return;
     const c1 = cenario.novoAtor('c1@exemplo.invalido');
     const c2 = cenario.novoAtor('c2@exemplo.invalido');
@@ -313,14 +313,14 @@ describe('F3.1 — convite do encarregado', () => {
         '2026-09-16T12:00:00.000Z',
       );
 
-    expect(geraConviteProtegido(e2, obraId, cenario.amb).ok).toBe(false);
+    expect(geraConviteProtegido(e2, obraId, 'encarregado', cenario.amb).ok).toBe(false);
   });
 
   it('CT-085 o token não aparece no log nem na mensagem quando o aceite falha', () => {
     const eventos: EventoDeLog[] = [];
     defineEscritor((evento) => eventos.push(evento));
 
-    const convite = geraConviteProtegido(e1, obraId, cenario.amb);
+    const convite = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
     expect(convite.ok).toBe(true);
     if (!convite.ok) return;
     const token = convite.valor.token;
@@ -339,7 +339,7 @@ describe('F3.1 — convite do encarregado', () => {
   });
 
   it('o token em claro nunca é gravado: o banco guarda só o hash', () => {
-    const convite = geraConviteProtegido(e1, obraId, cenario.amb);
+    const convite = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
     expect(convite.ok).toBe(true);
     if (!convite.ok) return;
 
@@ -349,7 +349,7 @@ describe('F3.1 — convite do encarregado', () => {
 
   it('o convite expira exatamente 7 dias depois de gerado', () => {
     const relogio = relogioMovel('2026-09-01T10:00:00.000Z');
-    const convite = geraConvite(obraId, e1, {
+    const convite = geraConvite(obraId, 'encarregado', e1, {
       db: cenario.amb.db,
       relogio: relogio.agora,
     });

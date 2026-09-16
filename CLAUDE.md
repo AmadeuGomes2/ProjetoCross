@@ -122,10 +122,17 @@ Regras duras:
 - **Lançamento é atômico.** Uma atividade, uma medição de produção, uma leitura de
   pluviômetro, uma observação. Cada um com data a que se refere, autor e hora de
   registro.
-- **Lançamento é imutável no dia fechado.** Enquanto o dia está aberto, corrige-se
-  livremente. Depois de fechado, não se altera o registro: cria-se uma retificação
-  que aponta para o original, e as duas versões ficam no histórico. RDO entregue
-  ao fiscal não muda em silêncio.
+- **Lançamento de dia fechado só muda pelas mãos do engenheiro, e nunca em
+  silêncio.** Enquanto o dia está aberto, o autor corrige o que é dele. Depois de
+  fechado, **só o engenheiro** corrige ou exclui, de qualquer autor, e as duas
+  versões ficam no histórico: a correção vira retificação encadeada, a exclusão é
+  lógica e exige motivo. Decisão 30.1, de 16/09/2026, que ampliou a regra
+  anterior de "imutável no dia fechado". O que não mudou é o essencial: **RDO
+  entregue ao fiscal não muda sem deixar rastro.**
+- **Exclusão nunca apaga linha.** `excluido_por`, `excluido_em` e
+  `motivo_exclusao` nas quatro tabelas de lançamento; as leituras do RDO filtram
+  por um portão único em `lancamento/vigencia.ts`. Apagar de verdade deixaria
+  duas versões do mesmo dia sem ninguém saber qual vale.
 - **RDO é sempre calculado, nunca armazenado pronto.** Diário, semanal e mensal
   são consultas sobre lançamentos. Corrigir um lançamento de março tem que
   corrigir o acumulado de setembro sem nenhuma ação extra. Se você sentir vontade

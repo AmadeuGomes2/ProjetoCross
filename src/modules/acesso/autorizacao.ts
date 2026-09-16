@@ -74,9 +74,10 @@ export function exigeAcessoNaObra(
  * obra. Ganhar o perfil de engenheiro numa obra, por qualquer caminho, não
  * torna ninguém engenheiro para efeito de criar obra.
  *
- * A coluna nasce falsa e **só o comando `npm run criar-engenheiro` a liga**:
- * não há cadastro público e convite só cria encarregado (14.0). É de lá que sai
- * a primeira obra do sistema.
+ * A coluna nasce falsa e **dois caminhos a ligam**: o comando
+ * `npm run criar-engenheiro`, de onde sai a primeira obra do sistema, e o
+ * aceite de **convite de engenheiro** (decisão 34.1). Convite de encarregado
+ * não liga nada, e não há cadastro público.
  *
  * O que estava aqui antes e saiu: uma exceção que liberava qualquer conta
  * enquanto o sistema inteiro não tivesse engenheiro nenhum. Funcionava, mas era

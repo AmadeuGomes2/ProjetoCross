@@ -138,10 +138,18 @@ export interface ComandoCorrigir {
 /** Retificar tem a mesma forma de corrigir, e regras opostas: ver 22.1. */
 export type ComandoRetificar = ComandoCorrigir;
 
+/**
+ * Exclusão com rastro (30.1).
+ *
+ * O motivo é campo do comando, e não opcional: quem escrever a próxima rota de
+ * exclusão é obrigado pelo compilador a pedi-lo. Sem ele, o histórico diria que
+ * o número mudou e não diria por quê.
+ */
 export interface ComandoExcluir {
   readonly obraId: ObraId;
   readonly lancamentoId: LancamentoId;
   readonly tipo: TipoDeLancamento;
+  readonly motivo: string;
 }
 
 export interface ComandoFecharDia {

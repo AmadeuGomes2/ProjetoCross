@@ -40,6 +40,7 @@ import type {
 import type { LetraDeTurno } from '../../shared/taxonomia';
 import {
   checkDia,
+  checkExclusao,
   checkInstante,
   checkInstanteOpcional,
   checkMilesimosPositivo,
@@ -80,6 +81,20 @@ function colunasComuns() {
     retificaId: text('retifica_id').$type<LancamentoId>(),
     /** Idempotência do envio offline: reenviar o mesmo rascunho não duplica. */
     chaveDeRascunho: text('chave_de_rascunho'),
+    /**
+     * Exclusão com rastro (decisão 30.1). **A linha não sai da tabela.**
+     *
+     * Excluir um lançamento de um dia entregue ao fiscal e apagar a linha
+     * deixaria duas versões do mesmo dia circulando sem ninguém saber qual
+     * vale. Por isso a exclusão é marca, não `DELETE`: quem excluiu (id, nunca
+     * nome), quando, em UTC, e o motivo em texto livre obrigatório.
+     *
+     * Quem filtra os excluídos das leituras do RDO é `lancamento/vigencia.ts`,
+     * num lugar só, pelo mesmo caminho da retificação.
+     */
+    excluidoPor: colunaAutorOpcional('excluido_por'),
+    excluidoEm: colunaInstanteOpcional('excluido_em'),
+    motivoExclusao: text('motivo_exclusao'),
   };
 }
 
@@ -122,6 +137,8 @@ export const lancamentoAtividade = sqliteTable(
     checkTextoNaoVazio('ck_atividade_descricao', t.descricao),
     checkInstante('ck_atividade_registrado_em', t.registradoEm),
     checkInstanteOpcional('ck_atividade_atualizado_em', t.atualizadoEm),
+    checkInstanteOpcional('ck_atividade_excluido_em', t.excluidoEm),
+    checkExclusao('ck_atividade_exclusao', t.excluidoPor, t.excluidoEm, t.motivoExclusao),
   ],
 );
 
@@ -168,6 +185,8 @@ export const lancamentoProducao = sqliteTable(
     checkMilesimosPositivo('ck_producao_quantidade', t.quantidadeMilesimos),
     checkInstante('ck_producao_registrado_em', t.registradoEm),
     checkInstanteOpcional('ck_producao_atualizado_em', t.atualizadoEm),
+    checkInstanteOpcional('ck_producao_excluido_em', t.excluidoEm),
+    checkExclusao('ck_producao_exclusao', t.excluidoPor, t.excluidoEm, t.motivoExclusao),
   ],
 );
 
@@ -202,9 +221,12 @@ export const lancamentoPluviometria = sqliteTable(
     uniqueIndex('ux_pluviometria_rascunho').on(t.autorId, t.chaveDeRascunho),
     // UMA cadeia de pluviometria por dia. Com a cadeia linear, existe
     // exatamente uma versão vigente, e o bloco 9 nunca escolhe entre duas.
+    //
+    // A cadeia **excluída** sai do índice (30.1): sem isso, excluir a leitura
+    // errada trancaria o dia para sempre — não haveria como lançar a certa.
     uniqueIndex('ux_pluviometria_dia')
       .on(t.obraId, t.data)
-      .where(sql`${t.retificaId} IS NULL`),
+      .where(sql`${t.retificaId} IS NULL AND ${t.excluidoEm} IS NULL`),
     index('idx_pluviometria_raiz').on(t.raizId),
     checkDia('ck_pluviometria_data', t.data),
     // A letra `N`, que a macro VBA pintava, não existe: a árvore do resumo do
@@ -229,6 +251,13 @@ export const lancamentoPluviometria = sqliteTable(
     ),
     checkInstante('ck_pluviometria_registrado_em', t.registradoEm),
     checkInstanteOpcional('ck_pluviometria_atualizado_em', t.atualizadoEm),
+    checkInstanteOpcional('ck_pluviometria_excluido_em', t.excluidoEm),
+    checkExclusao(
+      'ck_pluviometria_exclusao',
+      t.excluidoPor,
+      t.excluidoEm,
+      t.motivoExclusao,
+    ),
   ],
 );
 
@@ -270,5 +299,12 @@ export const lancamentoObservacao = sqliteTable(
     checkTextoNaoVazio('ck_observacao_texto', t.texto),
     checkInstante('ck_observacao_registrado_em', t.registradoEm),
     checkInstanteOpcional('ck_observacao_atualizado_em', t.atualizadoEm),
+    checkInstanteOpcional('ck_observacao_excluido_em', t.excluidoEm),
+    checkExclusao(
+      'ck_observacao_exclusao',
+      t.excluidoPor,
+      t.excluidoEm,
+      t.motivoExclusao,
+    ),
   ],
 );

@@ -42,6 +42,7 @@ import type {
   ReferenciaDeStatus,
 } from '../comandos';
 import {
+  exigeMotivoDeExclusao,
   exigeMotivoDeParada,
   exigeTextoNaoVazio,
   indicePluviometricoDeTexto,
@@ -447,6 +448,12 @@ const esquemaExclusao = z.object({
   obraId: identificador,
   lancamentoId: identificador,
   tipo: z.enum(['atividade', 'producao', 'pluviometria', 'observacao']),
+  /**
+   * Motivo da exclusão (30.1). O tamanho é conferido aqui; o "não vazio" fica
+   * com `exigeMotivoDeExclusao`, no caso de uso, para que o caminho que não
+   * passa pela borda também o exija.
+   */
+  motivo: z.string().max(LIMITE_MOTIVO),
 });
 
 export function leComandoDeExclusao(
@@ -454,10 +461,13 @@ export function leComandoDeExclusao(
 ): Result<ComandoExcluir, ErroDeEntrada> {
   const lido = esquemaExclusao.safeParse(bruto);
   if (!lido.success) return erro(primeiroErro(lido.error));
+  const motivo = exigeMotivoDeExclusao(lido.data.motivo);
+  if (!motivo.ok) return motivo;
   return ok({
     obraId: idConfiavel<'obra'>(lido.data.obraId),
     lancamentoId: idConfiavel<'lancamento'>(lido.data.lancamentoId),
     tipo: lido.data.tipo,
+    motivo: motivo.valor,
   });
 }
 

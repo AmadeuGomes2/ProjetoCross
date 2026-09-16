@@ -18,10 +18,9 @@
  * - decisão 6.2 (`regras-rdo` §3): o número do RDO congela no fechamento, e
  *   mudar o conteúdo depois não o renumera.
  *
- * O que **não** está aqui: a exclusão de 30.1. Marcar como excluído exige
- * colunas novas nas quatro tabelas de lançamento (`excluido_por`,
- * `excluido_em`, `motivo_exclusao`) — esquema e migration, que esta frente não
- * pode tocar. Ver o relatório da tarefa.
+ * A metade da exclusão de 30.1 está em `exclusao-com-rastro.test.ts`, que é
+ * onde o rastro — quem excluiu, quando e por quê — é conferido. Aqui ficam
+ * apenas os dois casos de permissão que nasceram com a edição.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -43,6 +42,8 @@ import {
 const AGORA = '2026-09-16T12:00:00.000Z';
 const DIA = '2026-09-03';
 const DIA_SEGUINTE = '2026-09-04';
+/** Motivo da exclusão: texto livre obrigatório desde a 30.1. */
+const MOTIVO = 'Lançada em duplicidade';
 
 function monta() {
   const repositorio = criaRepositorioEmMemoria();
@@ -322,7 +323,7 @@ describe('decisão 30.1: o engenheiro edita qualquer lançamento', () => {
     const id = await lancaFresagem(casos, portas);
 
     const r = await casos.excluiLancamento(
-      { obraId: OBRA_B02, lancamentoId: id, tipo: 'atividade' },
+      { obraId: OBRA_B02, lancamentoId: id, tipo: 'atividade', motivo: MOTIVO },
       { usuarioId: C2 },
     );
 
@@ -337,7 +338,7 @@ describe('decisão 30.1: o engenheiro edita qualquer lançamento', () => {
     const id = await lancaFresagem(casos, portas);
 
     const r = await casos.excluiLancamento(
-      { obraId: OBRA_B02, lancamentoId: id, tipo: 'atividade' },
+      { obraId: OBRA_B02, lancamentoId: id, tipo: 'atividade', motivo: MOTIVO },
       { usuarioId: E1 },
     );
 

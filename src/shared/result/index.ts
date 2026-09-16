@@ -68,6 +68,15 @@ export const CODIGO_ERRO = {
    * o servidor de dentro, e quem lê o log precisa reconhecê-lo de longe.
    */
   PERIODO_LONGO_DEMAIS: 'PERIODO_LONGO_DEMAIS',
+  /**
+   * A ação pediu um lançamento que **existe e foi excluído** (decisão 30.1).
+   *
+   * Não é `NAO_ENCONTRADO`: a linha está lá, com quem excluiu, quando e por
+   * quê, e o código vira status HTTP e chave de log. Responder 404 para algo
+   * que o histórico mostra manda quem lê investigar o id errado. Também não é
+   * `JA_EXISTE`, que fala de criação.
+   */
+  LANCAMENTO_EXCLUIDO: 'LANCAMENTO_EXCLUIDO',
 } as const;
 
 export type CodigoErro = (typeof CODIGO_ERRO)[keyof typeof CODIGO_ERRO];

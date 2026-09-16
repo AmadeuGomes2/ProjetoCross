@@ -56,6 +56,7 @@ export {
   geraConvite,
   listaAcessosDaObra,
   listaObrasDoUsuario,
+  perfilDeConvite,
   revogaAcesso,
   DIAS_DE_VALIDADE_DO_CONVITE,
   type ConviteGerado,

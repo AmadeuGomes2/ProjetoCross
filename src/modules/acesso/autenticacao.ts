@@ -61,9 +61,10 @@ export interface ComandoRegistrarUsuario {
    * Liga `usuario.e_engenheiro`, a coluna que autoriza criar obra (25.1).
    *
    * **Só `instalacao.ts` passa `true`.** Omitido — que é o caso de todo caminho
-   * vindo da web — a conta nasce sem o atributo: não há cadastro público, e o
-   * convite cria encarregado (14.0). Promover alguém a engenheiro seria decisão
-   * de produto, não efeito colateral de um cadastro.
+   * vindo da web, inclusive o cadastro que acompanha o aceite de convite — a
+   * conta nasce sem o atributo. Quem ganha o atributo por convite de engenheiro
+   * (34.1) o ganha depois, em `convite.ts`, e só se o **convite** for de
+   * engenheiro: a conta não decide o próprio perfil no cadastro.
    */
   readonly eEngenheiro?: boolean;
 }

@@ -90,7 +90,12 @@ describe('F4.6 corrigir, fechar e retificar', () => {
     const id = await lancaFresagem(casos, portas);
 
     const r = await casos.excluiLancamento(
-      { obraId: OBRA_B02, lancamentoId: id, tipo: 'atividade' },
+      {
+        obraId: OBRA_B02,
+        lancamentoId: id,
+        tipo: 'atividade',
+        motivo: 'Lançada em duplicidade',
+      },
       { usuarioId: C1 },
     );
 

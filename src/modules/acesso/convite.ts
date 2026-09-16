@@ -1,8 +1,14 @@
 /**
- * Convite do encarregado e revogação de acesso.
+ * Convite de acesso à obra e revogação.
  *
  * Decisão 14.0, de 16/09/2026: **link de uso único, validade de 7 dias, vários
  * encarregados por obra, revogável pelo engenheiro**. R26.
+ *
+ * Decisão 34.1, de 16/09/2026: **um engenheiro pode dar acesso de engenheiro a
+ * outra pessoa na obra.** O perfil passou a ser parâmetro da geração e fica
+ * gravado na linha do convite; quem aceita não escolhe nada. Antes disto, a
+ * saída do engenheiro travava o cadastro da obra, porque só o comando no
+ * servidor criava outro (25.1).
  *
  * O token viaja uma vez, no link. Não é gravado em claro (2.5), não entra em
  * log, em mensagem de erro, em URL registrada nem em histórico (CT-085). Por
@@ -25,7 +31,7 @@ import { abreSessao, type SessaoAberta } from './autenticacao';
 import { exigeAcessoNaObra } from './autorizacao';
 import * as repositorio from './repositorio';
 import { geraToken, hashDeToken } from './token';
-import type { Ambiente, Ator, ObraResumo } from './tipos';
+import type { Ambiente, Ator, ObraResumo, Perfil } from './tipos';
 
 /** Decisão 14.0. Está numa constante para que o número não se repita no código. */
 export const DIAS_DE_VALIDADE_DO_CONVITE = 7;
@@ -49,13 +55,42 @@ export interface ConviteGerado {
   /** Em claro, uma única vez. Quem perder o link gera outro; não há reexibição. */
   readonly token: string;
   readonly expiraEm: Instante;
+  readonly perfil: Perfil;
+}
+
+const PERFIS_DE_CONVITE: readonly Perfil[] = ['engenheiro', 'encarregado'];
+
+/**
+ * O perfil pedido pelo formulário, que é entrada hostil.
+ *
+ * Existe para que a conversão de texto para `Perfil` aconteça num lugar só, e
+ * que a Server Action não precise de `as`. Qualquer coisa fora da lista é
+ * recusada aqui, antes de virar convite; o CHECK do banco é a segunda camada.
+ */
+export function perfilDeConvite(bruto: unknown): Result<Perfil, ErroDeDominio> {
+  const achado = PERFIS_DE_CONVITE.find((p) => p === bruto);
+  if (achado === undefined) {
+    return erro(
+      erroDeDominio(
+        CODIGO_ERRO.VALOR_FORA_DA_LISTA,
+        'Escolha o tipo de acesso: engenheiro ou encarregado.',
+      ),
+    );
+  }
+  return ok(achado);
 }
 
 /**
  * Gera o link. Só o engenheiro **daquela obra** (CT-076, CT-084).
+ *
+ * O `perfil` é o que o convite vai conceder (34.1). Quem convida precisa ser
+ * engenheiro da obra para qualquer um dos dois — inclusive para convidar
+ * encarregado, como já era —, e a verificação é a mesma linha de sempre, lida
+ * da tabela `acesso` no servidor.
  */
 export function geraConvite(
   obraId: ObraId,
+  perfil: Perfil,
   ator: Ator,
   amb: Ambiente,
 ): Result<ConviteGerado, ErroDeDominio> {
@@ -73,6 +108,7 @@ export function geraConvite(
     id,
     obraId,
     tokenHash: hashDeToken(token),
+    perfil,
     criadoPor: ator.usuarioId,
     criadoEm: agora.toISOString(),
     expiraEm,
@@ -82,17 +118,23 @@ export function geraConvite(
   registra('info', geraId<'correlacao'>(), 'acesso.convite_gerado', {
     obraId,
     usuarioId: ator.usuarioId,
+    perfil,
   });
 
-  return ok({ conviteId: id, token, expiraEm });
+  return ok({ conviteId: id, token, expiraEm, perfil });
 }
 
 /**
- * Aceita o convite e cria o acesso de encarregado.
+ * Aceita o convite e cria o acesso, no perfil que o **convite** diz (34.1).
  *
- * Tudo numa transação: conferir que não foi usado, marcar como usado e gravar
- * o acesso. Se o `UPDATE` do uso único não afetar linha, nada é gravado — é o
- * que faz o CT-077 valer mesmo com dois aceites ao mesmo tempo.
+ * Tudo numa transação: conferir que não foi usado, marcar como usado, gravar o
+ * acesso e — quando o convite é de engenheiro — ligar `usuario.e_engenheiro`.
+ * Se o `UPDATE` do uso único não afetar linha, nada é gravado — é o que faz o
+ * CT-077 valer mesmo com dois aceites ao mesmo tempo.
+ *
+ * A coluna da conta entra **na mesma transação** de propósito: acesso de
+ * engenheiro gravado sem ela produz alguém que é engenheiro da obra e continua
+ * sem poder criar outra (25.1) — exatamente o travamento que a 34.1 desfaz.
  *
  * O erro é o mesmo para token desconhecido, expirado e já usado? **Não**:
  * expirado e usado têm mensagem própria, porque o PRD exige que a mensagem diga
@@ -147,8 +189,10 @@ export function aceitaConvite(
     return erro(recusaGenerica);
   }
 
-  // Já é encarregado desta obra: aceitar de novo não cria acesso duplicado,
-  // e o UNIQUE parcial do banco recusaria de qualquer forma.
+  // Já tem acesso ativo a esta obra: aceitar de novo não cria acesso
+  // duplicado, e o UNIQUE parcial do banco recusaria de qualquer forma. Vale
+  // para os dois perfis — trocar de perfil é revogar e liberar de novo, não
+  // empilhar um acesso em cima do outro.
   if (repositorio.buscaAcessoAtivo(amb.db, usuarioId, linha.obraId) !== null) {
     return erro(
       erroDeDominio(CODIGO_ERRO.SEM_PERMISSAO, 'Esta conta já tem acesso a esta obra.'),
@@ -166,11 +210,17 @@ export function aceitaConvite(
       id: geraId<'acesso'>(),
       obraId: linha.obraId,
       usuarioId,
-      perfil: 'encarregado',
+      perfil: linha.perfil,
       // Quem liberou responde pelo acesso: é o autor do convite, não o convidado.
       liberadoPor: linha.criadoPor,
       liberadoEm: agora,
     });
+    // **Um dos dois únicos caminhos que ligam `usuario.e_engenheiro`**; o outro
+    // é `npm run criar-engenheiro` (`instalacao.ts`). Convite de encarregado
+    // não passa por aqui, e a conta dele continua sem o atributo.
+    if (linha.perfil === 'engenheiro') {
+      repositorio.marcaContaComoEngenheiro(tx, usuarioId);
+    }
     aceito = true;
   });
 
@@ -179,12 +229,12 @@ export function aceitaConvite(
   registra('info', correlacao, 'acesso.convite_aceito', {
     obraId: linha.obraId,
     usuarioId,
-    perfil: 'encarregado',
+    perfil: linha.perfil,
   });
   return ok(linha.obraId);
 }
 
-/** Aceita o convite **e** abre a sessão do encarregado, num passo só. */
+/** Aceita o convite **e** abre a sessão do convidado, num passo só. */
 export function aceitaConviteEEntra(
   token: string,
   usuarioId: UsuarioId,

@@ -15,6 +15,7 @@ import type { DiaPuro } from '../../shared/date/dia';
 import type { LancamentoId, ObraId, UsuarioId } from '../../shared/id';
 import type {
   DiaDeObra,
+  Exclusao,
   LinhaDeAtividade,
   LinhaDeLancamento,
   LinhaDeObservacao,
@@ -35,8 +36,14 @@ export interface Colecao<L extends LinhaDeLancamento> {
   grava(linha: L): Promise<void>;
   /** Correção em dia aberto. Em dia fechado não existe: só retificação. */
   atualiza(linha: L): Promise<void>;
-  /** Exclusão física, e só em dia aberto (arquitetura, decisão 14). */
-  exclui(obraId: ObraId, id: LancamentoId): Promise<void>;
+  /**
+   * Exclusão **com rastro** (decisão 30.1): marca a linha, nunca a apaga.
+   *
+   * Não existe `DELETE` neste repositório. O nome diz o que acontece de fato,
+   * para que nenhuma implementação futura leia "exclui" e chame `DELETE` num
+   * lançamento que já foi entregue ao fiscal.
+   */
+  marcaExcluido(obraId: ObraId, id: LancamentoId, exclusao: Exclusao): Promise<void>;
 }
 
 export interface ColecaoDeProducao extends Colecao<LinhaDeProducao> {

@@ -6,6 +6,11 @@
  * que só quem tem acesso ao servidor consegue rodar. Daí em diante, quem já é
  * engenheiro de alguma obra cria as outras.
  *
+ * Decisão 34.1, de 16/09/2026: o **segundo** engenheiro não precisa mais deste
+ * comando — um engenheiro convida outro pela obra, e o aceite liga a coluna da
+ * conta. Este comando continua sendo a origem: sem a primeira conta não há
+ * quem convide.
+ *
  * ## A senha não vem por argumento
  *
  * `--senha` seria a forma mais cômoda e é a errada: argumento de linha de
@@ -122,9 +127,15 @@ export async function criaContaDeEngenheiroDeInstalacao(
     );
   }
 
-  // O único lugar do sistema que liga `usuario.e_engenheiro`. Vai no mesmo
-  // INSERT da conta, e não num UPDATE depois: conta de engenheiro criada pela
-  // metade é conta que não cria obra e que o comando se recusa a recriar.
+  // **Um dos dois únicos caminhos que ligam `usuario.e_engenheiro`**; o outro
+  // é o aceite de convite de engenheiro, em `convite.ts` (decisão 34.1). Este
+  // aqui é o que faz a PRIMEIRA conta, fora da web, e por isso continua
+  // existindo depois da 34.1: sem ele não haveria o primeiro engenheiro para
+  // convidar ninguém.
+  //
+  // Vai no mesmo INSERT da conta, e não num UPDATE depois: conta de engenheiro
+  // criada pela metade é conta que não cria obra e que o comando se recusa a
+  // recriar.
   const criado = await registraUsuario({ nome, email, senha, eEngenheiro: true }, amb);
   if (!criado.ok) return criado;
 

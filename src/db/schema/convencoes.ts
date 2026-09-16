@@ -100,6 +100,32 @@ export function checkMilesimosPositivo(nome: string, coluna: AnySQLiteColumn) {
 }
 
 /**
+ * Exclusão com rastro: os três campos existem juntos ou não existem (30.1).
+ *
+ * Decisão 30.1, de 16/09/2026: o engenheiro exclui qualquer lançamento,
+ * inclusive em dia fechado, e **excluir não apaga linha** — o RDO é documento
+ * contratual, e alteração sem registro deixa duas versões do mesmo dia sem
+ * ninguém saber qual vale. O motivo é obrigatório porque é ele que responde,
+ * meses depois, por que o número mudou; `excluido_em` gravado com o motivo em
+ * branco seria rastro pela metade, que é o mesmo que rastro nenhum.
+ *
+ * Uma regra, quatro tabelas de lançamento, uma função — pelo mesmo motivo de
+ * `checkSaidaNaoAntesDaEntrada`.
+ */
+export function checkExclusao(
+  nome: string,
+  por: AnySQLiteColumn,
+  em: AnySQLiteColumn,
+  motivo: AnySQLiteColumn,
+) {
+  return check(
+    nome,
+    sql`(${em} IS NULL AND ${por} IS NULL AND ${motivo} IS NULL)
+       OR (${em} IS NOT NULL AND ${por} IS NOT NULL AND ${motivo} IS NOT NULL AND length(trim(${motivo})) > 0)`,
+  );
+}
+
+/**
  * Passagem por obra: a saída nunca é anterior à entrada (R14).
  *
  * Uma regra, duas tabelas — `passagem_pessoa` e `passagem_equipamento` —, uma

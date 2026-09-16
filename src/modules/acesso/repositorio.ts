@@ -73,9 +73,11 @@ export function insereUsuario(
     readonly email: string;
     readonly hashDeSenha: string | null;
     /**
-     * Só o comando de instalação manda `true` aqui. Explícito, e não opcional
-     * com padrão: quem escrever o próximo caminho de criação de conta é
-     * obrigado a decidir, e a decisão fica escrita na chamada.
+     * Só o comando de instalação manda `true` aqui — o outro caminho que liga a
+     * coluna é o aceite de convite de engenheiro (34.1), e ele usa
+     * `marcaContaComoEngenheiro`, porque a conta já existe. Explícito, e não
+     * opcional com padrão: quem escrever o próximo caminho de criação de conta
+     * é obrigado a decidir, e a decisão fica escrita na chamada.
      */
     readonly eEngenheiro: boolean;
     readonly criadoEm: Instante;
@@ -91,6 +93,22 @@ export function insereUsuario(
       criadoEm: dados.criadoEm,
     })
     .run();
+}
+
+/**
+ * Liga `usuario.e_engenheiro` de uma conta que já existe.
+ *
+ * **Segundo e último caminho que liga esta coluna** (decisão 34.1). O primeiro
+ * é o comando `npm run criar-engenheiro`, que a grava no INSERT da conta
+ * (`instalacao.ts`). Não há terceiro: quem acrescentar um está mudando quem
+ * pode criar obra (25.1), e isso é decisão de produto.
+ *
+ * Idempotente: ligar o que já está ligado não muda nada. Não existe função para
+ * desligar — tirar o acesso de alguém é revogar o acesso da obra, e desligar a
+ * coluna de quem já assina RDO não tem decisão que a autorize.
+ */
+export function marcaContaComoEngenheiro(db: BancoRdo, usuarioId: UsuarioId): void {
+  db.update(usuario).set({ eEngenheiro: 1 }).where(eq(usuario.id, usuarioId)).run();
 }
 
 export interface LinhaDeSessao {
@@ -252,6 +270,12 @@ export function marcaAcessoRevogado(
 export interface LinhaDeConvite {
   readonly id: ConviteId;
   readonly obraId: ObraId;
+  /**
+   * O perfil que este convite concede (34.1). Quem manda é a **linha**, nunca
+   * o que o aceitante pede: o perfil foi escolhido por quem convidou, e é
+   * gravado no momento em que o link nasce.
+   */
+  readonly perfil: Perfil;
   /** Quem gerou o link. É quem "liberou" o acesso do convidado (CT-073). */
   readonly criadoPor: UsuarioId;
   readonly expiraEm: Instante;
@@ -264,13 +288,14 @@ export function insereConvite(
     readonly id: ConviteId;
     readonly obraId: ObraId;
     readonly tokenHash: string;
+    readonly perfil: Perfil;
     readonly criadoPor: UsuarioId;
     readonly criadoEm: Instante;
     readonly expiraEm: Instante;
   },
 ): void {
   db.insert(convite)
-    .values({ ...dados, perfil: 'encarregado', usadoPor: null, usadoEm: null })
+    .values({ ...dados, usadoPor: null, usadoEm: null })
     .run();
 }
 
@@ -282,6 +307,7 @@ export function buscaConvitePorHash(
     .select({
       id: convite.id,
       obraId: convite.obraId,
+      perfil: convite.perfil,
       criadoPor: convite.criadoPor,
       expiraEm: convite.expiraEm,
       usadoEm: convite.usadoEm,

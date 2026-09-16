@@ -98,9 +98,13 @@ function criaColecaoEmMemoria<L extends LinhaDeLancamento>(): Colecao<L> & {
       if (i >= 0) linhas[i] = linha;
       return Promise.resolve();
     },
-    exclui: (obraId, id) => {
+    // Marca, nunca apaga (30.1). A dupla reproduz o que o banco faz: a linha
+    // fica, e quem some é a leitura. Uma dupla que apagasse esconderia a metade
+    // do rastro que o teste precisa ver.
+    marcaExcluido: (obraId, id, exclusao) => {
       const i = linhas.findIndex((l) => l.obraId === obraId && l.id === id);
-      if (i >= 0) linhas.splice(i, 1);
+      const linha = linhas[i];
+      if (linha !== undefined) linhas[i] = { ...linha, exclusao };
       return Promise.resolve();
     },
   };

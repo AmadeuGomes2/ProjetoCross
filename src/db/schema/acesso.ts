@@ -69,7 +69,15 @@ export const convite = sqliteTable(
       .references(() => obra.id, { onDelete: 'restrict', onUpdate: 'restrict' }),
     /** SHA-256 do token. O token em claro não é gravado em lugar nenhum. */
     tokenHash: text('token_hash').notNull(),
-    perfil: text('perfil').$type<'encarregado'>().notNull(),
+    /**
+     * Perfil que o convite concede na obra.
+     *
+     * Decisão 34.1, de 16/09/2026: **um engenheiro dá acesso de engenheiro a
+     * outra pessoa na obra.** Antes disto a coluna era fixa em `encarregado`, e
+     * a consequência era que a saída do engenheiro travava o cadastro da obra —
+     * só o comando no servidor criava outro (25.1).
+     */
+    perfil: text('perfil').$type<Perfil>().notNull(),
     criadoPor: colunaAutor('criado_por'),
     criadoEm: colunaInstante('criado_em'),
     /** `criado_em` + 7 dias, calculado no servidor (14.0). */
@@ -80,9 +88,10 @@ export const convite = sqliteTable(
   },
   (t) => [
     uniqueIndex('ux_convite_token').on(t.tokenHash),
-    // Na v1 só o encarregado entra por link. Abrir para outro perfil é uma
-    // migration de uma linha, e é melhor que uma rota nova poder inventar.
-    check('ck_convite_perfil', sql`${t.perfil} = 'encarregado'`),
+    // Os dois perfis entram por link (34.1). O CHECK continua fechado na lista:
+    // o perfil chega do formulário, e o banco é a segunda camada que impede uma
+    // rota nova de inventar um terceiro.
+    check('ck_convite_perfil', sql`${t.perfil} IN ('engenheiro', 'encarregado')`),
     checkInstante('ck_convite_criado_em', t.criadoEm),
     checkInstante('ck_convite_expira_em', t.expiraEm),
     checkInstanteOpcional('ck_convite_usado_em', t.usadoEm),

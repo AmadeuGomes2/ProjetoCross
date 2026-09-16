@@ -57,9 +57,11 @@ import {
   ERRO_DIA_FECHADO,
   ERRO_DIA_PARADO,
   ERRO_LANCAMENTO_DE_OUTRO_AUTOR,
+  ERRO_LANCAMENTO_EXCLUIDO,
   ERRO_NAO_ENCONTRADO,
   ERRO_PARADO_COM_ATIVIDADE,
   ERRO_SEM_PERMISSAO,
+  exigeMotivoDeExclusao,
   validaDataDeLancamento,
 } from './regras';
 import type { Colecao, RepositorioDeLancamento } from './repositorio';
@@ -144,6 +146,7 @@ export function criaCasosDeLancamento(deps: DependenciasDeLancamento) {
       raizId: id,
       retificaId: null,
       chaveDeRascunho,
+      exclusao: null,
     };
   }
 
@@ -567,6 +570,8 @@ export function criaCasosDeLancamento(deps: DependenciasDeLancamento) {
     const colecao = colecaoDoTipo(repositorio, comando.conteudo.tipo);
     const linha = await colecao.porId(comando.obraId, comando.lancamentoId);
     if (linha === null) return erro(ERRO_NAO_ENCONTRADO);
+    // Excluído não se corrige: o rastro diria que a linha vale de novo.
+    if (linha.exclusao !== null) return erro(ERRO_LANCAMENTO_EXCLUIDO);
     const dia = await repositorio.dia.obtem(comando.obraId, linha.data);
     const eEngenheiro = acesso.valor.perfil === 'engenheiro';
 
@@ -597,33 +602,58 @@ export function criaCasosDeLancamento(deps: DependenciasDeLancamento) {
   }
 
   /**
-   * Exclusão em dia **aberto**, que é a metade de 30.1 que o esquema de hoje
-   * comporta: o engenheiro exclui o lançamento de qualquer autor, o encarregado
-   * só o dele.
+   * Exclusão com rastro (decisão 30.1). **A linha não é apagada.**
    *
-   * A outra metade — excluir em dia fechado, marcando como excluído com quem,
-   * quando e por quê, em vez de apagar a linha — **não está implementada**, e é
-   * por isso que o dia fechado continua recusado aqui. Ela exige três colunas
-   * novas nas quatro tabelas de lançamento e uma migration, que são de
-   * `src/db/` (ver a pendência P8 de `docs/arquitetura/v1.md` e o relatório da
-   * tarefa). Recusar é a saída segura: apagar a linha de um dia entregue ao
-   * fiscal seria mudança sem rastro, que é exatamente o que 30.1 proíbe.
+   * Quem pode, e é verificado aqui, no servidor:
+   *
+   * - **o engenheiro** exclui o lançamento de qualquer autor, em dia aberto ou
+   *   fechado. É a ampliação que a 30.1 traz, e ela é coerente com a 22.1, que
+   *   já dava ao engenheiro a mudança em dia fechado;
+   * - **o encarregado** continua limitado ao que é dele e ao dia aberto. Dia
+   *   fechado é documento entregue ao fiscal, e mexer nele é do engenheiro.
+   *
+   * O motivo é obrigatório e validado aqui, e não só na borda: o caso de uso é
+   * chamado direto por outros caminhos, e um motivo vazio produziria a linha
+   * sem a resposta de por que o número mudou. O banco repete a exigência num
+   * CHECK, que é a terceira camada.
+   *
+   * Excluir a versão retificada de uma cadeia é recusado: a excluída sairia da
+   * leitura, a sucessora continuaria valendo, e "o que foi excluído" deixaria
+   * de ter resposta única. Exclui-se a versão vigente, como se retifica.
    */
   async function excluiLancamento(comando: ComandoExcluir, ator: Ator): Escrita<void> {
     const acesso = await autoriza(ator, comando.obraId, 'corrigir_lancamento');
     if (!acesso.ok) return acesso;
+    const motivo = exigeMotivoDeExclusao(comando.motivo);
+    if (!motivo.ok) return motivo;
+
     const colecao = colecaoDoTipo(repositorio, comando.tipo);
     const linha = await colecao.porId(comando.obraId, comando.lancamentoId);
     if (linha === null) return erro(ERRO_NAO_ENCONTRADO);
+    if (linha.exclusao !== null) return erro(ERRO_LANCAMENTO_EXCLUIDO);
+
     const dia = await repositorio.dia.obtem(comando.obraId, linha.data);
-    if (eDiaFechado(dia)) return erro(ERRO_DIA_FECHADO);
-    if (
-      acesso.valor.perfil !== 'engenheiro' &&
-      linha.autorId !== acesso.valor.usuarioId
-    ) {
+    const eEngenheiro = acesso.valor.perfil === 'engenheiro';
+    if (eDiaFechado(dia) && !eEngenheiro) return erro(ERRO_DIA_FECHADO);
+    if (!eEngenheiro && linha.autorId !== acesso.valor.usuarioId) {
       return erro(ERRO_LANCAMENTO_DE_OUTRO_AUTOR);
     }
-    await colecao.exclui(comando.obraId, comando.lancamentoId);
+
+    const cadeia = await colecao.cadeia(comando.obraId, linha.raizId);
+    if (!eVigente(linha, cadeia)) {
+      return erro(
+        erroDeDominio(
+          CODIGO_ERRO.NAO_ENCONTRADO,
+          'Este lançamento já foi retificado. Exclua a versão vigente.',
+        ),
+      );
+    }
+
+    await colecao.marcaExcluido(comando.obraId, comando.lancamentoId, {
+      por: acesso.valor.usuarioId,
+      em: agora(),
+      motivo: motivo.valor,
+    });
     return ok(undefined);
   }
 
@@ -677,6 +707,9 @@ export function criaCasosDeLancamento(deps: DependenciasDeLancamento) {
     const colecao = colecaoDoTipo(repositorio, comando.conteudo.tipo);
     const original = await colecao.porId(comando.obraId, comando.lancamentoId);
     if (original === null) return erro(ERRO_NAO_ENCONTRADO);
+    // Excluído não se retifica: retificar é trocar o conteúdo do que vale, e o
+    // excluído não vale mais (30.1).
+    if (original.exclusao !== null) return erro(ERRO_LANCAMENTO_EXCLUIDO);
     const dia = await repositorio.dia.obtem(comando.obraId, original.data);
     if (!eDiaFechado(dia)) {
       return erro(
@@ -709,7 +742,15 @@ export function criaCasosDeLancamento(deps: DependenciasDeLancamento) {
       comando.conteudo,
     );
     if (!novaLinha.ok) return novaLinha;
-    await colecao.grava({ ...novaLinha.valor, atualizadoPor: null, atualizadoEm: null });
+    await colecao.grava({
+      ...novaLinha.valor,
+      atualizadoPor: null,
+      atualizadoEm: null,
+      // A versão nova nasce valendo, mesmo que a base tenha vindo de uma linha
+      // com histórico. O `...original` acima copia tudo, inclusive o que não
+      // pode ser herdado.
+      exclusao: null,
+    });
     return ok(novaLinha.valor.id);
   }
 
@@ -849,12 +890,15 @@ export function criaCasosDeLancamento(deps: DependenciasDeLancamento) {
       a.registradoEm < b.registradoEm ? -1 : 1,
     );
     return ok(
+      // A versão excluída continua aqui, com o motivo: o histórico mostra o que
+      // existia, e é ele que explica por que o número mudou (30.1).
       cadeia.map((versao) => ({
         id: versao.id,
         retificaId: versao.retificaId,
         autorId: versao.autorId,
         registradoEm: versao.registradoEm,
         vigente: eVigente(versao, cadeia),
+        exclusao: versao.exclusao,
         conteudo: versao,
       })),
     );

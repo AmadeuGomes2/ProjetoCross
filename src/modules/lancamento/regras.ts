@@ -51,6 +51,27 @@ export function exigeTextoNaoVazio(
   return ok(texto);
 }
 
+/**
+ * Motivo da exclusão: texto livre **obrigatório** (30.1).
+ *
+ * Mesma forma do motivo de parada e razão diferente: aqui o texto é o que
+ * responde, meses depois, por que o acumulado do RDO mudou. Exclusão sem motivo
+ * é alteração sem rastro, que é o que a decisão existe para impedir.
+ */
+export function exigeMotivoDeExclusao(bruto: string): Result<string, ErroDeEntrada> {
+  const texto = recortaPontas(bruto);
+  if (texto === '') {
+    return erro(
+      erroDeEntrada(
+        CODIGO_ERRO.MOTIVO_OBRIGATORIO,
+        'Informe o motivo da exclusão.',
+        'motivo',
+      ),
+    );
+  }
+  return ok(texto);
+}
+
 /** Motivo de dia parado: texto livre OBRIGATÓRIO (20.1), nunca lista fechada. */
 export function exigeMotivoDeParada(bruto: string): Result<string, ErroDeEntrada> {
   const texto = recortaPontas(bruto);
@@ -202,6 +223,20 @@ export const ERRO_LANCAMENTO_DE_OUTRO_AUTOR: ErroDeDominio = erroDeDominio(
 export const ERRO_NAO_ENCONTRADO: ErroDeDominio = erroDeDominio(
   CODIGO_ERRO.NAO_ENCONTRADO,
   'Lançamento não encontrado nesta obra.',
+);
+
+/**
+ * Decisão 30.1: o lançamento excluído continua no banco, com o rastro, e **não
+ * volta atrás**. Corrigir, retificar ou excluir de novo são todos recusados
+ * aqui, com a mesma frase.
+ *
+ * Desfazer exclusão não existe na v1 e não é invenção desta função: nada no PRD
+ * a prevê. Quem precisar do conteúdo de volta lança de novo, e o histórico
+ * mostra as duas coisas — o que foi excluído, por quê, e o que entrou no lugar.
+ */
+export const ERRO_LANCAMENTO_EXCLUIDO: ErroDeDominio = erroDeDominio(
+  CODIGO_ERRO.LANCAMENTO_EXCLUIDO,
+  'Este lançamento foi excluído. Lance de novo, se for o caso.',
 );
 
 /**

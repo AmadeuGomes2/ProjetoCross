@@ -63,6 +63,25 @@ export interface DiaDeObra {
   readonly numeroRdoCongelado: number | null;
 }
 
+/**
+ * Marca de exclusão (decisão 30.1). **Excluir não apaga linha.**
+ *
+ * Os três campos vêm juntos ou não vêm: um objeto, e não três colunas soltas,
+ * porque "excluído por alguém sem motivo" não pode existir (`padroes-codigo`,
+ * Tipos: "modele o impossível fora do tipo"). O banco repete a amarra num
+ * CHECK, que é a rede para a rota que escrever direto.
+ */
+export interface Exclusao {
+  /** Id de quem excluiu. Nunca nome (CLAUDE.md, Segurança). */
+  readonly por: UsuarioId;
+  readonly em: Instante;
+  /**
+   * Texto livre obrigatório. Sem ele ninguém entende, meses depois, por que o
+   * número do RDO mudou.
+   */
+  readonly motivo: string;
+}
+
 /** Colunas que todo lançamento tem, nas quatro tabelas. */
 export interface LinhaComum {
   readonly id: LancamentoId;
@@ -78,6 +97,8 @@ export interface LinhaComum {
   readonly retificaId: LancamentoId | null;
   /** Idempotência do envio offline: reenviar o mesmo rascunho não duplica. */
   readonly chaveDeRascunho: string | null;
+  /** Nulo enquanto o lançamento vale. Preenchido pela exclusão (30.1). */
+  readonly exclusao: Exclusao | null;
 }
 
 export interface LinhaDeAtividade extends LinhaComum {
@@ -170,6 +191,11 @@ export interface VersaoDeLancamento {
   readonly autorId: UsuarioId;
   readonly registradoEm: Instante;
   readonly vigente: boolean;
+  /**
+   * A versão excluída **continua aparecendo aqui**, com o motivo: o histórico
+   * mostra o que existia, e é ele que explica por que o número mudou (30.1).
+   */
+  readonly exclusao: Exclusao | null;
   readonly conteudo: LinhaDeLancamento;
 }
 
