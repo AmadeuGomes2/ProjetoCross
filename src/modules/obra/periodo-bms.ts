@@ -1,0 +1,207 @@
+/**
+ * Períodos de BMS — o campo `BM'S` do cabeçalho do RDO.
+ *
+ * Decisão 7.1, de 16/09/2026: **não existe ciclo fixo**. O engenheiro cadastra
+ * os períodos (número, início, fim) e o RDO deriva o número pela data do dia.
+ * A tabela legada, que ia de 2022 a 2025 e não cobria 2026, foi descartada.
+ *
+ * R25 e regras-extraidas §8:
+ *
+ *     dias do periodo = data final − data inicial + 1
+ *
+ * O `+ 1` não é detalhe: sem ele, um período de um dia dá zero. E a validação
+ * de "final não anterior à inicial" existe porque o BMS 4 da planilha tem
+ * **−716 dias** e ninguém viu (caso de teste obrigatório 9).
+ */
+
+import { diaEstaNoIntervalo, diferencaEmDias, type DiaPuro } from '../../shared/date/dia';
+import { instanteAgora, type Instante } from '../../shared/date/fuso';
+import { geraId, type ObraId, type PeriodoBmsId, type UsuarioId } from '../../shared/id';
+import {
+  CODIGO_ERRO,
+  erro,
+  erroDeDominio,
+  ok,
+  type ErroDeDominio,
+  type Result,
+} from '../../shared/result';
+import * as repositorio from './repositorio';
+import type { Ambiente, AtorDaObra, PeriodoBms, PeriodoBmsNovo } from './tipos';
+
+/** Derivado, nunca gravado. `final − inicial + 1`. */
+export function diasDoPeriodo(dataInicial: DiaPuro, dataFinal: DiaPuro): number {
+  return diferencaEmDias(dataInicial, dataFinal) + 1;
+}
+
+/**
+ * "Não anterior" inclui o mesmo dia (R14): um período de um dia é válido, e o
+ * dia igual é o limite exato do aceite.
+ */
+export function validaIntervalo(
+  dataInicial: DiaPuro,
+  dataFinal: DiaPuro,
+): Result<void, ErroDeDominio> {
+  if (dataFinal < dataInicial) {
+    return erro(
+      erroDeDominio(
+        CODIGO_ERRO.DATA_FINAL_ANTES_DA_INICIAL,
+        'A data final não pode ser anterior à inicial.',
+      ),
+    );
+  }
+  return ok(undefined);
+}
+
+function seSobrepoem(
+  a: { readonly dataInicial: DiaPuro; readonly dataFinal: DiaPuro },
+  b: { readonly dataInicial: DiaPuro; readonly dataFinal: DiaPuro },
+): boolean {
+  return a.dataInicial <= b.dataFinal && b.dataInicial <= a.dataFinal;
+}
+
+/**
+ * Valida um conjunto de períodos contra si mesmo e contra o que já existe.
+ *
+ * Sobreposição é recusada (arquitetura, decisão 11 e pergunta P5): o `BM'S` é
+ * o que amarra a fatura, e duas respostas para o mesmo dia viram pedido de
+ * correção do fiscal. Não é expressável em `CHECK`, por isso mora aqui.
+ */
+export function validaConjuntoDePeriodos(
+  novos: readonly PeriodoBmsNovo[],
+  existentes: readonly { numero: number; dataInicial: DiaPuro; dataFinal: DiaPuro }[],
+): Result<void, ErroDeDominio> {
+  const acumulados = [...existentes];
+
+  for (const periodo of novos) {
+    const intervalo = validaIntervalo(periodo.dataInicial, periodo.dataFinal);
+    if (!intervalo.ok) return intervalo;
+
+    if (!Number.isInteger(periodo.numero) || periodo.numero < 0) {
+      return erro(
+        erroDeDominio(
+          CODIGO_ERRO.NUMERO_INVALIDO,
+          'O número do período de BMS precisa ser um inteiro não negativo.',
+        ),
+      );
+    }
+
+    if (acumulados.some((p) => p.numero === periodo.numero)) {
+      return erro(
+        erroDeDominio(
+          CODIGO_ERRO.JA_EXISTE,
+          `Já existe o período de BMS ${periodo.numero} nesta obra.`,
+        ),
+      );
+    }
+
+    const conflito = acumulados.find((p) => seSobrepoem(p, periodo));
+    if (conflito !== undefined) {
+      return erro(
+        erroDeDominio(
+          CODIGO_ERRO.DATA_FINAL_ANTES_DA_INICIAL,
+          `Este intervalo se sobrepõe ao período de BMS ${conflito.numero}. Ajuste as datas.`,
+        ),
+      );
+    }
+
+    acumulados.push(periodo);
+  }
+
+  return ok(undefined);
+}
+
+/** Grava os períodos. Usado pela criação da obra e pelo cadastro avulso. */
+export function gravaPeriodos(
+  db: Ambiente['db'],
+  obraId: ObraId,
+  novos: readonly PeriodoBmsNovo[],
+  criadoPor: UsuarioId,
+  criadoEm: Instante,
+): PeriodoBmsId[] {
+  return novos.map((periodo) => {
+    const id = geraId<'periodo_bms'>();
+    repositorio.inserePeriodo(db, {
+      id,
+      obraId,
+      numero: periodo.numero,
+      dataInicial: periodo.dataInicial,
+      dataFinal: periodo.dataFinal,
+      criadoPor,
+      criadoEm,
+    });
+    return id;
+  });
+}
+
+export interface ComandoPeriodoBms {
+  readonly obraId: ObraId;
+  readonly numero: number;
+  readonly dataInicial: DiaPuro;
+  readonly dataFinal: DiaPuro;
+}
+
+export function cadastraPeriodoBms(
+  cmd: ComandoPeriodoBms,
+  ator: AtorDaObra,
+  amb: Ambiente,
+): Result<PeriodoBmsId, ErroDeDominio> {
+  if (repositorio.buscaObra(amb.db, cmd.obraId) === null) {
+    return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Obra não encontrada.'));
+  }
+
+  const existentes = repositorio.listaPeriodos(amb.db, cmd.obraId);
+  const conferencia = validaConjuntoDePeriodos([cmd], existentes);
+  if (!conferencia.ok) return conferencia;
+
+  const ids = gravaPeriodos(
+    amb.db,
+    cmd.obraId,
+    [cmd],
+    ator.usuarioId,
+    instanteAgora(amb.relogio),
+  );
+  const id = ids[0];
+  if (id === undefined) {
+    return erro(
+      erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Não foi possível cadastrar o período.'),
+    );
+  }
+  return ok(id);
+}
+
+export function listaPeriodosBms(
+  obraId: ObraId,
+  amb: Ambiente,
+): Result<PeriodoBms[], ErroDeDominio> {
+  return ok(
+    repositorio.listaPeriodos(amb.db, obraId).map((p) => ({
+      id: p.id,
+      numero: p.numero,
+      dataInicial: p.dataInicial,
+      dataFinal: p.dataFinal,
+      dias: diasDoPeriodo(p.dataInicial, p.dataFinal),
+    })),
+  );
+}
+
+/**
+ * O `BM'S` do cabeçalho: o número do período cujo intervalo contém a data.
+ *
+ * Fronteiras que importam: o **primeiro** e o **último** dia do intervalo são
+ * do período (CT-023, CT-024). É o mesmo erro de `<` contra `≤` que a planilha
+ * comete no efetivo, agora no intervalo do BMS.
+ *
+ * Data não coberta devolve `null` **sem erro** (decisão 21.1): o campo sai
+ * vazio, a tela avisa e o RDO é gerado. A planilha imprime um 7 arbitrário sem
+ * tabela que o sustente; vazio com aviso é honesto, número inventado não é.
+ */
+export function resolveBmsDoDia(
+  obraId: ObraId,
+  dia: DiaPuro,
+  amb: Ambiente,
+): Result<number | null, ErroDeDominio> {
+  const periodo = repositorio
+    .listaPeriodos(amb.db, obraId)
+    .find((p) => diaEstaNoIntervalo(dia, p.dataInicial, p.dataFinal));
+  return ok(periodo?.numero ?? null);
+}

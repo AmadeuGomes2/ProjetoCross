@@ -1,0 +1,241 @@
+/*
+ * Tela do RDO diário, desenhada primeiro para celular, em pé, com uma mão
+ * (CLAUDE.md, seção Mobile).
+ *
+ * Nada de tabela com rolagem horizontal: os 41 pares de função e quantidade
+ * viram uma lista que quebra linha, e o bloco de produção vira um cartão por
+ * serviço. No papel o layout é o da planilha; na tela, o que cabe no polegar.
+ */
+
+.pagina {
+  margin: 0 auto;
+  max-width: 48rem;
+  padding: 1rem 1rem 3rem;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  color: #111;
+}
+
+.titulo {
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.identificacao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.campo {
+  flex: 1 1 8rem;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+}
+
+.rotuloDoCampo {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: #555;
+}
+
+.valorDoCampo {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.bloco {
+  margin-top: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.cabecalhoDoBloco {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  background: #f2f2f2;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.corpoDoBloco {
+  padding: 0.75rem;
+}
+
+.linhaDeCampo {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.2rem 0;
+  font-size: 0.9rem;
+}
+
+.rotulo {
+  min-width: 7.5rem;
+  font-weight: 600;
+}
+
+.colunas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.coluna {
+  flex: 1 1 6rem;
+  min-height: 3rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 0.5rem;
+  padding: 0.4rem;
+  text-align: center;
+}
+
+.rotuloDaColuna {
+  display: block;
+  font-size: 0.7rem;
+  color: #555;
+}
+
+.quantidade {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.total {
+  background: #f2f2f2;
+}
+
+.servico {
+  border-top: 1px solid #eee;
+  padding: 0.6rem 0;
+}
+
+.nomeDoServico {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.numeros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.trilho {
+  margin-top: 0.35rem;
+  height: 0.5rem;
+  border-radius: 0.25rem;
+  background: #e6e6e6;
+  overflow: hidden;
+}
+
+.barra {
+  height: 100%;
+  background: #767171;
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.atividade {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid #eee;
+  padding: 0.6rem 0;
+  font-size: 0.9rem;
+}
+
+.status {
+  color: #555;
+  white-space: nowrap;
+}
+
+.motivo {
+  border-top: 1px solid #eee;
+  padding: 0.6rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.vazio {
+  color: #666;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.resumo {
+  margin-top: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.avisos {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+}
+
+.aviso {
+  border: 1px solid #b58900;
+  border-left-width: 0.35rem;
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  background: #fffbe6;
+}
+
+.rastro {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: #555;
+}
+
+.rastro ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1rem;
+}
+
+.assinaturas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.assinatura {
+  flex: 1 1 12rem;
+  border-top: 1px solid #333;
+  padding-top: 0.4rem;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.erro {
+  margin: 2rem auto;
+  max-width: 32rem;
+  border: 1px solid #c0392b;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  font-size: 1rem;
+}

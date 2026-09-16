@@ -1,0 +1,243 @@
+/**
+ * CT-041 a CT-049 — Equipamento e passagem
+ * (`docs/qa/v1-casos-passos-1-3.md`, F2.2).
+ *
+ * Origem das expectativas: PRD, Funcionalidade 2.2; decisões 1.2 e 19.1; R2,
+ * R3 e R14; `inconsistencias.md` E6 (`EQUIPAMENTO!B7` = `CARRO LOC.`) e a nota
+ * solta de `EQUIPAMENTO!M2`; casos obrigatórios 2 e 8.
+ *
+ * CT-049 tem duas metades. A daqui é a que esta frente responde: o porta de
+ * efetivo **não devolve o tipo**, então o bloco 6 não tem como imprimi-lo. A
+ * outra metade, o PDF, é da frente C.
+ */
+
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import { paraEquipamento } from '../../app/_composicao/ambiente-de-cadastro';
+import {
+  cadastraEquipamentoProtegido,
+  contaEfetivoPorIdentificadorProtegido,
+  listaEquipamentosProtegida,
+  registraPassagemDeEquipamentoProtegida,
+} from '../../app/_composicao/cadastro';
+import { diaPuroConfiavel } from '../../shared/date/dia';
+import { CODIGO_ERRO } from '../../shared/result';
+import {
+  criaObraDoPrd,
+  DADOS_DA_OBRA,
+  montaCenario,
+  type Cenario,
+} from '../../../test/fixtures/cenario-de-cadastro';
+import { criaObraProtegida } from '../../app/_composicao/cadastro';
+import type { Ator } from '../../modules/acesso';
+import type { ObraId } from '../../shared/id';
+import { listaEquipamentosDaObra } from './casos-de-uso';
+
+let cenario: Cenario;
+let e1: Ator;
+let obraId: ObraId;
+
+beforeEach(() => {
+  cenario = montaCenario();
+  e1 = cenario.novoAtor('e1@exemplo.invalido');
+  obraId = criaObraDoPrd(e1, cenario.amb);
+});
+
+afterEach(() => {
+  cenario.fecha();
+});
+
+function cadastra(
+  identificador: string,
+  tipo: string,
+  entrada: string,
+  saida?: string,
+  obra: ObraId = obraId,
+  ator: Ator = e1,
+) {
+  return cadastraEquipamentoProtegido(
+    ator,
+    obra,
+    saida === undefined
+      ? { identificador, tipo, entrada }
+      : { identificador, tipo, entrada, saida },
+    cenario.amb,
+  );
+}
+
+function efetivo(dia: string) {
+  const resultado = contaEfetivoPorIdentificadorProtegido(
+    e1,
+    obraId,
+    diaPuroConfiavel(dia),
+    cenario.amb,
+  );
+  if (!resultado.ok) throw new Error(resultado.erro.mensagem);
+  return resultado.valor;
+}
+
+describe('F2.2 — cadastro de equipamento e passagens', () => {
+  it('CT-041 cadastra o equipamento por identificador, com passagem em aberto', () => {
+    expect(cadastra('CF-29', 'PATROL', '2026-02-05').ok).toBe(true);
+
+    const lista = listaEquipamentosProtegida(e1, obraId, cenario.amb);
+    expect(lista.ok).toBe(true);
+    if (!lista.ok) return;
+
+    const cf29 = lista.valor.find((e) => e.identificador === 'CF-29');
+    expect(cf29?.passagens).toEqual([
+      { id: expect.any(String), entrada: '2026-02-05', saida: null },
+    ]);
+  });
+
+  it('CT-042 recusa identificador repetido na mesma obra e diz o motivo', () => {
+    expect(cadastra('CF-29', 'PATROL', '2026-02-05').ok).toBe(true);
+    const resultado = cadastra('CF-29', 'RETRO', '2026-03-01');
+
+    expect(resultado.ok).toBe(false);
+    if (resultado.ok) return;
+    expect(resultado.erro.mensagem).toBe(
+      'Este identificador já existe nesta obra. Use outro.',
+    );
+  });
+
+  it('CT-043 aceita o mesmo identificador em outra obra: a frota circula', () => {
+    expect(cadastra('CF-29', 'PATROL', '2026-02-05').ok).toBe(true);
+
+    const e2 = cenario.novoAtor('e2@exemplo.invalido');
+    const outra = criaObraProtegida(
+      e2,
+      { ...DADOS_DA_OBRA, contrato: 'P0999/01-25 - OUTRA' },
+      cenario.amb,
+    );
+    expect(outra.ok).toBe(true);
+    if (!outra.ok) return;
+
+    expect(cadastra('CF-29', 'PATROL', '2026-02-05', undefined, outra.valor, e2).ok).toBe(
+      true,
+    );
+  });
+
+  it('CT-044 equipamento que sai e volta tem duas passagens e um só cadastro', () => {
+    const criado = cadastra('MT-26', 'BASCULA', '2026-02-05', '2026-02-18');
+    expect(criado.ok).toBe(true);
+    if (!criado.ok) return;
+
+    const segunda = registraPassagemDeEquipamentoProtegida(
+      e1,
+      obraId,
+      { equipamentoId: criado.valor, entrada: '2026-03-01' },
+      cenario.amb,
+    );
+    expect(segunda.ok).toBe(true);
+
+    const lista = listaEquipamentosDaObra(obraId, paraEquipamento(cenario.amb));
+    expect(lista.ok && lista.valor).toHaveLength(1);
+    expect(lista.ok && lista.valor[0]?.passagens).toHaveLength(2);
+  });
+
+  it('CT-045 recusa saída anterior à entrada', () => {
+    const resultado = cadastra('RE-17', 'RETRO', '2026-02-05', '2026-02-04');
+
+    expect(resultado.ok).toBe(false);
+    if (resultado.ok) return;
+    expect(resultado.erro.codigo).toBe(CODIGO_ERRO.DATA_FINAL_ANTES_DA_INICIAL);
+  });
+
+  it('CT-046 aceita saída no mesmo dia da entrada', () => {
+    expect(cadastra('RE-18', 'RETRO', '2026-02-05', '2026-02-05').ok).toBe(true);
+
+    const lista = listaEquipamentosDaObra(obraId, paraEquipamento(cenario.amb));
+    expect(lista.ok && lista.valor[0]?.passagens[0]).toEqual({
+      id: expect.any(String),
+      entrada: '2026-02-05',
+      saida: '2026-02-05',
+    });
+  });
+
+  it('CT-047 recusa no servidor o cadastro de equipamento enviado por encarregado', () => {
+    const c1 = cenario.novoAtor('c1@exemplo.invalido');
+    cenario.conexao.sqlite
+      .prepare(
+        `INSERT INTO acesso (id, obra_id, usuario_id, perfil, liberado_por, liberado_em)
+         VALUES (?, ?, ?, 'encarregado', ?, ?)`,
+      )
+      .run(
+        '77777777-7777-4777-8777-777777777777',
+        obraId,
+        c1.usuarioId,
+        e1.usuarioId,
+        '2026-09-16T12:00:00.000Z',
+      );
+
+    const resultado = cadastra('TP-41', 'TRATOR', '2026-02-05', undefined, obraId, c1);
+
+    expect(resultado.ok).toBe(false);
+    const lista = listaEquipamentosDaObra(obraId, paraEquipamento(cenario.amb));
+    expect(lista.ok && lista.valor).toHaveLength(0);
+  });
+
+  it('CT-048 aceita o identificador real "CARRO LOC.", sem placa', () => {
+    expect(cadastra('CARRO LOC.', 'CARRO', '2026-02-05').ok).toBe(true);
+
+    const lista = listaEquipamentosDaObra(obraId, paraEquipamento(cenario.amb));
+    expect(lista.ok && lista.valor[0]?.identificador).toBe('CARRO LOC.');
+  });
+
+  it('CT-049 o efetivo devolve o identificador e nunca o tipo', () => {
+    expect(cadastra('CF-29', 'PATROL', '2026-02-05').ok).toBe(true);
+
+    const linha = efetivo('2026-09-03')[0];
+    expect(linha?.identificador).toBe('CF-29');
+    expect(Object.keys(linha ?? {})).toEqual([
+      'equipamentoId',
+      'identificador',
+      'quantidade',
+    ]);
+    expect(JSON.stringify(efetivo('2026-09-03'))).not.toContain('PATROL');
+  });
+
+  it('recusa tipo de equipamento fora da taxonomia', () => {
+    const resultado = cadastra('XX-01', 'GUINDASTE', '2026-02-05');
+    expect(resultado.ok).toBe(false);
+  });
+});
+
+describe('efetivo por identificador — fronteiras da regra R1 aplicada por 1.2', () => {
+  it('conta o equipamento no próprio dia da entrada', () => {
+    expect(cadastra('CF-29', 'PATROL', '2026-02-05').ok).toBe(true);
+    expect(efetivo('2026-02-05')).toHaveLength(1);
+  });
+
+  it('não conta o equipamento no dia anterior à entrada', () => {
+    expect(cadastra('CF-29', 'PATROL', '2026-02-05').ok).toBe(true);
+    expect(efetivo('2026-02-04')).toEqual([]);
+  });
+
+  it('conta o equipamento no dia da saída, pela mesma regra da pessoa', () => {
+    // Decisão 1.2: acabou a divergência da planilha, que tinha três
+    // comportamentos diferentes para o bloco de equipamento.
+    expect(cadastra('CF-29', 'PATROL', '2026-02-05', '2026-02-18').ok).toBe(true);
+    expect(efetivo('2026-02-18')).toHaveLength(1);
+  });
+
+  it('não conta o equipamento no dia seguinte à saída', () => {
+    expect(cadastra('CF-29', 'PATROL', '2026-02-05', '2026-02-18').ok).toBe(true);
+    expect(efetivo('2026-02-19')).toEqual([]);
+  });
+
+  it('conta uma vez o equipamento que tem duas passagens', () => {
+    const criado = cadastra('MT-26', 'BASCULA', '2026-02-05', '2026-02-18');
+    expect(criado.ok).toBe(true);
+    if (!criado.ok) return;
+    registraPassagemDeEquipamentoProtegida(
+      e1,
+      obraId,
+      { equipamentoId: criado.valor, entrada: '2026-03-01' },
+      cenario.amb,
+    );
+
+    expect(efetivo('2026-03-05')).toHaveLength(1);
+    expect(efetivo('2026-02-25')).toEqual([]);
+  });
+});

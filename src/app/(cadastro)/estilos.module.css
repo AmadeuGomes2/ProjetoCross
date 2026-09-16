@@ -1,0 +1,128 @@
+/*
+ * Telas de cadastro.
+ *
+ * CLAUDE.md, Mobile: toda tela é desenhada primeiro para celular, em pé, com
+ * uma mão. Estas são do engenheiro, que costuma estar no escritório, mas o
+ * mínimo continua valendo: alvo de toque grande, nada de tabela com rolagem
+ * horizontal, uma coluna que cresce para duas quando há espaço.
+ */
+
+.pagina {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 1rem;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+.bloco {
+  border: 1px solid #d0d0d0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.titulo {
+  font-size: 1.25rem;
+  margin: 0 0 0.75rem;
+}
+
+.campo {
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.campo > span {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.campo input,
+.campo select {
+  /* 44 px de altura mínima: alvo de toque de quem está de luva. */
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem;
+  font-size: 1rem;
+  border: 1px solid #9a9a9a;
+  border-radius: 0.375rem;
+  box-sizing: border-box;
+}
+
+.botao {
+  min-height: 2.75rem;
+  padding: 0.5rem 1.25rem;
+  font-size: 1rem;
+  border: 0;
+  border-radius: 0.375rem;
+  background: #16457a;
+  color: #fff;
+  cursor: pointer;
+}
+
+.erro {
+  border-left: 4px solid #a11;
+  background: #fdf0f0;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border-radius: 0.25rem;
+}
+
+.aviso {
+  border-left: 4px solid #b58100;
+  background: #fdf8e8;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border-radius: 0.25rem;
+}
+
+.lista {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.lista li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.duasColunas {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0 1rem;
+}
+
+@media (min-width: 40rem) {
+  .duasColunas {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.navegacao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.navegacao a {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  border: 1px solid #16457a;
+  border-radius: 0.375rem;
+  color: #16457a;
+  text-decoration: none;
+}
+
+.link {
+  word-break: break-all;
+  font-family: ui-monospace, monospace;
+  background: #f3f3f3;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  display: block;
+}

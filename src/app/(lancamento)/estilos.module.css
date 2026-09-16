@@ -1,0 +1,265 @@
+/*
+ * Lançamento, desenhado primeiro para celular em pé, com uma mão.
+ *
+ * CLAUDE.md, Mobile: o encarregado lança no canteiro, possivelmente com luva,
+ * sol na tela e sinal instável. A comparação não é com outro software: é com
+ * mandar um áudio no WhatsApp, que custa três segundos.
+ *
+ * Daí as escolhas: alvo de toque de 60px (o dedo com luva erra alvo pequeno),
+ * texto de 18px para cima, contraste alto para sol na tela, tudo empilhado em
+ * coluna única — nada de tabela com rolagem horizontal.
+ */
+
+.tela {
+  --tinta: #10151b;
+  --papel: #ffffff;
+  --realce: #0b4f2c;
+  --recuo: #eef1f4;
+  --alerta: #8a2b06;
+  --aviso: #6b4a00;
+
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 16px 16px 96px;
+  max-width: 640px;
+  min-height: 100dvh;
+  color: var(--tinta);
+  background: var(--papel);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.tela * {
+  box-sizing: border-box;
+}
+
+.cabecalho {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.data {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.diaDaSemana {
+  margin: 0;
+  font-size: 18px;
+  color: #465061;
+}
+
+.estado {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--recuo);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.pilha {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cartao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 72px;
+  padding: 16px;
+  border: 2px solid var(--recuo);
+  border-radius: 14px;
+  color: inherit;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.cartaoContagem {
+  color: #465061;
+  font-weight: 700;
+}
+
+.botao {
+  display: block;
+  width: 100%;
+  min-height: 60px;
+  padding: 14px 16px;
+  border: 2px solid var(--realce);
+  border-radius: 14px;
+  background: var(--realce);
+  color: #fff;
+  font-size: 19px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.botaoSecundario {
+  composes: botao;
+  border-color: var(--tinta);
+  background: transparent;
+  color: var(--tinta);
+}
+
+.botao:disabled {
+  opacity: 0.5;
+}
+
+.grupoDeEscolha {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.grupoDeTurno {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.escolha {
+  min-height: 60px;
+  padding: 10px;
+  border: 2px solid var(--tinta);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--tinta);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.escolhaMarcada {
+  composes: escolha;
+  border-color: var(--realce);
+  background: var(--realce);
+  color: #fff;
+}
+
+.sugestoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sugestao {
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 2px solid var(--recuo);
+  border-radius: 999px;
+  background: var(--recuo);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rotulo {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.campo {
+  width: 100%;
+  min-height: 60px;
+  padding: 12px 14px;
+  border: 2px solid #46506180;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--tinta);
+  font: inherit;
+}
+
+.campoTexto {
+  composes: campo;
+  min-height: 120px;
+  resize: vertical;
+}
+
+.secao {
+  margin: 24px 0;
+}
+
+.tituloDeSecao {
+  margin: 0 0 12px;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.recado {
+  padding: 14px 16px;
+  border-left: 6px solid var(--aviso);
+  border-radius: 8px;
+  background: #fff6e0;
+  font-size: 17px;
+}
+
+.recadoErro {
+  composes: recado;
+  border-left-color: var(--alerta);
+  background: #fdeceb;
+}
+
+.recadoBom {
+  composes: recado;
+  border-left-color: var(--realce);
+  background: #e9f5ee;
+}
+
+.listaDeItens {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  padding: 14px 16px;
+  border: 2px solid var(--recuo);
+  border-radius: 14px;
+}
+
+.itemStatus {
+  display: block;
+  margin-top: 4px;
+  color: #465061;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.naoEnviado {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #fff6e0;
+  color: var(--aviso);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.voltar {
+  display: inline-block;
+  margin-bottom: 16px;
+  padding: 8px 0;
+  color: var(--tinta);
+  font-weight: 700;
+}

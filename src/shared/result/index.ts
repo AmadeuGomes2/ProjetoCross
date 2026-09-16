@@ -37,6 +37,21 @@ export const CODIGO_ERRO = {
   DIA_JA_TEM_ATIVIDADE: 'DIA_JA_TEM_ATIVIDADE',
   FORA_DO_PERIODO_DA_OBRA: 'FORA_DO_PERIODO_DA_OBRA',
   FALHA_INESPERADA: 'FALHA_INESPERADA',
+
+  /**
+   * Códigos acrescentados na integração das três frentes.
+   *
+   * As frentes vinham usando `TERMO_VAZIO` como código genérico, em 38 lugares,
+   * porque não podiam tocar em `src/shared/`. Estavam certas em não tocar, e o
+   * genérico é defeito: o código é chave de tradução e de log, e um código só
+   * para tudo apaga a informação justamente onde ela seria útil.
+   */
+  JA_EXISTE: 'JA_EXISTE',
+  CAMPO_OBRIGATORIO: 'CAMPO_OBRIGATORIO',
+  TEXTO_LONGO_DEMAIS: 'TEXTO_LONGO_DEMAIS',
+  VALOR_FORA_DA_LISTA: 'VALOR_FORA_DA_LISTA',
+  NUMERO_INVALIDO: 'NUMERO_INVALIDO',
+  PERIODOS_SOBREPOSTOS: 'PERIODOS_SOBREPOSTOS',
 } as const;
 
 export type CodigoErro = (typeof CODIGO_ERRO)[keyof typeof CODIGO_ERRO];
