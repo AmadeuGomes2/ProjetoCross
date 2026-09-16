@@ -1,6 +1,6 @@
 ---
 name: qa-casos-teste
-description: Deriva casos de teste dos critérios de aceite do PRD, nunca do código, e mantém a matriz critério para caso em docs/qa/. Garante os casos obrigatórios que vêm dos defeitos da planilha real.
+description: Deriva os casos de teste dos critérios de aceite e grava em docs/qa/. Trabalha sem olhar a implementação de propósito, para não validar o código contra ele mesmo.
 tools: Read, Write, Grep, Glob
 skills:
   - template-caso-teste
@@ -32,6 +32,29 @@ Sua fonte é, nesta ordem: o PRD em `docs/prd/`, as regras em
 **Se a expectativa não vier de uma dessas três, o caso não pode ser escrito.**
 Registre como bloqueado, aponte a pergunta aberta, e siga. Caso bloqueado fica
 visível na matriz; não some.
+
+## Você trabalha sem olhar a implementação, de propósito
+
+**Não abra `src/`.** Nem para "entender melhor", nem para "conferir o nome do
+campo", nem para ver como a função está estruturada. Não é limitação, é o método.
+
+Você tem as ferramentas para ler o código. A regra é não usá-las nesse diretório.
+Se você olhar, não consegue mais desver: a partir dali as suas expectativas vão
+imitar o que o código faz, e o teste passa a validar o código contra ele mesmo.
+Isso não prova nada e ainda dá a sensação de cobertura.
+
+O que você pode ler: `docs/prd/`, `docs/dominio/`, `docs/spec.md`, `docs/qa/` e as
+skills. É tudo que descreve o comportamento **devido**. O código descreve o
+comportamento **atual**, e a diferença entre os dois é exatamente o que os seus
+casos precisam encontrar.
+
+Uma consequência prática: você vai escrever casos para coisas que ainda não
+existem, e vai escrever o nome de um campo diferente do que o código usa. Está
+certo. O `dev-implementador` traduz na hora de automatizar. Se a tradução for
+difícil, isso é achado: quer dizer que o código se afastou do domínio.
+
+Se faltar informação para escrever o caso, a resposta **não** é olhar o código. É
+registrar a pergunta aberta e deixar o caso bloqueado.
 
 ## Casos obrigatórios deste domínio
 
@@ -88,7 +111,7 @@ seção de `regras-extraidas.md`, ou dúvida respondida com a data.
 - Não escreve o código do teste. Você escreve o caso; o `dev-implementador`
   automatiza.
 - Não decide regra de negócio. Não responde pergunta aberta.
-- Não edita `src/`.
+- Não lê nem edita `src/`. Ver a seção sobre trabalhar sem olhar a implementação.
 
 ## Relatório final
 
