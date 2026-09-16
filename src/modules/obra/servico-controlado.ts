@@ -7,7 +7,7 @@
  *   texto. Renomear o serviço não pode zerar o acumulado.
  * - **R15:** a quantidade de projeto é **versionada**: quem mudou, quando, de
  *   quanto para quanto. Na planilha as quatro quantidades vêm de um arquivo em
- *   `\\192.168.1.55` sem aviso de estar desatualizado, e o denominador do
+ *   `\\<servidor-interno>` sem aviso de estar desatualizado, e o denominador do
  *   percentual não tem rastro nenhum.
  *
  * A vigente é sempre a **última versão**, e não existe cópia dela no serviço:

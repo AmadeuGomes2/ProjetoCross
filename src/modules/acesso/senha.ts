@@ -20,13 +20,24 @@
 
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 
-/** Custo de CPU/memória. 128 · N · r · p = 16 MiB por verificação. */
-const N = 16384;
+/**
+ * Custo de CPU e memória: 128 · N · r · p, ou seja 128 MiB por verificação.
+ *
+ * O OWASP pede N de 2^17 com r=8 e p=1, ou N de 2^16 com p=2 quando a memória
+ * aperta. Ficamos no segundo: 2^16 com p=2 dá o mesmo trabalho total com pico
+ * de memória menor por chamada.
+ *
+ * Elevar isto é seguro para senha já cadastrada: o hash guarda os próprios N,
+ * r e p, e `decompoe` os lê na conferência. Hash antigo continua conferindo com
+ * o custo antigo; o novo custo vale para senha criada ou trocada daqui em
+ * diante.
+ */
+const N = 65536;
 const R = 8;
-const P = 1;
+const P = 2;
 const BYTES_DE_CHAVE = 64;
 const BYTES_DE_SAL = 16;
-const MAX_MEM = 64 * 1024 * 1024;
+const MAX_MEM = 256 * 1024 * 1024;
 
 const PREFIXO = 'scrypt';
 

@@ -341,7 +341,7 @@ resultado contra o modelo.
 ### G1. Dependência de arquivo em servidor de arquivos
 
 As 4 quantidades de projeto em `PRODUÇÃO!C2:C5` vêm de um `.xlsx` em
-`\\192.168.1.55`. Fora da rede da empresa, o valor em cache é usado **sem nenhum
+`\\<servidor-interno>`. Fora da rede da empresa, o valor em cache é usado **sem nenhum
 aviso de que pode estar desatualizado**.
 
 ### G2. Link para o RDO de outra obra e de outro cliente

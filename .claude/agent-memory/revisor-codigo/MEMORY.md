@@ -1,0 +1,2 @@
+- [Defeitos recorrentes](defeitos-recorrentes.md) — padrões já apontados, com contagem; base para detectar reincidência e propor regra nova.
+- [Frentes paralelas da v1](frentes-paralelas-v1.md) — três agentes cegos entre si: revisar a raiz de composição ANTES dos módulos.

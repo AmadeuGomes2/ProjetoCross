@@ -312,15 +312,21 @@ segurança este VBA é inofensivo; do ponto de vista funcional está quebrado.
 
 ## 5. Ligações externas
 
+> O endereço do servidor de arquivos foi **redigido** deste documento em
+> 16/09/2026 e aparece como `<servidor-interno>`. O achado continua sendo o
+> mesmo: a planilha depende de um caminho de rede interno da empresa. O octeto
+> não acrescenta nada à análise e é topologia de rede num repositório, o que o
+> `CLAUDE.md`, seção Segurança, proíbe.
+
 Três referências a pastas externas, todas em servidor de arquivos interno:
 
 1. `Mapa Controle - PMMC_BLOCO 02.rev00.xlsx`, em
-   `\\192.168.1.55\Engenharia\01. OBRAS\190. PMMC - BLOCO 02\04. Planejamento\02. Plano de Trabalho\`.
+   `\\<servidor-interno>\Engenharia\01. OBRAS\190. PMMC - BLOCO 02\04. Planejamento\02. Plano de Trabalho\`.
    É a única viva: as 4 quantidades de projeto em `PRODUÇÃO!C2:C5` vêm dela.
 2. `samradapps_datepicker.xlam`, um suplemento de calendário instalado no Office
    da máquina. Não é usada por nenhuma fórmula.
 3. `MARÇO- 2025.xlsm`, em
-   `\\192.168.1.55\Engenharia\01. OBRAS\186. TURANO - PAVIMENTAÇÃO EUROFARMA\04. Planejamento\05. RDO - Relatorio de Obra\`.
+   `\\<servidor-interno>\Engenharia\01. OBRAS\186. TURANO - PAVIMENTAÇÃO EUROFARMA\04. Planejamento\05. RDO - Relatorio de Obra\`.
    **É o RDO de outra obra, de outro cliente.** Vestígio de a planilha ter sido
    criada por cópia. Não é usada por nenhuma fórmula, mas vaza o nome de um
    contrato de terceiro.
