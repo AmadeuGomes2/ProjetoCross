@@ -88,3 +88,4 @@ desktop.ini
 # Claude Code — configuração local da máquina, não do projeto
 # ---------------------------------------------------------------------------
 .claude/settings.local.json
+.claude/subagentes.log
