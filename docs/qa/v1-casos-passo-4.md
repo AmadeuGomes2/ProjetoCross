@@ -36,12 +36,20 @@
 **CT-095 · feliz · dec. 4.1 · F5.4 c."dia parado mostra o motivo na primeira linha"**
 **Dado** 06/09/2026 parado. **Quando** a quantidade de atividades do dia é derivada. **Então** é zero. **Por que existe:** o motivo ocupa a primeira linha do bloco 8 mas não é atividade; contá-lo como uma inflaria a contagem e o limite de 15.
 
-**CT-096 · inválido · BLOQUEADO · contradição entre F4.1 c."motivo Outro sem complemento" e dec. 20.1**
-**Dado** "B02". **Quando** "C1" marca 09/09/2026 como parado com motivo "Outro" e complemento vazio. **Então** _&lt;indefinido&gt;_. **Por que existe:** o cenário do PRD (`docs/prd/v1.md:841`) exige complemento para o motivo "Outro", mas a decisão 20.1 (`v1.md:73` e `v1.md:316`) removeu o campo complemento, e a seção de proposta (`v1.md:269`) diz que ele continua existindo e é opcional. Três textos, três regras. Sem decisão, o caso não pode ter expectativa. **Status: bloqueado, pergunta aberta 1.**
+**CT-096 · feliz · motivo fora das oito sugestões é aceito**
 
----
+- **Critério:** F4.1, decisão 20.1
+- **Origem da expectativa:** decisão 20.1 de 16/09/2026 — o motivo é texto livre
+  obrigatório; as oito sugestões preenchem o campo sem fechá-lo
+- **Por que existe:** era o caso bloqueado pela contradição do PRD sobre o campo
+  `complemento`. A contradição foi resolvida: o campo não existe, porque o texto
+  livre já o absorve. Validar o motivo contra a lista de sugestões é defeito, e
+  é isso que este caso trava.
 
-## F4.2 — Lançar atividades (`lancamento-atividade.test.ts`)
+**Dado** a obra "B02" e o encarregado "C1" com acesso a ela
+**Quando** "C1" marca 09/09/2026 como parado com o motivo "Visita técnica da concessionária"
+**Então** o dia 09/09/2026 fica com estado "parado" e motivo "Visita técnica da concessionária"
+**E** nenhum erro de validação é levantado por o motivo não estar nas sugestões
 
 **CT-097 · feliz · F4.2 c."atividade com descrição e status da taxonomia"**
 **Dado** 03/09/2026 aberto e trabalhado. **Quando** "C1" lança "Fresagem da Rua A, estacas 10 a 14" com status "Produção". **Então** existe um lançamento com essa data, descrição, status, autor "C1" e hora de registro. **Por que existe:** é o registro atômico do R16, base de tudo que o RDO calcula.

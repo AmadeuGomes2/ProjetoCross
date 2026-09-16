@@ -39,8 +39,8 @@
 **CT-180 · feliz · caso obrigatório 15 · R9**
 **Dado** "B02". **Quando** "E1" abre o RDO de 03/09/2026. **Então** a data é exibida como "03/09/2026" e em lugar nenhum da tela aparece "09/03/2026". **Por que existe:** metade das abas da planilha usa formato americano; 03/09 e 09/03 trocam de significado conforme a aba.
 
-**CT-181 · negativo · BLOQUEADO · pergunta aberta 2**
-**Dado** "B02" com início 05/02/2026. **Quando** "E1" pede o RDO de 04/02/2026. **Então** _&lt;indefinido&gt;_. **Por que existe:** a 13.1 rejeita **lançamento** com data fora do período da obra, mas o PRD não diz o que acontece ao **consultar** um dia anterior ao início. Pela R4 o número seria -1, e um RDO numerado -1 não existe no contrato. Duas saídas plausíveis (recusar a consulta ou gerar RDO sem número) e nenhuma escrita. **Status: bloqueado.**
+**CT-181 · negativo · dec. 23.1 · F5.1**
+**Dado** "B02" com início 05/02/2026. **Quando** "E1" pede o RDO de 04/02/2026. **Então** o RDO não é gerado, e a tela diz que a data está fora do período do contrato. **Por que existe:** era o caso bloqueado por falta de regra. A decisão 23.1, de 16/09/2026, fechou: consultar dia fora do período da obra não gera documento. É coerente com a 13.1, que já rejeita lançamento nessa data, e evita o RDO de número -1, que não existe no contrato.
 
 ---
 
