@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { intervaloCobreODia } from './intervalo';
+import {
+  conflitaComAlgum,
+  intervalosSeSobrepoem,
+  intervaloCobreODia,
+  ordemDasDatasEstaInvertida,
+} from './intervalo';
 
 /**
  * A regra que decide o efetivo do RDO.
@@ -120,5 +125,107 @@ describe('intervaloCobreODia, pessoa que sai e volta', () => {
       false,
     );
     expect(intervaloCobreODia(segunda.entrada, segunda.saida, '2026-03-10')).toBe(true);
+  });
+});
+
+describe('ordemDasDatasEstaInvertida', () => {
+  /**
+   * Caso de teste obrigatório 9. Origem: o período de BMS 4 da planilha real
+   * tem início em 01/12/2024 e fim em 15/12/2022, ou seja, -716 dias.
+   */
+  it('acusa fim anterior ao início', () => {
+    expect(ordemDasDatasEstaInvertida({ inicio: '2024-12-01', fim: '2022-12-15' })).toBe(
+      true,
+    );
+  });
+
+  it('aceita fim igual ao início, que é período de um dia', () => {
+    expect(ordemDasDatasEstaInvertida({ inicio: '2026-03-01', fim: '2026-03-01' })).toBe(
+      false,
+    );
+  });
+
+  it('aceita ordem correta e fim em aberto', () => {
+    expect(ordemDasDatasEstaInvertida({ inicio: '2026-02-10', fim: '2026-02-20' })).toBe(
+      false,
+    );
+    expect(ordemDasDatasEstaInvertida({ inicio: '2026-02-10', fim: null })).toBe(false);
+  });
+});
+
+describe('intervalosSeSobrepoem', () => {
+  const fevereiro = { inicio: '2026-02-01', fim: '2026-02-28' };
+
+  it('não se sobrepõem quando um termina antes do outro começar', () => {
+    expect(
+      intervalosSeSobrepoem(fevereiro, { inicio: '2026-03-01', fim: '2026-03-31' }),
+    ).toBe(false);
+    expect(
+      intervalosSeSobrepoem({ inicio: '2026-01-01', fim: '2026-01-31' }, fevereiro),
+    ).toBe(false);
+  });
+
+  // Fronteira: um dia de distância não é sobreposição.
+  it('não se sobrepõem quando são dias consecutivos', () => {
+    expect(intervalosSeSobrepoem(fevereiro, { inicio: '2026-03-01', fim: null })).toBe(
+      false,
+    );
+  });
+
+  // Fronteira: compartilhar um único dia JÁ é sobreposição.
+  it('se sobrepõem quando compartilham só o último dia', () => {
+    expect(
+      intervalosSeSobrepoem(fevereiro, { inicio: '2026-02-28', fim: '2026-03-15' }),
+    ).toBe(true);
+  });
+
+  it('se sobrepõem quando compartilham só o primeiro dia', () => {
+    expect(
+      intervalosSeSobrepoem(fevereiro, { inicio: '2026-01-10', fim: '2026-02-01' }),
+    ).toBe(true);
+  });
+
+  it('se sobrepõem quando um contém o outro', () => {
+    expect(
+      intervalosSeSobrepoem(fevereiro, { inicio: '2026-02-10', fim: '2026-02-12' }),
+    ).toBe(true);
+  });
+
+  it('intervalo aberto se sobrepõe a tudo que vem depois do seu início', () => {
+    expect(intervalosSeSobrepoem({ inicio: '2026-01-01', fim: null }, fevereiro)).toBe(
+      true,
+    );
+  });
+
+  it('dois intervalos abertos sempre se sobrepõem', () => {
+    expect(
+      intervalosSeSobrepoem(
+        { inicio: '2020-01-01', fim: null },
+        { inicio: '2030-01-01', fim: null },
+      ),
+    ).toBe(true);
+  });
+});
+
+describe('conflitaComAlgum', () => {
+  const existentes = [
+    { inicio: '2026-02-01', fim: '2026-02-28' },
+    { inicio: '2026-04-01', fim: '2026-04-30' },
+  ];
+
+  it('não conflita quando cabe na folga entre os dois', () => {
+    expect(
+      conflitaComAlgum({ inicio: '2026-03-01', fim: '2026-03-31' }, existentes),
+    ).toBe(false);
+  });
+
+  it('conflita quando encosta no segundo', () => {
+    expect(
+      conflitaComAlgum({ inicio: '2026-03-01', fim: '2026-04-01' }, existentes),
+    ).toBe(true);
+  });
+
+  it('não conflita quando não há nenhum existente', () => {
+    expect(conflitaComAlgum({ inicio: '2026-03-01', fim: null }, [])).toBe(false);
   });
 });

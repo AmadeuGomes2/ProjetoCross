@@ -51,7 +51,15 @@ export const CODIGO_ERRO = {
   TEXTO_LONGO_DEMAIS: 'TEXTO_LONGO_DEMAIS',
   VALOR_FORA_DA_LISTA: 'VALOR_FORA_DA_LISTA',
   NUMERO_INVALIDO: 'NUMERO_INVALIDO',
-  PERIODOS_SOBREPOSTOS: 'PERIODOS_SOBREPOSTOS',
+  /**
+   * Dois intervalos que não podiam coexistir se sobrepõem: duas passagens da
+   * mesma pessoa, dois períodos de BMS com o mesmo trecho de calendário.
+   *
+   * Não confundir com `DATA_FINAL_ANTES_DA_INICIAL`, que é um intervalo só,
+   * invertido. Três lugares usavam aquele código para dizer isto, e a mensagem
+   * exibida contradizia o código gravado no log.
+   */
+  INTERVALO_SOBREPOSTO: 'INTERVALO_SOBREPOSTO',
 } as const;
 
 export type CodigoErro = (typeof CODIGO_ERRO)[keyof typeof CODIGO_ERRO];
