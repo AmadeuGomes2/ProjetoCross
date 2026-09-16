@@ -1,0 +1,90 @@
+# ---------------------------------------------------------------------------
+# DADO DE OBRA E DADO PESSOAL — nunca versionar
+# A planilha de RDO contém nomes de trabalhadores, CREA do engenheiro,
+# nomes de fiscais, metadados de autoria e a topologia da rede interna.
+# Ver referencia/README.md e CLAUDE.md, seção Segurança.
+# ---------------------------------------------------------------------------
+# Ignora o CONTEUDO de referencia/, mas versiona o README com as instrucoes.
+# Se a pasta inteira fosse ignorada, quem clonasse nao saberia o que por nela.
+referencia/*
+!referencia/README.md
+
+*.xlsm
+*.xlsx
+*.xls
+*.xlsb
+*.xltm
+*.xltx
+~$*
+*.csv
+
+# Exceção: planilhas sintéticas de teste, sem dado real.
+# Libere UMA A UMA, com revisão. Nunca com curinga.
+# Exemplo:
+# !test/fixtures/rdo-sintetico-minimo.xlsx
+
+# Saídas geradas (PDF e Excel de RDO podem conter dado pessoal)
+/out/
+/tmp/
+*.pdf
+
+# ---------------------------------------------------------------------------
+# Segredos
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+secrets.json
+
+# ---------------------------------------------------------------------------
+# Dependências e build
+# ---------------------------------------------------------------------------
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/versions
+
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+coverage/
+.vitest/
+.nyc_output/
+
+# ---------------------------------------------------------------------------
+# Ferramentas e sistema operacional
+# ---------------------------------------------------------------------------
+.vercel
+.turbo
+.cache/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# ---------------------------------------------------------------------------
+# Claude Code — configuração local da máquina, não do projeto
+# ---------------------------------------------------------------------------
+.claude/settings.local.json

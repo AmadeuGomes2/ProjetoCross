@@ -1,0 +1,10 @@
+node_modules/
+.next/
+out/
+build/
+coverage/
+referencia/
+package-lock.json
+*.xlsm
+*.xlsx
+*.pdf
