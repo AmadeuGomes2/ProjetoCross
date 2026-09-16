@@ -88,6 +88,7 @@ export type {
   DiaDeObra,
   EstadoNaTela,
   LancamentoAceito,
+  LancamentoDeProducaoVigente,
   ObservacaoDoDia,
   Perfil,
   PluviometriaDoDia,

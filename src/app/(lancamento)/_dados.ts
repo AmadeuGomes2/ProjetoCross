@@ -8,18 +8,19 @@
  *
  * 1. A data vem da URL e é entrada hostil como qualquer outra: passa por
  *    `criaDiaPuro`, que recusa 31/09 e 29/02 de ano não bissexto.
- * 2. O ator vem do servidor. Enquanto a frente A não entrega a autenticação,
- *    a tela diz o que está faltando em vez de mostrar dado de obra.
+ * 2. O ator vem do servidor **e o acesso à obra é verificado aqui**, com a
+ *    mesma porta que as escritas já usavam. Conferir só que existe sessão
+ *    deixava o encarregado da obra A ler atividade e observação da obra B com
+ *    o id na URL — foi o CRÍTICO 2 do laudo de segurança de 16/09/2026. Os
+ *    casos de uso de leitura não autorizam de propósito: a autorização é de
+ *    quem chama, e quem chama é este arquivo.
  */
 
 import { criaDiaPuro } from '../../shared/date/dia';
 import { idConfiavel } from '../../shared/id';
 import type { EstadoDoDia, LetraDeTurno } from '../../shared/taxonomia';
-import {
-  atorDaRequisicao,
-  casosDeLancamento,
-  portasDeLancamento,
-} from '../_composicao/lancamento';
+import { casosDeLancamento, portasDeLancamento } from '../_composicao/lancamento';
+import { atorDaRequisicaoOuRecusa } from '../_composicao/sessao';
 
 export interface DadosDaTela {
   readonly dataValida: boolean;
@@ -67,7 +68,12 @@ function vazia(
   };
 }
 
-export async function carregaDadosDaTela(
+/**
+ * O nome diz o que a função garante: **ela autoriza**. É o que as páginas de
+ * `(cadastro)` já faziam com as funções `*Protegida`, e é o que
+ * `rotas-protegidas.test.ts` procura na página que recebe `obraId`.
+ */
+export async function carregaDadosDaTelaProtegida(
   obraIdBruto: string,
   dataBruta: string,
 ): Promise<DadosDaTela> {
@@ -79,8 +85,13 @@ export async function carregaDadosDaTela(
   const casos = casosDeLancamento(portas);
   const sugestoesDeMotivo = await portas.sugestoesDeMotivo();
 
-  const ator = await atorDaRequisicao();
+  const ator = await atorDaRequisicaoOuRecusa();
   if (!ator.ok) return vazia(ator.erro.mensagem, true, sugestoesDeMotivo);
+
+  // A leitura passa pela mesma fronteira da escrita. `lancar` é o perfil
+  // mínimo `encarregado`: os dois perfis leem a tela do dia.
+  const acesso = await portas.exigeAcessoNaObra(ator.valor, obraId, 'lancar');
+  if (!acesso.ok) return vazia(acesso.erro.mensagem, true, sugestoesDeMotivo);
 
   const preenchimento = await casos.obtemPreenchimentoInicial(obraId, data.valor);
   if (!preenchimento.ok) {

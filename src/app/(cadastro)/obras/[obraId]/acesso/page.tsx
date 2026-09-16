@@ -14,13 +14,11 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
-import { listaAcessosDaObra } from '../../../../../modules/acesso';
-import { paraAcesso } from '../../../../_composicao/ambiente-de-cadastro';
+import { listaAcessosDaObraProtegida } from '../../../../_composicao/cadastro';
 import { idConfiavel } from '../../../../../shared/id';
 import { revogarAcessoAction } from '../../../acoes';
 import { Aviso, Bloco, Erro, estilos } from '../../../componentes';
 import { atorDaRequisicao } from '../../../sessao';
-import { ambienteDeCadastroPadrao } from '../../../../_composicao/ambiente-de-cadastro';
 import { FormularioDeConvite } from './formulario-de-convite';
 
 export const dynamic = 'force-dynamic';
@@ -39,11 +37,7 @@ export default async function Acesso({
   const obraId = idConfiavel<'obra'>(bruto);
   const { erro } = await searchParams;
 
-  const acessos = listaAcessosDaObra(
-    obraId,
-    ator,
-    paraAcesso(ambienteDeCadastroPadrao()),
-  );
+  const acessos = listaAcessosDaObraProtegida(ator, obraId);
   if (!acessos.ok) {
     return (
       <main className={estilos.pagina}>

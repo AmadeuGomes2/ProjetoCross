@@ -22,6 +22,7 @@ import {
   type Ator,
   type AtorNaObra,
   type Perfil,
+  type PortadorDeAcesso,
 } from './tipos';
 
 /** Uma frase só, para os dois motivos. Não revela existência de obra. */
@@ -44,7 +45,7 @@ function recusa(): ErroDeAcesso {
  * quem não chamou esta função não tem como fabricar o argumento.
  */
 export function exigeAcessoNaObra(
-  ator: Ator,
+  ator: PortadorDeAcesso,
   obraId: ObraId,
   perfilMinimo: Perfil,
   amb: Ambiente,
@@ -104,10 +105,19 @@ export interface ContextoDeRota {
   readonly params: Promise<Record<string, string | string[] | undefined>>;
 }
 
+/**
+ * O manipulador já recebe o ator resolvido. Recebe também os **parâmetros da
+ * rota**, porque quem precisa do `obraId` costuma precisar do resto do caminho
+ * — o dia do RDO, por exemplo. Sem isso o manipulador remontaria a URL na mão,
+ * que é onde se erra o segmento.
+ */
 export type ManipuladorProtegido = (
   ator: AtorNaObra,
   requisicao: Request,
+  params: ParametrosDeRota,
 ) => Promise<Response>;
+
+export type ParametrosDeRota = Record<string, string | string[] | undefined>;
 
 export function comAtorNaObra(
   perfilMinimo: Perfil,
@@ -140,6 +150,6 @@ export function comAtorNaObra(
     );
     if (!naObra.ok) return semAcesso();
 
-    return manipulador(naObra.valor, requisicao);
+    return manipulador(naObra.valor, requisicao, params);
   };
 }

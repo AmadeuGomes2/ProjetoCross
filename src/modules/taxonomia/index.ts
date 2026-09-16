@@ -2,6 +2,7 @@
 
 export {
   acrescentaTermo,
+  listaFuncoesParaEfetivo,
   listaLetrasDeTurno,
   listaSugestoesDeMotivo,
   listaTermos,
@@ -13,6 +14,7 @@ export {
   ehTipoDeTaxonomia,
   TIPOS_DE_TAXONOMIA,
   type Ambiente,
+  type FuncaoParaEfetivo,
   type Termo,
   type TipoDeTaxonomia,
 } from './tipos';

@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import { somaDias } from '../../../../../shared/date/dia';
 import { CabecalhoDoDia } from '../../../_componentes/cabecalho';
-import { carregaDadosDaTela } from '../../../_dados';
+import { carregaDadosDaTelaProtegida } from '../../../_dados';
 import estilos from '../../../estilos.module.css';
 
 /**
@@ -18,7 +18,7 @@ export default async function PaginaDoDia({
   params: Promise<{ obraId: string; data: string }>;
 }) {
   const { obraId, data } = await params;
-  const dados = await carregaDadosDaTela(obraId, data);
+  const dados = await carregaDadosDaTelaProtegida(obraId, data);
 
   if (!dados.dataValida) {
     return (

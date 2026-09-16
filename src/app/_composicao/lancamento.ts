@@ -1,84 +1,145 @@
 /**
- * Raiz de composição do módulo `lancamento`.
+ * Raiz de composição do módulo `lancamento`. **As portas estão ligadas.**
  *
- * Arquitetura 4.1: "a ligação acontece na raiz de composição, um arquivo por
- * caso de uso. É o único lugar que importa de mais de um módulo." Este arquivo
- * é o da frente B; as outras frentes criam os seus e ninguém edita o do outro.
+ * Arquitetura 4.1: "a ligação acontece na raiz de composição... é o único lugar
+ * que importa de mais de um módulo."
  *
- * ────────────────────────────────────────────────────────────────────────────
- * PENDENTE DA FRENTE A. As quatro portas abaixo estão declaradas em
- * `src/modules/lancamento/portas.ts` e ainda não têm dono:
+ * ## O adaptador de acesso, que não era "uma linha"
  *
- *   exigeAcessoNaObra  → `src/modules/acesso`   (o embrulho `comAtorNaObra`)
- *   autenticaRequisicao→ `src/modules/acesso`
- *   periodoDaObra      → `src/modules/obra`     (`obtemCabecalhoDaObra`)
- *   status / serviços  → `src/modules/taxonomia` e `src/modules/obra`
+ * `lancamento` declara `exigeAcessoNaObra(ator, obraId, acao)`, assíncrona e
+ * com três argumentos. `acesso` oferece
+ * `exigeAcessoNaObra(ator, obraId, perfilMinimo, amb)`, síncrona e com quatro.
+ * As duas não casam por estrutura, e o laudo de segurança de 16/09/2026
+ * (ATENÇÃO 2) mostrou que a falta desse adaptador é onde a ligação trava — e
+ * onde alguém é tentado a ligar algo que não verifica nada.
  *
- * Enquanto isso, elas **recusam** em vez de fingir que funcionam: a tela diz o
- * que fazer e o rascunho local continua guardando o que foi digitado. Trocar
- * cada uma é uma linha; nenhum caso de uso muda.
- * ────────────────────────────────────────────────────────────────────────────
+ * O adaptador é o mapa abaixo. Ele é a única tradução de **ação** para **perfil
+ * mínimo** do sistema, e a regra não muda: a decisão 22.1 continua sendo
+ * verificada dentro do módulo, em `casos.ts`, então mesmo um mapa errado não
+ * deixa encarregado fechar dia nem retificar.
+ *
+ * Quem é o portador da requisição mora em `sessao.ts`, ao lado do cookie. Aqui
+ * não entra `next/headers`: este arquivo precisa rodar em teste de integração
+ * sem um ciclo de requisição do Next em volta.
  */
 
-import { obtemConexao } from '../../db';
-import { criaCasosDeLancamento, type CasosDeLancamento } from '../../modules/lancamento';
-import type { PortasDoLancamento } from '../../modules/lancamento';
-import type { Ator } from '../../modules/lancamento';
-import { criaRepositorioDrizzle } from '../../modules/lancamento/repositorio-drizzle';
+import { exigeAcessoNaObra, type Perfil } from '../../modules/acesso';
 import {
-  CODIGO_ERRO,
-  erro,
-  erroDeAcesso,
-  type ErroDeAcesso,
-  type Result,
-} from '../../shared/result';
-import { SUGESTOES_MOTIVO_PARADA } from '../../shared/taxonomia';
+  criaCasosDeLancamento,
+  type AcaoProtegida,
+  type CasosDeLancamento,
+  type PortasDoLancamento,
+  type ServicoControlado,
+} from '../../modules/lancamento';
+import { criaRepositorioDrizzle } from '../../modules/lancamento/repositorio-drizzle';
+import { listaServicosControlados, obtemCabecalhoDaObra } from '../../modules/obra';
+import {
+  listaSugestoesDeMotivo,
+  listaTermosAtivos,
+  resolveTermo,
+} from '../../modules/taxonomia';
+import { idConfiavel, type ObraId } from '../../shared/id';
+import { ambienteDaComposicao, type AmbienteDaComposicao } from './ambiente';
+import { paraAcesso, paraObra, paraTaxonomia } from './ambiente-de-cadastro';
 
-const RECUSA_ENQUANTO_A_NAO_ENTREGA = erroDeAcesso(
-  CODIGO_ERRO.SEM_PERMISSAO,
-  'O controle de acesso à obra ainda não está ligado. O que você digitou fica salvo no aparelho e será enviado depois.',
-);
-
-export const portasPendentesDaFrenteA: PortasDoLancamento = {
-  exigeAcessoNaObra: () => Promise.resolve(erro(RECUSA_ENQUANTO_A_NAO_ENTREGA)),
-  periodoDaObra: () => Promise.resolve(null),
-  status: {
-    porId: () => Promise.resolve(null),
-    porTermo: () => Promise.resolve(null),
-    ativos: () => Promise.resolve([]),
-  },
-  servicos: {
-    porId: () => Promise.resolve(null),
-    porNome: () => Promise.resolve(null),
-    daObra: () => Promise.resolve([]),
-  },
-  // Esta é a única que já pode responder de verdade: a carga inicial das oito
-  // sugestões mora em `shared/taxonomia` e não depende de banco.
-  sugestoesDeMotivo: () => Promise.resolve([...SUGESTOES_MOTIVO_PARADA]),
+/**
+ * Ação → perfil mínimo. A tabela "Quem usa" do PRD, em código, num lugar só.
+ *
+ * `lancar` e `corrigir_lancamento` são dos dois perfis: o encarregado lança e
+ * corrige enquanto o dia está aberto. `fechar_dia` (9.1) e
+ * `retificar_lancamento` (22.1) são só do engenheiro.
+ */
+const PERFIL_MINIMO_DA_ACAO: Readonly<Record<AcaoProtegida, Perfil>> = {
+  lancar: 'encarregado',
+  corrigir_lancamento: 'encarregado',
+  fechar_dia: 'engenheiro',
+  retificar_lancamento: 'engenheiro',
 };
 
-/** As portas em uso hoje. Trocar aqui é o que liga a frente A ao módulo. */
-export function portasDeLancamento(): PortasDoLancamento {
-  return portasPendentesDaFrenteA;
+function servicosDaObra(
+  ambiente: AmbienteDaComposicao,
+  obraId: ObraId,
+): ServicoControlado[] {
+  const lista = listaServicosControlados(obraId, paraObra(ambiente.cadastro));
+  if (!lista.ok) return [];
+  return lista.valor.map((s) => ({
+    id: s.servicoId,
+    obraId,
+    nome: s.nome,
+    quantidadeProjeto: s.quantidadeDeProjeto,
+  }));
+}
+
+export function portasDeLancamento(
+  ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
+): PortasDoLancamento {
+  const amb = ambiente.cadastro;
+
+  return {
+    exigeAcessoNaObra: async (ator, obraId, acao) =>
+      exigeAcessoNaObra(ator, obraId, PERFIL_MINIMO_DA_ACAO[acao], paraAcesso(amb)),
+
+    periodoDaObra: async (obraId) => {
+      const cabecalho = obtemCabecalhoDaObra(obraId, paraObra(amb));
+      if (!cabecalho.ok) return null;
+      return {
+        dataInicio: cabecalho.valor.dataInicio,
+        dataTermino: cabecalho.valor.dataTermino,
+      };
+    },
+
+    status: {
+      porId: async (id) => {
+        const termos = listaTermosAtivos('status_atividade', paraTaxonomia(amb));
+        if (!termos.ok) return null;
+        const achado = termos.valor.find((t) => t.id === String(id));
+        return achado === undefined
+          ? null
+          : { id: idConfiavel<'status_atividade'>(achado.id), termo: achado.termo };
+      },
+      // Comparação por `chaveDeTermo`, nunca por igualdade exata, e **nunca
+      // cria termo**: foi assim que a planilha ganhou status gêmeos (CT-101).
+      porTermo: async (termo) => {
+        const achado = resolveTermo('status_atividade', termo, paraTaxonomia(amb));
+        if (achado === null || !achado.ativo) return null;
+        return { id: idConfiavel<'status_atividade'>(achado.id), termo: achado.termo };
+      },
+      ativos: async () => {
+        const termos = listaTermosAtivos('status_atividade', paraTaxonomia(amb));
+        if (!termos.ok) return [];
+        return termos.valor.map((t) => ({
+          id: idConfiavel<'status_atividade'>(t.id),
+          termo: t.termo,
+        }));
+      },
+    },
+
+    servicos: {
+      porId: async (obraId, id) =>
+        servicosDaObra(ambiente, obraId).find((s) => s.id === id) ?? null,
+      // Espaço INTERNO não é espaço de ponta: a normalização do R13 não pode
+      // transformar `REC. (FRESA+CAPA)` em `REC.(FRESA+CAPA)` (CT-125).
+      porNome: async (obraId, nome) =>
+        servicosDaObra(ambiente, obraId).find((s) => s.nome.trim() === nome.trim()) ??
+        null,
+      daObra: async (obraId) => servicosDaObra(ambiente, obraId),
+    },
+
+    sugestoesDeMotivo: async () => {
+      const lista = listaSugestoesDeMotivo(paraTaxonomia(amb));
+      return lista.ok ? lista.valor : [];
+    },
+  };
 }
 
 export function casosDeLancamento(
-  portas: PortasDoLancamento = portasPendentesDaFrenteA,
+  portas: PortasDoLancamento = portasDeLancamento(),
+  ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
 ): CasosDeLancamento {
   return criaCasosDeLancamento({
-    repositorio: criaRepositorioDrizzle(obtemConexao()),
+    repositorio: criaRepositorioDrizzle(ambiente.conexao),
     portas,
-    relogio: () => new Date(),
+    // Relógio injetado: o teste de integração não depende do relógio real.
+    relogio: ambiente.cadastro.relogio,
   });
-}
-
-/**
- * Quem é o autor da requisição.
- *
- * PENDENTE: vira `autenticaRequisicao(cookie)` do módulo `acesso`. Até lá
- * recusa, porque inventar um ator seria exatamente o furo que a seção 5.2 da
- * arquitetura existe para impedir.
- */
-export function atorDaRequisicao(): Promise<Result<Ator, ErroDeAcesso>> {
-  return Promise.resolve(erro(RECUSA_ENQUANTO_A_NAO_ENTREGA));
 }

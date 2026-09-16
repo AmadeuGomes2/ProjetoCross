@@ -21,6 +21,19 @@ export interface Ator {
   readonly sessaoId: SessaoId;
 }
 
+/**
+ * O mínimo para verificar acesso: o id de quem age.
+ *
+ * `Ator` satisfaz, e os módulos que declaram a própria porta de acesso — o
+ * `lancamento` declara `{ usuarioId }` — também. A verificação só precisa do
+ * id: é ele que vai à tabela `acesso` e ao log. Exigir a sessão aqui obrigaria
+ * cada módulo a conhecer o formato de sessão de `acesso`, que é justamente o
+ * acoplamento que a porta existe para evitar.
+ */
+export interface PortadorDeAcesso {
+  readonly usuarioId: UsuarioId;
+}
+
 /** Só `exigeAcessoNaObra` produz este tipo. É a prova de que a checagem correu. */
 export interface AtorNaObra {
   readonly usuarioId: UsuarioId;

@@ -69,6 +69,7 @@ import type {
   DiaDeObra,
   EstadoNaTela,
   LancamentoAceito,
+  LancamentoDeProducaoVigente,
   LinhaComum,
   LinhaDeAtividade,
   LinhaDeLancamento,
@@ -766,6 +767,31 @@ export function criaCasosDeLancamento(deps: DependenciasDeLancamento) {
     );
   }
 
+  /**
+   * Os lançamentos de produção vigentes até o dia, **sem somar**.
+   *
+   * É o que o bloco 7 do RDO consome. Quem soma é `rdo/producao.ts`, porque o
+   * acumulado é regra do RDO (R5) e porque cada número do bloco precisa levar
+   * de volta ao lançamento que o compôs (CT-232). Somar aqui devolveria um
+   * total sem rastro.
+   *
+   * Recalculado do zero a cada consulta: não existe tabela de saldo, nem
+   * coluna de acumulado, nem cache. Corrigir março corrige setembro sozinho.
+   */
+  async function listaProducaoVigenteAte(
+    obraId: ObraId,
+    data: DiaPuro,
+  ): Leitura<LancamentoDeProducaoVigente[]> {
+    return ok(
+      apenasVigentes(await repositorio.producao.ate(obraId, data)).map((linha) => ({
+        id: linha.id,
+        servicoId: linha.servicoId,
+        data: linha.data,
+        quantidade: linha.quantidade,
+      })),
+    );
+  }
+
   async function listaHistoricoDoLancamento(
     obraId: ObraId,
     tipo: TipoDeLancamento,
@@ -840,6 +866,7 @@ export function criaCasosDeLancamento(deps: DependenciasDeLancamento) {
     listaObservacoesVigentes,
     somaProducaoDoDia,
     somaProducaoAte,
+    listaProducaoVigenteAte,
     listaHistoricoDoLancamento,
     obtemPreenchimentoInicial,
   };

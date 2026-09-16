@@ -6,10 +6,10 @@
  * R1, R2, R3, R13 e R14; `regras-extraidas.md` §1; casos obrigatórios 1, 2, 8,
  * 10, 13 e 14 da skill `template-caso-teste`.
  *
- * O bloco de fronteira do efetivo existe porque `padroes-codigo` exige valor
- * de fronteira em **todo** cálculo de agregação, e porque a planilha legada
- * responde `≤` numa faixa de colunas e `<` em outra: qual resposta você recebia
- * dependia de onde a sua função tinha caído.
+ * As fronteiras do efetivo **não moram mais aqui**: `pessoal` entrega a
+ * mobilização crua e quem conta é `src/modules/rdo/efetivo.ts`, num lugar só.
+ * Os valores de fronteira da regra R1 contra o cadastro de verdade estão em
+ * `test/efetivo-do-rdo.test.ts`, e contra duplas em `rdo-efetivo.test.ts`.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -17,12 +17,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { paraPessoal, paraTaxonomia } from '../../app/_composicao/ambiente-de-cadastro';
 import {
   cadastraPessoaProtegida,
-  contaEfetivoPorFuncaoProtegido,
+  listaMobilizacaoDePessoalProtegida,
   listaPessoalProtegida,
   registraPassagemProtegida,
 } from '../../app/_composicao/cadastro';
 import { listaTermos } from '../../modules/taxonomia';
-import { diaPuroConfiavel } from '../../shared/date/dia';
 import { CODIGO_ERRO } from '../../shared/result';
 import {
   criaObraDoPrd,
@@ -65,17 +64,6 @@ function daAcessoDeEncarregado(ator: Ator, acessoId: string): Ator {
     )
     .run(acessoId, obraId, ator.usuarioId, e1.usuarioId, '2026-09-16T12:00:00.000Z');
   return ator;
-}
-
-function efetivo(dia: string) {
-  const resultado = contaEfetivoPorFuncaoProtegido(
-    e1,
-    obraId,
-    diaPuroConfiavel(dia),
-    cenario.amb,
-  );
-  if (!resultado.ok) throw new Error(resultado.erro.mensagem);
-  return resultado.valor;
 }
 
 describe('F2.1 — cadastro de pessoal e passagens', () => {
@@ -248,40 +236,33 @@ describe('F2.1 — cadastro de pessoal e passagens', () => {
   });
 });
 
-describe('efetivo por função — fronteiras da regra R1', () => {
-  it('CT-040 conta quem entrou antes e ainda não saiu', () => {
-    expect(cadastra('P2', 'Motorista', '2026-02-05').ok).toBe(true);
+describe('a mobilização que o RDO recebe', () => {
+  it('entrega as passagens da pessoa sem nenhum campo de nome', () => {
+    // R2 e LGPD: o documento que circula não precisa dizer quem trabalhou. O
+    // vazamento é impossível pelo TIPO, não por disciplina de tela.
+    //
+    // **A contagem do efetivo não está aqui, e é de propósito.** Ela vive em
+    // `src/modules/rdo/efetivo.ts`, num lugar só, e as fronteiras da regra R1
+    // estão em `test/efetivo-do-rdo.test.ts`, contra o cadastro de verdade.
+    expect(cadastra('P1', 'Motorista', '2026-02-10', '2026-02-20').ok).toBe(true);
 
-    expect(efetivo('2026-09-01')).toEqual([
-      { funcaoId: expect.any(String), termo: 'Motorista', quantidade: 1 },
+    const mobilizacao = listaMobilizacaoDePessoalProtegida(e1, obraId, cenario.amb);
+    expect(mobilizacao.ok).toBe(true);
+    if (!mobilizacao.ok) return;
+
+    expect(Object.keys(mobilizacao.valor[0] ?? {})).toEqual([
+      'pessoaId',
+      'funcaoId',
+      'passagens',
     ]);
+    expect(mobilizacao.valor[0]?.passagens).toEqual([
+      { entrada: '2026-02-10', saida: '2026-02-20' },
+    ]);
+    expect(JSON.stringify(mobilizacao.valor)).not.toContain('P1');
   });
 
-  it('conta a pessoa no próprio dia da entrada', () => {
-    expect(cadastra('P1', 'Motorista', '2026-02-10').ok).toBe(true);
-    expect(efetivo('2026-02-10')[0]?.quantidade).toBe(1);
-  });
-
-  it('não conta a pessoa no dia anterior à entrada', () => {
-    expect(cadastra('P1', 'Motorista', '2026-02-10').ok).toBe(true);
-    expect(efetivo('2026-02-09')).toEqual([]);
-  });
-
-  it('conta a pessoa no dia da saída, porque a saída é o último dia trabalhado', () => {
-    // Decisão 1.1, de 16/09/2026. A planilha faz dos dois jeitos ao mesmo
-    // tempo; aqui a resposta é uma só.
-    expect(cadastra('P1', 'Motorista', '2026-02-10', '2026-02-20').ok).toBe(true);
-    expect(efetivo('2026-02-20')[0]?.quantidade).toBe(1);
-  });
-
-  it('não conta a pessoa no dia seguinte à saída', () => {
-    expect(cadastra('P1', 'Motorista', '2026-02-10', '2026-02-20').ok).toBe(true);
-    expect(efetivo('2026-02-21')).toEqual([]);
-  });
-
-  it('conta uma vez quem tem duas passagens, e não duas', () => {
-    // Caso obrigatório 8: contar linhas de cadastro daria dois, e o efetivo do
-    // RDO sairia dobrado.
+  it('junta as duas passagens de quem sai e volta na mesma pessoa', () => {
+    // Caso obrigatório 8: duas linhas de cadastro, uma pessoa só.
     const criada = cadastra('P1', 'Motorista', '2026-02-10', '2026-02-28');
     expect(criada.ok).toBe(true);
     if (!criada.ok) return;
@@ -292,27 +273,8 @@ describe('efetivo por função — fronteiras da regra R1', () => {
       cenario.amb,
     );
 
-    expect(efetivo('2026-03-20')[0]?.quantidade).toBe(1);
-    // Entre as duas passagens ela não está na obra.
-    expect(efetivo('2026-03-01')).toEqual([]);
-  });
-
-  it('agrega por função e soma duas pessoas da mesma função', () => {
-    expect(cadastra('P1', 'Motorista', '2026-02-10').ok).toBe(true);
-    expect(cadastra('P2', 'Motorista', '2026-02-10').ok).toBe(true);
-    expect(cadastra('P3', 'Servente', '2026-02-10').ok).toBe(true);
-
-    const resultado = efetivo('2026-02-15');
-    expect(resultado.find((e) => e.termo === 'Motorista')?.quantidade).toBe(2);
-    expect(resultado.find((e) => e.termo === 'Servente')?.quantidade).toBe(1);
-  });
-
-  it('o efetivo não tem campo de nome de trabalhador', () => {
-    // R2 e LGPD: o documento que circula não precisa dizer quem trabalhou.
-    expect(cadastra('P1', 'Motorista', '2026-02-10').ok).toBe(true);
-    const linha = efetivo('2026-02-15')[0];
-
-    expect(Object.keys(linha ?? {})).toEqual(['funcaoId', 'termo', 'quantidade']);
-    expect(JSON.stringify(efetivo('2026-02-15'))).not.toContain('P1');
+    const mobilizacao = listaMobilizacaoDePessoalProtegida(e1, obraId, cenario.amb);
+    expect(mobilizacao.ok && mobilizacao.valor).toHaveLength(1);
+    expect(mobilizacao.ok && mobilizacao.valor[0]?.passagens).toHaveLength(2);
   });
 });

@@ -1,6 +1,6 @@
 import { CabecalhoDoDia, Voltar } from '../../../../_componentes/cabecalho';
 import { FormularioDoDia } from '../../../../_componentes/formulario-do-dia';
-import { carregaDadosDaTela } from '../../../../_dados';
+import { carregaDadosDaTelaProtegida } from '../../../../_dados';
 import estilos from '../../../../estilos.module.css';
 
 /**
@@ -15,7 +15,7 @@ export default async function PaginaDeEstadoDoDia({
   params: Promise<{ obraId: string; data: string }>;
 }) {
   const { obraId, data } = await params;
-  const dados = await carregaDadosDaTela(obraId, data);
+  const dados = await carregaDadosDaTelaProtegida(obraId, data);
 
   if (!dados.dataValida) {
     return (

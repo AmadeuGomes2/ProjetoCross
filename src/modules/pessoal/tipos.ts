@@ -74,9 +74,27 @@ export interface PessoaComPassagens {
   readonly passagens: readonly Passagem[];
 }
 
-/** Sem campo de nome, de propósito. É o que alimenta o bloco 5 do RDO. */
-export interface EfetivoPorFuncao {
+/**
+ * Uma passagem pela obra, como o RDO a recebe: só as duas datas.
+ *
+ * Sem `id`, porque quem agrega não precisa dele e identificador de passagem
+ * numa resposta é superfície a mais.
+ */
+export interface PassagemMobilizada {
+  readonly entrada: DiaPuro;
+  readonly saida: DiaPuro | null;
+}
+
+/**
+ * Sem campo de nome, de propósito. É o que alimenta o bloco 5 do RDO.
+ *
+ * Note que **não há quantidade aqui**: este módulo entrega a mobilização crua
+ * e o `rdo` conta. Havia duas contagens de efetivo no sistema, e a divergência
+ * entre elas era a mesma que a planilha legada tinha entre duas faixas de
+ * coluna. Agora existe uma só, em `src/modules/rdo/efetivo.ts`.
+ */
+export interface PessoaMobilizada {
+  readonly pessoaId: PessoaId;
   readonly funcaoId: FuncaoId;
-  readonly termo: string;
-  readonly quantidade: number;
+  readonly passagens: readonly PassagemMobilizada[];
 }

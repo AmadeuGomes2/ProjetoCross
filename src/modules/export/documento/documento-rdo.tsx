@@ -25,6 +25,7 @@ import type {
   RdoParaDocumento,
 } from '../portas';
 import { estilos } from './estilos';
+import './hifenizacao';
 import { AUTOR_DO_PDF, PRODUTOR_DO_PDF, ROTULO } from './rotulos';
 
 function campo(rotulo: string, valor: string): ReactElement {
@@ -57,6 +58,30 @@ function blocoIdentificacao(rdo: RdoParaDocumento): ReactElement {
         <Text style={estilos.rotuloDeAssinatura}>{ROTULO.NUMERO_DO_RDO}</Text>
         <Text>{String(rdo.identificacao.numeroDoRdo)}</Text>
       </View>
+    </View>
+  );
+}
+
+/**
+ * Título, identificação e a marca de continuação, presos ao alto de **toda**
+ * página.
+ *
+ * Decisão 11.1: a página que nasce do transbordo traz o mesmo cabeçalho de
+ * identificação. `fixed` faz isso valer inclusive para a página que o
+ * renderizador criar por conta própria, se algum dia o volume passar do que o
+ * papel aguenta: o fiscal nunca recebe folha solta sem saber de que dia ela é.
+ * A marca sai só a partir da segunda página, e por isso depende do número da
+ * página, que só existe na hora de paginar.
+ */
+function cabecalhoDaPagina(rdo: RdoParaDocumento): ReactElement {
+  return (
+    <View fixed>
+      {blocoTitulo()}
+      {blocoIdentificacao(rdo)}
+      <Text
+        style={estilos.marcaDeContinuacao}
+        render={({ pageNumber }): string => (pageNumber > 1 ? ROTULO.CONTINUACAO : '')}
+      />
     </View>
   );
 }
@@ -136,16 +161,20 @@ function blocoDeProducao(rdo: RdoParaDocumento): ReactElement {
           <Text style={estilos.celulaNumero}>{linha.exec}</Text>
           <Text style={estilos.celulaNumero}>{linha.acum}</Text>
           <Text style={estilos.celulaNumero}>{linha.projeto}</Text>
+          {/*
+            Trilho e barra vêm antes do número de propósito: o que é pintado
+            depois fica por cima, e o gabarito quer o número **sobre** a barra,
+            como o Excel desenha a barra de dados da célula.
+          */}
           <View style={estilos.celulaBarra}>
-            <Text>{linha.percentual}</Text>
-            <View style={estilos.trilhoDaBarra}>
-              <View
-                style={{
-                  ...estilos.barra,
-                  width: `${Math.round(Math.min(Math.max(linha.fracao, 0), 1) * 100)}%`,
-                }}
-              />
-            </View>
+            <View style={estilos.trilhoDaBarra} />
+            <View
+              style={{
+                ...estilos.barra,
+                width: `${Math.round(Math.min(Math.max(linha.fracao, 0), 1) * 100)}%`,
+              }}
+            />
+            <Text style={estilos.percentualSobreABarra}>{linha.percentual}</Text>
           </View>
         </View>
       ))}
@@ -189,7 +218,10 @@ function blocoDePluviometria(rdo: RdoParaDocumento): ReactElement {
   );
 }
 
-function blocoDeComentarios(linhas: readonly string[]): ReactElement {
+function blocoDeComentarios(
+  linhas: readonly string[],
+  comContratante: boolean,
+): ReactElement {
   return (
     // Cada coluna carrega o próprio rótulo e o próprio conteúdo, e é por isso
     // que a fonte de um bloco não alcança o outro. Na planilha, `01!F52` rotula
@@ -197,7 +229,7 @@ function blocoDeComentarios(linhas: readonly string[]): ReactElement {
     // falha de fidelidade, não fidelidade (R12).
     <View style={estilos.bloco}>
       <View style={estilos.cabecalhoDuplo}>
-        <View style={estilos.metadeEsquerda}>
+        <View style={comContratante ? estilos.metadeEsquerda : estilos.larguraInteira}>
           <Text style={estilos.cabecalhoDeBloco}>{ROTULO.COMENTARIOS_CROS}</Text>
           <View style={estilos.colunaDeComentario}>
             {linhas.map((texto, indice) => (
@@ -205,11 +237,17 @@ function blocoDeComentarios(linhas: readonly string[]): ReactElement {
             ))}
           </View>
         </View>
-        {/* Decisão 10.1: o bloco do contratante aparece e sai sempre vazio. */}
-        <View style={estilos.metadeDireita}>
-          <Text style={estilos.cabecalhoDeBloco}>{ROTULO.COMENTARIO_CONTRATANTE}</Text>
-          <View style={estilos.colunaDeComentario} />
-        </View>
+        {/*
+          Decisão 10.1: o bloco do contratante aparece e sai sempre vazio — uma
+          vez por RDO, na página 1. Repetir o quadro vazio na continuação daria
+          ao documento dois blocos 10, que o gabarito não tem.
+        */}
+        {comContratante ? (
+          <View style={estilos.metadeDireita}>
+            <Text style={estilos.cabecalhoDeBloco}>{ROTULO.COMENTARIO_CONTRATANTE}</Text>
+            <View style={estilos.colunaDeComentario} />
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -250,9 +288,7 @@ function paginaDeContinuacao(rdo: RdoParaDocumento): ReactElement {
 
   return (
     <Page size="A4" orientation="portrait" style={estilos.pagina} key="continuacao">
-      {blocoTitulo()}
-      {blocoIdentificacao(rdo)}
-      <Text style={estilos.marcaDeContinuacao}>{ROTULO.CONTINUACAO}</Text>
+      {cabecalhoDaPagina(rdo)}
       {efetivo.length === 0
         ? null
         : blocoDeEfetivo(ROTULO.EFETIVO_PESSOAL, efetivo, null)}
@@ -260,7 +296,7 @@ function paginaDeContinuacao(rdo: RdoParaDocumento): ReactElement {
         ? null
         : blocoDeEfetivo(ROTULO.EFETIVO_EQUIPAMENTOS, equipamentos, null)}
       {atividades.length === 0 ? null : blocoDeAtividades(atividades)}
-      {comentarios.length === 0 ? null : blocoDeComentarios(comentarios)}
+      {comentarios.length === 0 ? null : blocoDeComentarios(comentarios, false)}
     </Page>
   );
 }
@@ -277,8 +313,7 @@ export function montaDocumentoDoRdo(rdo: RdoParaDocumento): ReactElement<Documen
       language="pt-BR"
     >
       <Page size="A4" orientation="portrait" style={estilos.pagina}>
-        {blocoTitulo()}
-        {blocoIdentificacao(rdo)}
+        {cabecalhoDaPagina(rdo)}
         {blocoInformacoesGerais(rdo)}
         {blocoCaracteristicas(rdo)}
         {blocoDeEfetivo(
@@ -294,7 +329,7 @@ export function montaDocumentoDoRdo(rdo: RdoParaDocumento): ReactElement<Documen
         {blocoDeProducao(rdo)}
         {blocoDeAtividades(rdo.atividades.pagina1)}
         {blocoDePluviometria(rdo)}
-        {blocoDeComentarios(rdo.comentariosCros.pagina1)}
+        {blocoDeComentarios(rdo.comentariosCros.pagina1, true)}
         {blocoDeAssinaturas(rdo)}
       </Page>
       {rdo.temContinuacao ? paginaDeContinuacao(rdo) : null}

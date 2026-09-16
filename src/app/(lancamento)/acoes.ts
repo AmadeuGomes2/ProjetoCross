@@ -18,7 +18,8 @@ import type { Ator, CasosDeLancamento } from '../../modules/lancamento';
 import { geraId } from '../../shared/id';
 import { mensagemGenericaDeErro, registra } from '../../shared/log';
 import type { ErroConhecido, Result } from '../../shared/result';
-import { atorDaRequisicao, casosDeLancamento } from '../_composicao/lancamento';
+import { casosDeLancamento } from '../_composicao/lancamento';
+import { atorDaRequisicaoOuRecusa } from '../_composicao/sessao';
 
 export interface RespostaDaAcao {
   readonly ok: boolean;
@@ -43,7 +44,7 @@ async function despacha<T>(
   avisosDe: (valor: T) => readonly string[] = () => [],
 ): Promise<RespostaDaAcao> {
   const correlacaoId = geraId<'correlacao'>();
-  const ator = await atorDaRequisicao();
+  const ator = await atorDaRequisicaoOuRecusa();
   if (!ator.ok) {
     registra('aviso', correlacaoId, evento, { codigo: ator.erro.codigo });
     return recusa(ator.erro);

@@ -1,10 +1,11 @@
 /**
- * Equipamento: cadastro, passagens e efetivo por identificador.
+ * Equipamento: cadastro de equipamento e de passagens pela obra.
  *
  * **Uma regra, duas tabelas, uma função.** A decisão 1.2, de 16/09/2026, acabou
  * com a divergência da planilha, que tinha três comportamentos diferentes para
  * o dia da saída. O equipamento segue exatamente a regra da pessoa, e a regra
- * mora em `intervaloCobreODia`, em `shared/date/intervalo`.
+ * mora em `intervaloCobreODia`, em `shared/date/intervalo` — aplicada pelo
+ * `rdo`, que é quem conta. Este módulo entrega a mobilização crua.
  *
  * `EQUIPAMENTO!M2` da planilha é uma nota solta registrando um equipamento
  * fora da tabela, justamente porque o modelo de intervalo único não comporta
@@ -13,7 +14,6 @@
 
 import type { DiaPuro } from '../../shared/date/dia';
 import { instanteAgora } from '../../shared/date/fuso';
-import { intervaloCobreODia } from '../../shared/date/intervalo';
 import {
   geraId,
   type EquipamentoId,
@@ -37,8 +37,9 @@ import type {
   ComandoCadastrarEquipamento,
   ComandoEncerrarPassagemDeEquipamento,
   ComandoPassagemDeEquipamento,
-  EfetivoPorIdentificador,
   EquipamentoComPassagens,
+  EquipamentoMobilizado,
+  PassagemMobilizada,
 } from './tipos';
 
 /** R14, igual a `pessoal`. Datas iguais são aceitas (CT-046). */
@@ -219,33 +220,41 @@ export function listaEquipamentosDaObra(
 }
 
 /**
- * Efetivo do dia, por identificador — bloco 6 do RDO.
+ * A mobilização de equipamento da obra: as passagens cruas, por identificador.
  *
- * Um equipamento presente conta **um**, mesmo com duas passagens cadastradas
- * (R3). O tipo não sai daqui: o bloco 6 imprime `CF-29`, nunca `PATROL`
- * (CT-049).
+ * Devolve **todos** os equipamentos cadastrados, inclusive os que não têm
+ * passagem vigente no dia consultado: o bloco 6 do gabarito mostra a coluna com
+ * a célula em branco, e uma coluna que some leva o `TOTAL` junto.
  *
- * Como em `pessoal`, **não zera em dia parado**: quem zera é o `rdo` (5.1).
+ * Quem conta é `src/modules/rdo/efetivo.ts`, e só ele. Havia uma segunda
+ * agregação aqui, com formato diferente do bloco 6; foi removida na integração
+ * das frentes. Ver `docs/arquitetura/v1.md`, decisão 20 da seção 7.
+ *
+ * `ordem` é a posição da coluna no bloco, e sai do próprio cadastro, que o
+ * repositório entrega ordenado por identificador. Ela existe para que duas
+ * consultas do mesmo dia produzam o mesmo documento (CT-241) — o tipo não pode
+ * depender de quem chamou lembrar de ordenar.
+ *
+ * O tipo do equipamento **não sai daqui**: o bloco 6 imprime `CF-29`, nunca
+ * `PATROL` (CT-049).
  */
-export function contaEfetivoPorIdentificador(
+export function listaMobilizacao(
   obraId: ObraId,
-  dia: DiaPuro,
   amb: Ambiente,
-): Result<EfetivoPorIdentificador[], ErroDeDominio> {
-  const presentes = new Map<EquipamentoId, string>();
-
+): Result<EquipamentoMobilizado[], ErroDeDominio> {
+  const passagensPorEquipamento = new Map<EquipamentoId, PassagemMobilizada[]>();
   for (const linha of repositorio.listaPassagensDaObra(amb.db, obraId)) {
-    if (!intervaloCobreODia(linha.entrada, linha.saida, dia)) continue;
-    presentes.set(linha.equipamentoId, linha.identificador);
+    const atual = passagensPorEquipamento.get(linha.equipamentoId) ?? [];
+    atual.push({ entrada: linha.entrada, saida: linha.saida });
+    passagensPorEquipamento.set(linha.equipamentoId, atual);
   }
 
   return ok(
-    [...presentes.entries()]
-      .map(([equipamentoId, identificador]) => ({
-        equipamentoId,
-        identificador,
-        quantidade: 1,
-      }))
-      .sort((a, b) => a.identificador.localeCompare(b.identificador, 'pt-BR')),
+    repositorio.listaEquipamentosComTipo(amb.db, obraId).map((e, indice) => ({
+      equipamentoId: e.id,
+      identificador: e.identificador,
+      ordem: indice + 1,
+      passagens: passagensPorEquipamento.get(e.id) ?? [],
+    })),
   );
 }

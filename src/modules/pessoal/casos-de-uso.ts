@@ -1,17 +1,16 @@
 /**
- * Pessoal: cadastro, passagens e efetivo por função.
+ * Pessoal: cadastro de pessoa e de passagens pela obra.
  *
  * **Passagem é entidade separada** (R3, caso de teste obrigatório 8). Uma
  * pessoa que sai e volta tem **duas passagens** e continua sendo **uma
  * pessoa**. O modelo de intervalo único da planilha contaria dois, e o efetivo
  * do RDO sairia dobrado.
  *
- * A contagem usa `intervaloCobreODia` de `shared/date/intervalo` — decisões
- * 1.1 e 1.2: a data de saída é o **último dia trabalhado**, então a pessoa
- * conta no dia em que sai. Esta regra não é reescrita aqui.
+ * **Este módulo não conta efetivo.** Ele entrega a mobilização crua, e quem
+ * agrega é `src/modules/rdo/efetivo.ts`, que é quem conhece o estado do dia
+ * (5.1) e o formato do bloco 5. Uma regra, um lugar.
  */
 
-import { intervaloCobreODia } from '../../shared/date/intervalo';
 import { instanteAgora } from '../../shared/date/fuso';
 import type { DiaPuro } from '../../shared/date/dia';
 import {
@@ -37,8 +36,9 @@ import type {
   ComandoCadastrarPessoa,
   ComandoEncerrarPassagem,
   ComandoPassagem,
-  EfetivoPorFuncao,
+  PassagemMobilizada,
   PessoaComPassagens,
+  PessoaMobilizada,
 } from './tipos';
 
 /**
@@ -227,52 +227,46 @@ export function listaPessoalDaObra(
 }
 
 /**
- * Efetivo do dia, agregado por função — o bloco 5 do RDO.
+ * A mobilização de pessoal da obra: as passagens cruas, **sem nome**.
  *
- * Conta **pessoas distintas**, não linhas de passagem: quem tem duas passagens
- * conta uma (R3). A decisão de cobrir o dia é de `intervaloCobreODia`, então a
- * pessoa conta no dia da saída (1.1).
+ * Quem agrega é o `rdo`, e só ele. A agregação do efetivo — todas as colunas
+ * do cadastro, zero exibido em branco, recorte de espaço no rótulo (17.1),
+ * ordem do cadastro e zeramento em dia parado (5.1) — vive em
+ * `src/modules/rdo/efetivo.ts` e em nenhum outro lugar. Havia duas
+ * implementações; a segunda era esta, e foi removida na integração das
+ * frentes. Ver `docs/arquitetura/v1.md`, decisão 20 da seção 7.
  *
- * **Não zera em dia parado.** Quem zera é o `rdo`, que é quem conhece o estado
- * do dia (5.1 e arquitetura, decisão 20). Manter o zeramento fora daqui evita
- * que `pessoal` precise conhecer `dia_de_obra`.
+ * Este módulo entrega **dado**, não conta: a regra `entrada <= D e (saída nula
+ * ou saída >= D)` é de `shared/date/intervalo`, aplicada pelo `rdo`.
+ *
+ * O tipo não tem campo de nome. O vazamento do cadastro mais sensível do
+ * sistema fica impossível pelo tipo, não por disciplina de quem escreve a tela.
  */
-export function contaEfetivoPorFuncao(
+export function listaMobilizacao(
   obraId: ObraId,
-  dia: DiaPuro,
   amb: Ambiente,
-): Result<EfetivoPorFuncao[], ErroDeDominio> {
-  const linhas = repositorio.listaPassagensDaObra(amb.db, obraId);
-
-  const porFuncao = new Map<
-    FuncaoId,
-    { termo: string; ordem: number; pessoas: Set<PessoaId> }
+): Result<PessoaMobilizada[], ErroDeDominio> {
+  const porPessoa = new Map<
+    PessoaId,
+    { funcaoId: FuncaoId; passagens: PassagemMobilizada[] }
   >();
 
-  for (const linha of linhas) {
-    if (!intervaloCobreODia(linha.entrada, linha.saida, dia)) continue;
-    const atual = porFuncao.get(linha.funcaoId) ?? {
-      termo: linha.funcaoTermo,
-      ordem: linha.funcaoOrdem,
-      pessoas: new Set<PessoaId>(),
+  for (const linha of repositorio.listaPassagensDaObra(amb.db, obraId)) {
+    const atual = porPessoa.get(linha.pessoaId) ?? {
+      funcaoId: linha.funcaoId,
+      passagens: [],
     };
-    // Conjunto de pessoas, não contagem de linhas: quem tem duas passagens
-    // vigentes no mesmo dia continua sendo uma pessoa (R3).
-    atual.pessoas.add(linha.pessoaId);
-    porFuncao.set(linha.funcaoId, atual);
+    // Uma pessoa, várias passagens: é o que impede contar duas vezes quem sai
+    // e volta (R3, caso obrigatório 8).
+    atual.passagens.push({ entrada: linha.entrada, saida: linha.saida });
+    porPessoa.set(linha.pessoaId, atual);
   }
 
-  const efetivo = [...porFuncao.entries()]
-    .map(([funcaoId, dados]) => ({
-      funcaoId,
-      termo: dados.termo,
-      ordem: dados.ordem,
-      quantidade: dados.pessoas.size,
-    }))
-    // A ordem é a do cadastro de funções, não a de inserção: o bloco 5 tem
-    // ordem de coluna estável entre um RDO e o seguinte.
-    .sort((a, b) => a.ordem - b.ordem)
-    .map(({ funcaoId, termo, quantidade }) => ({ funcaoId, termo, quantidade }));
-
-  return ok(efetivo);
+  return ok(
+    [...porPessoa.entries()].map(([pessoaId, dados]) => ({
+      pessoaId,
+      funcaoId: dados.funcaoId,
+      passagens: dados.passagens,
+    })),
+  );
 }

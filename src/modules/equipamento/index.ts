@@ -1,14 +1,15 @@
 /**
  * Porta pública do módulo `equipamento`.
  *
- * `contaEfetivoPorIdentificador` é o que a frente C consome para o bloco 6.
+ * `listaMobilizacao` é o que a frente C consome para o bloco 6: as passagens
+ * cruas, por identificador. Quem agrega o efetivo é `rdo/efetivo.ts`, e só ele.
  */
 
 export {
   cadastraEquipamento,
-  contaEfetivoPorIdentificador,
   encerraPassagem,
   listaEquipamentosDaObra,
+  listaMobilizacao,
   registraPassagem,
 } from './casos-de-uso';
 
@@ -23,8 +24,9 @@ export type {
   ComandoCadastrarEquipamento,
   ComandoEncerrarPassagemDeEquipamento,
   ComandoPassagemDeEquipamento,
-  EfetivoPorIdentificador,
   EquipamentoComPassagens,
+  EquipamentoMobilizado,
   PassagemDeEquipamento,
+  PassagemMobilizada,
   ResolveTipoEquipamento,
 } from './tipos';

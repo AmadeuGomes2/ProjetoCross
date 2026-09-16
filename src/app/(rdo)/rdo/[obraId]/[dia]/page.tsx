@@ -1,9 +1,17 @@
 /**
  * Página do RDO diário: `/rdo/<obra>/<AAAA-MM-DD>`.
  *
+ * **Autentica e autoriza antes de qualquer leitura.** O endereço é adivinhável
+ * e o documento carrega o bloco 10 (observação, texto livre onde a planilha
+ * real traz nome de fiscal) e o bloco 11 (nome, titulação e CREA do
+ * responsável técnico). Sem esta verificação, qualquer pessoa com o id da obra
+ * lia o RDO dela — foi o CRÍTICO 1 do laudo de segurança de 16/09/2026. Não
+ * existe `middleware.ts` neste projeto: cada superfície se protege sozinha.
+ *
  * Página fina, como manda `padroes-codigo`: ela lê os parâmetros, chama o caso
- * de uso e renderiza. Toda regra — número do RDO, efetivo, acumulado, resumo do
- * dia, transbordo — está no módulo `rdo`, que é testado sem banco e sem tela.
+ * de uso protegido e renderiza. Toda regra — número do RDO, efetivo, acumulado,
+ * resumo do dia, transbordo — está no módulo `rdo`, testado sem banco e sem
+ * tela.
  *
  * A data vem da URL e é entrada hostil como qualquer outra: quem a valida é
  * `interpretaPedidoDeRdo`, dentro do caso de uso. `31/09/2026` não passa daqui.
@@ -12,19 +20,26 @@
  * é falha inesperada, traz o identificador de correlação para o suporte.
  */
 
+import { redirect } from 'next/navigation';
 import type { ReactElement } from 'react';
 
-import { consultaRdoDaObra } from '../../../../_composicao/rdo-diario';
+import { consultaRdoProtegida } from '../../../../_composicao/rdo-diario';
+import { atorDaRequisicao } from '../../../../_composicao/sessao';
 import { RdoDiarioNaTela } from '../../../_componentes/rdo-diario-na-tela';
 import estilos from '../../../_componentes/rdo.module.css';
+
+export const dynamic = 'force-dynamic';
 
 export default async function PaginaDoRdoDiario({
   params,
 }: {
   params: Promise<{ obraId: string; dia: string }>;
 }): Promise<ReactElement> {
+  const ator = await atorDaRequisicao();
+  if (ator === null) redirect('/entrar');
+
   const { obraId, dia } = await params;
-  const resultado = await consultaRdoDaObra({ obraId, dia });
+  const resultado = await consultaRdoProtegida(ator, { obraId, dia });
 
   if (!resultado.ok) {
     return (
@@ -34,5 +49,12 @@ export default async function PaginaDoRdoDiario({
     );
   }
 
-  return <RdoDiarioNaTela rdo={resultado.valor} />;
+  return (
+    <>
+      <RdoDiarioNaTela rdo={resultado.valor} />
+      <p className={estilos.pagina}>
+        <a href={`/rdo/${obraId}/${dia}/pdf`}>Exportar em PDF</a>
+      </p>
+    </>
+  );
 }

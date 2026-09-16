@@ -8,6 +8,7 @@
  */
 
 import type { AmbienteBase } from '@/shared/contrato/ambiente';
+import type { FuncaoId } from '../../shared/id';
 
 /**
  * As três tabelas de taxonomia.
@@ -37,6 +38,20 @@ export interface Termo {
   readonly termo: string;
   readonly ordem: number;
   readonly ativo: boolean;
+}
+
+/**
+ * Uma coluna do bloco 5 do RDO.
+ *
+ * O `id` sai marcado como `FuncaoId`, e não como `string` solto: quem consome
+ * é o cálculo do efetivo, e um `string` que aceita qualquer coisa é onde entra
+ * o id de outra tabela. `Termo.id` continua `string` porque a mesma função
+ * serve às três taxonomias.
+ */
+export interface FuncaoParaEfetivo {
+  readonly funcaoId: FuncaoId;
+  readonly termo: string;
+  readonly ordem: number;
 }
 
 export type Ambiente = AmbienteBase;

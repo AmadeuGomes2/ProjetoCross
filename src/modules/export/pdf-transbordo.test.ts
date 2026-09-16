@@ -98,7 +98,11 @@ describe('continuação na segunda página (CT-261, CT-262, CT-265)', () => {
     const pagina2 = textosDaPagina(montaDocumentoDoRdo(doc), 2);
     expect(pagina2).toContain('03/09/2026');
     expect(pagina2).toContain(ROTULO.NUMERO_DO_RDO);
-    expect(pagina2).toContain(ROTULO.CONTINUACAO);
+    // A marca `CONTINUAÇÃO` não é mais texto fixo da árvore: ela depende do
+    // número da página, que só existe depois de paginar, e por isso passa a ser
+    // conferida no PDF gerado, em `pdf-renderizado.test.ts`. A troca é por algo
+    // mais forte — a marca agora acompanha **qualquer** página a partir da
+    // segunda, inclusive uma que o renderizador criasse por conta própria.
   });
 
   it('manda a 5.ª linha de comentário para a continuação', () => {

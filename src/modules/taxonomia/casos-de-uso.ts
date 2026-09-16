@@ -12,7 +12,7 @@
  */
 
 import { instanteAgora } from '../../shared/date/fuso';
-import { geraId } from '../../shared/id';
+import { geraId, idConfiavel } from '../../shared/id';
 import { registra } from '../../shared/log';
 import {
   CODIGO_ERRO,
@@ -29,7 +29,7 @@ import {
   type LetraDeTurno,
 } from '../../shared/taxonomia';
 import * as repositorio from './repositorio';
-import type { Ambiente, Termo, TipoDeTaxonomia } from './tipos';
+import type { Ambiente, FuncaoParaEfetivo, Termo, TipoDeTaxonomia } from './tipos';
 
 export function listaTermos(
   tipo: TipoDeTaxonomia,
@@ -44,6 +44,34 @@ export function listaTermosAtivos(
   amb: Ambiente,
 ): Result<Termo[], ErroDeDominio> {
   return ok(repositorio.listaTermosDaTabela(amb.db, tipo).filter((t) => t.ativo));
+}
+
+/**
+ * As colunas de função do bloco 5 do RDO, na ordem do cadastro.
+ *
+ * Devolve **todos** os termos, inclusive os desativados, e é de propósito: o
+ * RDO é documento histórico, e uma função desativada hoje pode ter gente
+ * mobilizada num dia de março. Filtrar por `ativo` aqui faria a coluna sumir e
+ * levaria o `TOTAL` junto — truncamento silencioso, que este projeto não
+ * aceita em lugar nenhum. Quem não pode oferecer termo desativado é a tela de
+ * escolha, e para isso existe `listaTermosAtivos`.
+ *
+ * A quantidade zero não some: o gabarito mostra a coluna com a célula em
+ * branco, e quem decide isso é `rdo/efetivo.ts`.
+ */
+export function listaFuncoesParaEfetivo(
+  amb: Ambiente,
+): Result<FuncaoParaEfetivo[], ErroDeDominio> {
+  return ok(
+    repositorio
+      .listaTermosDaTabela(amb.db, 'funcao')
+      .map((t) => ({
+        funcaoId: idConfiavel<'funcao'>(t.id),
+        termo: t.termo,
+        ordem: t.ordem,
+      }))
+      .sort((a, b) => a.ordem - b.ordem),
+  );
 }
 
 /**

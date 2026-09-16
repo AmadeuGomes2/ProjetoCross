@@ -19,8 +19,10 @@ import {
   exigeAcessoNaObra,
   exigePermissaoParaCriarObra,
   geraConvite,
+  listaAcessosDaObra,
   listaObrasDoUsuario,
   revogaAcesso,
+  type AcessoDaObra,
   type Ator,
   type ConviteGerado,
   type ObraResumo,
@@ -29,12 +31,12 @@ import {
   analisaCadastrarEquipamento,
   analisaPassagemDeEquipamento,
   cadastraEquipamento,
-  contaEfetivoPorIdentificador,
   encerraPassagem as encerraPassagemDeEquipamento,
   listaEquipamentosDaObra,
+  listaMobilizacao as listaMobilizacaoDeEquipamento,
   registraPassagem as registraPassagemDeEquipamento,
-  type EfetivoPorIdentificador,
   type EquipamentoComPassagens,
+  type EquipamentoMobilizado,
 } from '../../modules/equipamento';
 import {
   analisaCriarObra,
@@ -59,11 +61,11 @@ import {
   analisaCadastrarPessoa,
   analisaPassagem,
   cadastraPessoa,
-  contaEfetivoPorFuncao,
+  listaMobilizacao as listaMobilizacaoDePessoal,
   listaPessoalDaObra,
   registraPassagem,
-  type EfetivoPorFuncao,
   type PessoaComPassagens,
+  type PessoaMobilizada,
 } from '../../modules/pessoal';
 import {
   acrescentaTermo,
@@ -261,19 +263,24 @@ export function listaPessoalProtegida(
   return ok(lista.valor);
 }
 
-/** O efetivo é agregado por função e não tem nome: o encarregado pode ver. */
-export function contaEfetivoPorFuncaoProtegido(
+/**
+ * A mobilização de pessoal da obra, sem nome: as passagens cruas.
+ *
+ * O encarregado pode ver, porque não há nome aqui. **Não é o efetivo do RDO**:
+ * quem conta é `src/modules/rdo/efetivo.ts`, que é quem conhece o estado do dia
+ * (5.1) e o formato do bloco 5. Havia duas agregações no sistema; sobrou uma.
+ */
+export function listaMobilizacaoDePessoalProtegida(
   ator: Ator,
   obraId: ObraId,
-  dia: DiaPuro,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<EfetivoPorFuncao[]> {
+): Resposta<PessoaMobilizada[]> {
   const permitido = autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
-  const efetivo = contaEfetivoPorFuncao(obraId, dia, paraPessoal(amb));
-  if (!efetivo.ok) return erro(efetivo.erro);
-  return ok(efetivo.valor);
+  const mobilizacao = listaMobilizacaoDePessoal(obraId, paraPessoal(amb));
+  if (!mobilizacao.ok) return erro(mobilizacao.erro);
+  return ok(mobilizacao.valor);
 }
 
 export function cadastraEquipamentoProtegido(
@@ -323,18 +330,18 @@ export function listaEquipamentosProtegida(
   return ok(lista.valor);
 }
 
-export function contaEfetivoPorIdentificadorProtegido(
+/** Como em `pessoal`: mobilização crua, e a contagem do bloco 6 é do `rdo`. */
+export function listaMobilizacaoDeEquipamentoProtegida(
   ator: Ator,
   obraId: ObraId,
-  dia: DiaPuro,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<EfetivoPorIdentificador[]> {
+): Resposta<EquipamentoMobilizado[]> {
   const permitido = autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
-  const efetivo = contaEfetivoPorIdentificador(obraId, dia, paraEquipamento(amb));
-  if (!efetivo.ok) return erro(efetivo.erro);
-  return ok(efetivo.valor);
+  const mobilizacao = listaMobilizacaoDeEquipamento(obraId, paraEquipamento(amb));
+  if (!mobilizacao.ok) return erro(mobilizacao.erro);
+  return ok(mobilizacao.valor);
 }
 
 export function encerraPassagemDeEquipamentoProtegida(
@@ -462,6 +469,27 @@ export function geraConviteProtegido(
   const gerado = geraConvite(obraId, ator, paraAcesso(amb));
   if (!gerado.ok) return erro(gerado.erro);
   return ok(gerado.valor);
+}
+
+/**
+ * Quem tem acesso à obra.
+ *
+ * `listaAcessosDaObra` já exige engenheiro por conta própria; a verificação
+ * daqui é a mesma de todas as outras leituras da obra, e existe para que a
+ * página não precise conhecer duas convenções diferentes. Duas camadas, como
+ * manda a 5.2.
+ */
+export function listaAcessosDaObraProtegida(
+  ator: Ator,
+  obraId: ObraId,
+  amb: Amb = ambienteDeCadastroPadrao(),
+): Resposta<AcessoDaObra[]> {
+  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+  if (!permitido.ok) return permitido;
+
+  const lista = listaAcessosDaObra(obraId, ator, paraAcesso(amb));
+  if (!lista.ok) return erro(lista.erro);
+  return ok(lista.valor);
 }
 
 export function revogaAcessoProtegido(

@@ -7,7 +7,14 @@
  * acontece em `src/app/_composicao/`.
  */
 
-export type { Ambiente, Ator, AtorNaObra, ObraResumo, Perfil } from './tipos';
+export type {
+  Ambiente,
+  Ator,
+  AtorNaObra,
+  ObraResumo,
+  Perfil,
+  PortadorDeAcesso,
+} from './tipos';
 export { perfilAtende } from './tipos';
 
 export {
@@ -27,6 +34,7 @@ export {
   exigePermissaoParaCriarObra,
   type ContextoDeRota,
   type ManipuladorProtegido,
+  type ParametrosDeRota,
 } from './autorizacao';
 
 export {
@@ -39,6 +47,9 @@ export {
   DIAS_DE_VALIDADE_DO_CONVITE,
   type ConviteGerado,
 } from './convite';
+
+/** Uma linha da tela de acesso: id, usuário, perfil. **Sem nome e sem e-mail.** */
+export type { LinhaDeAcessoDaObra as AcessoDaObra } from './repositorio';
 
 export {
   atributosDoCookie,

@@ -16,11 +16,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { paraEquipamento } from '../../app/_composicao/ambiente-de-cadastro';
 import {
   cadastraEquipamentoProtegido,
-  contaEfetivoPorIdentificadorProtegido,
+  listaMobilizacaoDeEquipamentoProtegida,
   listaEquipamentosProtegida,
   registraPassagemDeEquipamentoProtegida,
 } from '../../app/_composicao/cadastro';
-import { diaPuroConfiavel } from '../../shared/date/dia';
 import { CODIGO_ERRO } from '../../shared/result';
 import {
   criaObraDoPrd,
@@ -63,17 +62,6 @@ function cadastra(
       : { identificador, tipo, entrada, saida },
     cenario.amb,
   );
-}
-
-function efetivo(dia: string) {
-  const resultado = contaEfetivoPorIdentificadorProtegido(
-    e1,
-    obraId,
-    diaPuroConfiavel(dia),
-    cenario.amb,
-  );
-  if (!resultado.ok) throw new Error(resultado.erro.mensagem);
-  return resultado.valor;
 }
 
 describe('F2.2 — cadastro de equipamento e passagens', () => {
@@ -184,60 +172,33 @@ describe('F2.2 — cadastro de equipamento e passagens', () => {
     expect(lista.ok && lista.valor[0]?.identificador).toBe('CARRO LOC.');
   });
 
-  it('CT-049 o efetivo devolve o identificador e nunca o tipo', () => {
+  it('CT-049 a mobilização devolve o identificador e nunca o tipo', () => {
+    // O bloco 6 imprime `CF-29`, nunca `PATROL`: o tipo é cadastro interno e
+    // imprimi-lo é divergência de layout. O tipo não sai do módulo.
+    //
+    // A CONTAGEM não está aqui: `equipamento` entrega passagens cruas e quem
+    // conta é `src/modules/rdo/efetivo.ts`. As fronteiras da regra 1.2 contra o
+    // cadastro de verdade estão em `test/efetivo-do-rdo.test.ts`.
     expect(cadastra('CF-29', 'PATROL', '2026-02-05').ok).toBe(true);
 
-    const linha = efetivo('2026-09-03')[0];
+    const mobilizacao = listaMobilizacaoDeEquipamentoProtegida(e1, obraId, cenario.amb);
+    expect(mobilizacao.ok).toBe(true);
+    if (!mobilizacao.ok) return;
+
+    const linha = mobilizacao.valor[0];
     expect(linha?.identificador).toBe('CF-29');
     expect(Object.keys(linha ?? {})).toEqual([
       'equipamentoId',
       'identificador',
-      'quantidade',
+      'ordem',
+      'passagens',
     ]);
-    expect(JSON.stringify(efetivo('2026-09-03'))).not.toContain('PATROL');
+    expect(linha?.passagens).toEqual([{ entrada: '2026-02-05', saida: null }]);
+    expect(JSON.stringify(mobilizacao.valor)).not.toContain('PATROL');
   });
 
   it('recusa tipo de equipamento fora da taxonomia', () => {
     const resultado = cadastra('XX-01', 'GUINDASTE', '2026-02-05');
     expect(resultado.ok).toBe(false);
-  });
-});
-
-describe('efetivo por identificador — fronteiras da regra R1 aplicada por 1.2', () => {
-  it('conta o equipamento no próprio dia da entrada', () => {
-    expect(cadastra('CF-29', 'PATROL', '2026-02-05').ok).toBe(true);
-    expect(efetivo('2026-02-05')).toHaveLength(1);
-  });
-
-  it('não conta o equipamento no dia anterior à entrada', () => {
-    expect(cadastra('CF-29', 'PATROL', '2026-02-05').ok).toBe(true);
-    expect(efetivo('2026-02-04')).toEqual([]);
-  });
-
-  it('conta o equipamento no dia da saída, pela mesma regra da pessoa', () => {
-    // Decisão 1.2: acabou a divergência da planilha, que tinha três
-    // comportamentos diferentes para o bloco de equipamento.
-    expect(cadastra('CF-29', 'PATROL', '2026-02-05', '2026-02-18').ok).toBe(true);
-    expect(efetivo('2026-02-18')).toHaveLength(1);
-  });
-
-  it('não conta o equipamento no dia seguinte à saída', () => {
-    expect(cadastra('CF-29', 'PATROL', '2026-02-05', '2026-02-18').ok).toBe(true);
-    expect(efetivo('2026-02-19')).toEqual([]);
-  });
-
-  it('conta uma vez o equipamento que tem duas passagens', () => {
-    const criado = cadastra('MT-26', 'BASCULA', '2026-02-05', '2026-02-18');
-    expect(criado.ok).toBe(true);
-    if (!criado.ok) return;
-    registraPassagemDeEquipamentoProtegida(
-      e1,
-      obraId,
-      { equipamentoId: criado.valor, entrada: '2026-03-01' },
-      cenario.amb,
-    );
-
-    expect(efetivo('2026-03-05')).toHaveLength(1);
-    expect(efetivo('2026-02-25')).toEqual([]);
   });
 });

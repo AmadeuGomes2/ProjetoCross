@@ -1,6 +1,6 @@
 import { CabecalhoDoDia, Voltar } from '../../../../_componentes/cabecalho';
 import { FormularioDeAtividade } from '../../../../_componentes/formulario-de-atividade';
-import { carregaDadosDaTela } from '../../../../_dados';
+import { carregaDadosDaTelaProtegida } from '../../../../_dados';
 import estilos from '../../../../estilos.module.css';
 
 /** Atividades do dia. Uma por vez, com o status escolhido de lista. */
@@ -10,7 +10,7 @@ export default async function PaginaDeAtividades({
   params: Promise<{ obraId: string; data: string }>;
 }) {
   const { obraId, data } = await params;
-  const dados = await carregaDadosDaTela(obraId, data);
+  const dados = await carregaDadosDaTelaProtegida(obraId, data);
 
   if (!dados.dataValida) {
     return (

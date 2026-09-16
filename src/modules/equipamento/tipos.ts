@@ -67,9 +67,23 @@ export interface EquipamentoComPassagens {
   readonly passagens: readonly PassagemDeEquipamento[];
 }
 
-/** Bloco 6 do RDO. **Sem o tipo**, porque o tipo não vai ao documento. */
-export interface EfetivoPorIdentificador {
+/** Uma passagem como o RDO a recebe: só as duas datas, sem id de passagem. */
+export interface PassagemMobilizada {
+  readonly entrada: DiaPuro;
+  readonly saida: DiaPuro | null;
+}
+
+/**
+ * Uma coluna do bloco 6 do RDO. **Sem o tipo**, porque o tipo não vai ao
+ * documento (CT-049).
+ *
+ * Note que **não há quantidade aqui**: este módulo entrega a mobilização crua
+ * e o `rdo` conta. A agregação vive em `src/modules/rdo/efetivo.ts`, e só lá.
+ */
+export interface EquipamentoMobilizado {
   readonly equipamentoId: EquipamentoId;
   readonly identificador: string;
-  readonly quantidade: number;
+  /** Posição da coluna no bloco 6. Estável entre um RDO e o seguinte. */
+  readonly ordem: number;
+  readonly passagens: readonly PassagemMobilizada[];
 }

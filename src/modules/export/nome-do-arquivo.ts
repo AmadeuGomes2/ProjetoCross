@@ -11,6 +11,15 @@
  * contrato (decisão 6.1) e `n210` em 03/09/2026. `NNN` na decisão é a forma do
  * exemplo, não largura fixa; completar com zero inventaria um identificador que
  * não é o que o fiscal lê no documento.
+ *
+ * **Isto não é defeito, e não se "conserta".** A conferência de fidelidade de
+ * 16/09/2026 (`docs/fidelidade/2026-09-16-rdo-diario.md`, "As duas dúvidas da
+ * frente C") examinou o ponto e concluiu o mesmo: o `RDO Nº` impresso no bloco
+ * 2 é `0` no primeiro dia e `8` no oitavo, e um arquivo `n000` carregaria um
+ * identificador que não existe em lugar nenhum do documento. A ordenação da
+ * pasta também não pede zero: quem ordena é a data em `AAAA-MM-DD`, que vem
+ * antes. Passar a `n000` seria mudança de layout, e depende de aprovação de
+ * quem responde pelo produto.
  */
 
 import type { DiaPuro } from '../../shared/date/dia';

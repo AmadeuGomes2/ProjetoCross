@@ -147,6 +147,20 @@ export interface ProducaoPorServico {
 }
 
 /**
+ * Um lançamento de produção vigente, cru.
+ *
+ * É o que o bloco 7 do RDO consome: o acumulado e o executado são somas do
+ * `rdo` (R5), não deste módulo. Guardar aqui um total já somado apagaria o
+ * rastro de qual lançamento compôs qual número (CT-232).
+ */
+export interface LancamentoDeProducaoVigente {
+  readonly id: LancamentoId;
+  readonly servicoId: ServicoControladoId;
+  readonly data: DiaPuro;
+  readonly quantidade: Quantidade;
+}
+
+/**
  * Uma versão da cadeia de retificação. Carrega autoria, e por isso só o
  * engenheiro a lê (14.0).
  */
