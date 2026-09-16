@@ -33,7 +33,13 @@ A ordem é obrigatória. É a ordem em que o fiscal lê.
 10. Comentários
 11. Assinaturas
 
-Uma página por dia, retrato, com margem que caiba em A4.
+Retrato, com margem que caiba em A4. **Uma página por dia é o normal**, mas o dia
+que transborda o layout ganha uma **segunda página de continuação**, com o mesmo
+cabeçalho de identificação. Decisão 11.1, aprovada em 16/09/2026.
+
+Transbordo nunca é truncamento silencioso. Os limites que disparam continuação:
+mais de 15 atividades, comentário com mais de 4 linhas, mais de 41 funções ou
+mais de 41 equipamentos.
 
 ---
 
@@ -95,6 +101,10 @@ Cabeçalho: `EFETIVO PESSOAL`. Tabela de duas linhas mais total:
 documento. É requisito de LGPD, não escolha de layout.
 Quantidade zero é exibida em branco, não como `0`.
 
+**Em dia parado o efetivo sai zerado**, e portanto o bloco inteiro sai em branco
+com `TOTAL` zero. Decisão 5.1, aprovada em 16/09/2026. O efetivo é o mobilizado,
+não a presença marcada dia a dia.
+
 ### 6. Efetivo equipamentos
 
 Cabeçalho: `EFETIVO EQUIPAMENTOS`, no plural. Mesmo formato, mas a linha de cima
@@ -111,6 +121,9 @@ Cabeçalho: `PRODUÇÃO CONTROLADA`. Quatro colunas, nesta ordem, com estes rót
 - `EXEC.` e `ACUM.` com ponto final, abreviados assim mesmo.
 - Uma linha por serviço controlado, sempre as quatro, mesmo zeradas.
 - Número com duas casas decimais e separador de milhar brasileiro: `15.027,03`.
+- **Valor zero sai como `-`, um traço**, não como `0,00` nem em branco. É o que o
+  formato numérico da célula produz na planilha. Decisão 17.2, aprovada em
+  16/09/2026.
 - O percentual é uma **barra de progresso**, não um número solto.
 
 ### 8. Atividades do dia
@@ -118,8 +131,13 @@ Cabeçalho: `PRODUÇÃO CONTROLADA`. Quatro colunas, nesta ordem, com estes rót
 Cabeçalho do bloco à esquerda: `ATIVIDADES`. À direita: `STATUS`.
 Uma linha por atividade, descrição à esquerda e status à direita.
 
-Espaço para **15 atividades**. Acima disso, transbordo tratado explicitamente,
-nunca corte silencioso.
+Espaço para **15 atividades**. Acima disso, segunda página de continuação, nunca
+corte silencioso.
+
+**Dia parado** não tem atividade nenhuma. O bloco mostra, na **primeira linha**, o
+motivo da parada, e o complemento em texto livre se houver. É assim que o fiscal
+está acostumado a ler o dia sem trabalho, porque a planilha escrevia "Não houve
+atividades - Domingo" nesta mesma posição. Decisão 4.1, aprovada em 16/09/2026.
 
 ### 9. Pluviometria
 
@@ -132,8 +150,12 @@ TARDE
 INDICE               <- sem acento
 ```
 
-Os três turnos mostram a condição por extenso, capitalizada.
+Os três turnos mostram **a letra**, `B`, `C` ou `I`, e não a palavra por extenso.
+A fórmula da planilha copia o valor da célula do turno sem traduzir, então é a
+letra que o fiscal lê há meses. Decisão 2.3, aprovada em 16/09/2026.
 O índice é exibido com o sufixo ` mm`.
+
+Turno em branco é válido: sai vazio, não `-` nem `0`.
 
 ### 10. Comentários
 
@@ -148,6 +170,11 @@ COMENTÁRIO CONTRATANTE    <- singular, contratante
 do contratante, e por isso nunca mostrou nada. Reproduzir esse defeito é falha de
 fidelidade, não fidelidade. Ver `docs/dominio/regras-extraidas.md`, seção 8.
 
+Na v1, `COMENTÁRIO CONTRATANTE` **sai sempre vazio**: o bloco aparece, o conteúdo
+não existe, porque o fluxo do contratante está fora do escopo. Decisão 10.1,
+aprovada em 16/09/2026. Bloco ausente continua sendo falha crítica; bloco vazio,
+não.
+
 ### 11. Assinaturas
 
 Rodapé, dois campos lado a lado:
@@ -160,6 +187,17 @@ REPRESENTANTE CROS CONSTRUÇÕES S/A        REPRESENTANTE CONTRATANTE
 registro (`Engenheiro Civil`, `CREA - MG 212333/D`).
 
 ---
+
+## Fora do documento
+
+Duas coisas decididas em 16/09/2026 que não são bloco do PDF, mas entram na
+conferência:
+
+- **Nome do arquivo:** `rdo-AAAA-MM-DD-nNNN.pdf`, com a data e o número do RDO,
+  por exemplo `rdo-2026-09-01-n208.pdf`. Sem nome de pessoa, nunca. Decisão 17.3.
+- **Resumo do dia** (`Trabalhado`, `Perca de produção`, `Impraticavél`) aparece
+  **na tela** do RDO diário e **não** no PDF, porque o gabarito não tem esse
+  campo. Decisão 3.3. Se aparecer no PDF, é divergência.
 
 ## O que conferir, em ordem de gravidade
 
@@ -189,9 +227,14 @@ sem aprovação é divergência:
 | `Base Concluida`             | Concluída              |
 | `NOITE ANTER`                | Noite anterior         |
 
-Espaços sobrando no fim de textos fixos (`MONTES CLAROS - MG `) existem no
-original e afetam alinhamento. **[PENDENTE]** reproduzir ou normalizar: ver
-`docs/dominio/duvidas.md`, dúvida 10, nota de fidelidade.
+Espaços sobrando **no fim** de textos fixos (`MONTES CLAROS - MG `) são
+**normalizados**: o documento gerado não os reproduz. São resto de digitação, não
+vocabulário. Decisão 17.1, aprovada em 16/09/2026, que responde a nota de
+fidelidade da dúvida 10.
+
+Atenção à diferença: espaço **no meio** do texto continua sendo reproduzido, por
+exemplo o duplo em `PAVIMENTAÇÃO  - BLOCO 02` e em `URBANAS  DA CIDADE`. A
+decisão 17.1 vale só para as pontas.
 
 ---
 

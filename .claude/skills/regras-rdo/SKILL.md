@@ -9,8 +9,13 @@ Versão consultável de `docs/dominio/regras-extraidas.md`. O documento longo te
 origem e o raciocínio; aqui está o que você precisa para escrever o cálculo.
 
 Convenção: **[HERDAR]** vale para o produto novo. **[NÃO HERDAR]** é defeito da
-planilha. **[PENDENTE]** depende de decisão registrada em
-`docs/dominio/duvidas.md` — não escolha por conta própria.
+planilha. **[DECIDIDO 16/09/2026]** é resposta dada por quem responde pelo
+produto, registrada em `docs/prd/v1-decisoes.md` e em `docs/dominio/duvidas.md`.
+**[PENDENTE]** ainda depende de decisão — não escolha por conta própria.
+
+As 39 decisões da v1 foram tomadas em 16/09/2026. O que restou pendente está
+marcado como tal, e é pouco: a lista de motivos de dia parado, que é proposta e
+espera aprovação.
 
 ---
 
@@ -18,20 +23,22 @@ planilha. **[PENDENTE]** depende de decisão registrada em
 
 ```
 efetivo(funcao, dia) =
-    pessoas com essa funcao cuja ENTRADA <= dia
-  − pessoas com essa funcao que ja sairam antes/ate o dia   <-- [PENDENTE]
+  se o dia esta PARADO -> 0
+  senao, pessoas com essa funcao que tenham uma passagem com
+         ENTRADA <= dia  e  (SAIDA nula ou SAIDA >= dia)
 ```
 
-- **[HERDAR]** presença é derivada do intervalo, não marcada por dia.
+- **[DECIDIDO 16/09/2026]** a pessoa **conta** no dia em que sai: a data de saída
+  é o último dia trabalhado. Por isso `SAIDA >= dia`, e não `>`. Decisão 1.1.
+- **[DECIDIDO 16/09/2026]** equipamento usa **a mesma** regra. Decisão 1.2.
+  Acabou a divergência da planilha, que tinha três comportamentos.
+- **[DECIDIDO 16/09/2026]** o efetivo é o **mobilizado**, e sai **zerado quando o
+  dia está parado**. Decisão 5.1. Ninguém marca presença dia a dia.
 - **[HERDAR]** pessoal agrega por **função**; equipamento agrega por
   **identificador**. Duas granularidades diferentes, de propósito.
-- **[PENDENTE, dúvida 5]** a pessoa conta no dia da saída? A planilha responde das
-  duas formas: `≤` nas colunas B:S e `<` em T:AP. Equipamento usa `<` em todas.
-- **[NÃO HERDAR]** o critério depender da coluna. Uma regra só, testada.
-- **[PENDENTE, dúvida 11]** efetivo mobilizado ou efetivo presente? Hoje o RDO
-  mostra 19 pessoas inclusive em domingo com a obra parada.
-- **Atenção ao modelo:** intervalo único não suporta pessoa que sai e volta. Duas
-  linhas seriam contadas como duas pessoas. Caso de teste 8.
+- **Atenção ao modelo:** a contagem é por **passagem**, não por pessoa. Uma pessoa
+  que sai e volta tem duas passagens e continua sendo uma pessoa. Contar linhas de
+  cadastro daria dois. Caso de teste 8.
 
 ## 2. Produção por serviço controlado
 
@@ -60,9 +67,15 @@ numero(dia) = dia − data de inicio do contrato
 - **[HERDAR]** a fórmula: é o número que o fiscal reconhece. Em 01/09/2026, com
   início em 05/02/2026, dá 208.
 - **[HERDAR]** conta dia corrido: inclui sábado, domingo, feriado e dia parado.
-- **[PENDENTE, dúvida 12]** o primeiro dia é RDO 0 ou RDO 1? Hoje é 0.
-- **[PENDENTE, dúvida 12]** congelar no fechamento? Hoje, mudar a data de início
-  renumera retroativamente tudo que já foi entregue.
+- **[DECIDIDO 16/09/2026]** o primeiro dia do contrato é o **RDO 0**, como na
+  planilha. Decisão 6.1.
+- **[DECIDIDO 16/09/2026]** o número **congela no fechamento do dia**. Decisão
+  6.2. Antes de fechar, é calculado; ao fechar, é gravado junto com o fechamento e
+  nunca mais muda. Mudar a data de início da obra passa a não renumerar o que já
+  foi entregue ao fiscal.
+- Consequência para o teste: o número é derivado **enquanto o dia está aberto** e
+  armazenado **depois de fechado**. É a única exceção à regra de que RDO nunca é
+  armazenado, e existe por rastreabilidade contratual.
 
 ## 4. Resumo do dia da pluviometria
 
@@ -71,19 +84,29 @@ Três turnos: noite anterior, manhã, tarde. Cada um recebe `B` bom, `C` chuva o
 
 Árvore da planilha, na ordem, parando na primeira verdadeira:
 
+Árvore **corrigida**, decisão 3.1 de 16/09/2026. Na ordem, para na primeira
+verdadeira:
+
 ```
 1. tres letras B                      -> "Trabalhado"
 2. existe C  e  indice <  10          -> "Trabalhado"
-3. existe C  e  indice >  10          -> "Perca de producao"
+3. existe C  e  indice >= 10          -> "Perca de producao"     <-- era > 10
 4. existe I                           -> "Impraticavel"
 5. caso contrario                     -> vazio
 ```
 
-- **[NÃO HERDAR] o índice exatamente 10 não satisfaz o passo 2 nem o 3.** Cai no
-  4, não tem `I`, e o dia sai **vazio**. Caso de teste 3, obrigatório.
-- **[PENDENTE]** para que lado vai o 10.
+- **[DECIDIDO 16/09/2026]** o passo 3 usa **maior ou igual a 10**. O buraco da
+  planilha, em que 10 exato caía no vazio, está fechado. Caso de teste 3 continua
+  obrigatório, agora com expectativa definida: 10 mm com chuva é
+  `Perca de produção`.
+- **[DECIDIDO 16/09/2026]** chuva com índice **0** continua `Trabalhado`, como na
+  planilha. Decisão 3.2. É o passo 2, e é intencional.
+- **[DECIDIDO 16/09/2026]** o resumo do dia aparece **na tela** do RDO diário e
+  **não no PDF**, porque o gabarito impresso não tem esse campo. Decisão 3.3.
 - **[HERDAR]** as grafias exibidas: `Perca de produção`, `Impraticavél`. São o
   vocabulário do cliente, erros de ortografia incluídos.
+- **[DECIDIDO 16/09/2026]** o PDF imprime **a letra** `B`, `C` ou `I` nos três
+  turnos, não a palavra por extenso. Decisão 2.3. Turno em branco sai vazio.
 - **[HERDAR]** o acumulado de chuva zera a cada mês.
 - **[NÃO HERDAR]** comparar termo por igualdade exata. No Excel a comparação
   ignora maiúsculas e `Perca de Produção` casa com `Perca de produção`. Em código,
@@ -93,9 +116,22 @@ Três turnos: noite anterior, manhã, tarde. Cada um recebe `B` bom, `C` chuva o
 ## 5. Dia sem trabalho
 
 - **[NÃO HERDAR]** transformar dia parado em atividade com texto "Não houve
-  atividades" e status `Produção`. São 79 linhas assim na planilha.
-- O dia tem **estado próprio**: trabalhado ou parado, com motivo tipado.
-- Dia parado tem zero atividades. Caso de teste 4.
+  atividades" e status `Produção`. São 110 linhas assim na planilha, com 13 textos
+  distintos, e 61 delas não declaram motivo nenhum.
+- **[DECIDIDO 16/09/2026]** o dia tem **três estados**: `não lançado`, `parado`,
+  `trabalhado`. Decisão 4.2. Ninguém ter lançado é diferente de ter lançado que
+  não houve trabalho.
+- **[DECIDIDO 16/09/2026]** dia parado tem **motivo tipado** e zero atividades.
+  Decisão 4.1. Tentar lançar atividade num dia parado é **rejeitado** com
+  mensagem, não muda o estado do dia. Decisão 4.3. Caso de teste 4.
+- **[DECIDIDO 16/09/2026]** no PDF, o motivo sai na **primeira linha do bloco
+  ATIVIDADES**, que é onde o fiscal está acostumado a lê-lo. Decisão 4.1.
+- **[DECIDIDO 16/09/2026]** efetivo de pessoal e de equipamento sai **zerado** em
+  dia parado. Decisão 5.1.
+- Lista de motivos proposta a partir dos textos reais, **pendente de aprovação**:
+  `Domingo`, `Feriado`, `Chuva`, `Excesso de umidade no trecho`,
+  `Interferência de terceiro`, `Impraticável`, `Sem frente de serviço`, `Outro`.
+  Complemento em texto livre continua existindo, opcional.
 
 ## 6. Composição do RDO diário
 
@@ -138,9 +174,13 @@ dias do periodo = data final − data inicial + 1
 
 - **[HERDAR]** a contagem, com validação de que a final não é anterior à inicial.
   A planilha tem um período de **-716 dias**. Caso de teste 9.
-- **[PENDENTE, dúvida 2]** qual é o ciclo. A tabela legada usa 16 a 15 e vai de
-  2022 a 2025; as abas de RDO dizem BMS 7 para setembro de 2026; os títulos falam
-  em 05/02 a 28/02. Nada fecha.
+- **[DECIDIDO 16/09/2026]** não existe ciclo fixo. O engenheiro **cadastra os
+  períodos de BMS da obra** (número, início, fim) e o RDO deriva o número pela
+  data do dia. Decisão 7.1. A tabela legada, que ia de 2022 a 2025 e não cobria
+  2026, é descartada.
+- Consequência: existe a entidade **Período de BMS**, com a mesma validação de
+  data final não anterior à inicial. Dia fora de todo período cadastrado sai com
+  o campo `BM'S` vazio, não com erro.
 
 ---
 
@@ -154,8 +194,17 @@ dias do periodo = data final − data inicial + 1
 
 **Condição de tempo** (6): `Bom`, `Nublado`, `Chuvoso`, `Chuva Parcial`,
 `Impraticável`, `---`.
+**Não existe mais no produto.** A decisão 2.1, de 16/09/2026, escolheu registrar o
+tempo só pelos três turnos mais o índice em mm. Pedir as duas coisas ao
+encarregado feria o lançamento rápido em celular, e o PDF só imprime os turnos.
+Fica aqui como registro do que a planilha tinha.
 
-**Turno de pluviometria** (3): `B`, `C`, `I`.
+**Turno de pluviometria** (3): `B`, `C`, `I`. É a única taxonomia de tempo do
+produto. A letra `N` que a macro VBA pinta não entra.
+
+**Motivo de dia parado** (proposta pendente de aprovação): `Domingo`, `Feriado`,
+`Chuva`, `Excesso de umidade no trecho`, `Interferência de terceiro`,
+`Impraticável`, `Sem frente de serviço`, `Outro`.
 
 **Resumo do dia** (3): `Trabalhado`, `Perca de produção`, `Impraticavél`.
 

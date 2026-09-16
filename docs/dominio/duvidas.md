@@ -3,7 +3,7 @@
 Ambiguidades levantadas na leitura da planilha, com o estado de cada uma depois da
 inversão central (a planilha é a saída, não a entrada — ver `docs/spec.md`).
 
-Dois estados possíveis:
+Três estados possíveis:
 
 - **RESOLVIDA PELA INVERSÃO** — a dúvida existia porque alguém teria que adivinhar
   o que a planilha quis dizer. Como o sistema passa a produzir o dado em vez de
@@ -12,14 +12,20 @@ Dois estados possíveis:
 - **DECISÃO DE PRODUTO PENDENTE** — continua sendo uma pergunta real, e a resposta
   muda o que o sistema faz. Precisa de resposta humana antes da implementação da
   parte correspondente.
+- **RESPONDIDA em AAAA-MM-DD** — quem responde pelo produto decidiu, com data. A
+  resposta está escrita aqui e aplicada no PRD.
 
 Nenhuma dúvida pendente foi preenchida com palpite.
+
+As respostas de **16/09/2026** vieram da folha `docs/prd/v1-decisoes.md`, em que
+todas as sugestões foram aceitas, e estão aplicadas em `docs/prd/v1.md`, seção
+DECISÕES TOMADAS. O código entre parênteses (`1.1`, `2.3`, ...) é o da folha.
 
 ---
 
 ## 1. Qual é o número de contrato canônico?
 
-**Estado: DECISÃO DE PRODUTO PENDENTE**
+**Estado: RESPONDIDA em 16/09/2026**
 
 O mesmo arquivo traz três identificações:
 
@@ -28,13 +34,13 @@ O mesmo arquivo traz três identificações:
 - nome do arquivo = `190 PMMC - BLOCO 02`
 
 A inversão elimina a **divergência** (passa a existir um campo só, preenchido uma
-vez no cadastro da obra), mas não responde **qual valor** vai nele, nem se são dois
-identificadores legítimos e coexistentes: um número de contrato e um código
-interno de proposta.
+vez no cadastro da obra), mas não respondia **qual valor** vai nele, nem se são
+dois identificadores legítimos e coexistentes.
 
-**O que preciso saber:** os três se referem ao mesmo contrato? Se sim, qual é o
-número que o fiscal da Prefeitura reconhece no documento impresso? Precisamos de
-dois campos separados, contrato e código interno?
+**Resposta (8.1, 8.2):** um campo só na entidade Obra, chamado contrato, impresso
+em `CONTRATO:` do cabeçalho. O valor da obra real é `P0476/01-25 - BLOCO 02`, que é
+o que está nas 31 abas de RDO e o que o fiscal reconhece. `190/2026` e
+`190 PMMC - BLOCO 02` não têm campo no sistema e não vão ao documento.
 
 **Impacto se errado:** o RDO sai com o contrato errado no cabeçalho e o fiscal
 rejeita.
@@ -43,9 +49,9 @@ rejeita.
 
 ## 2. Qual é o ciclo de medição do BMS e a que período o BMS 7 corresponde?
 
-**Estado: DECISÃO DE PRODUTO PENDENTE**
+**Estado: RESPONDIDA em 16/09/2026**
 
-Três informações que não fecham:
+Três informações que não fechavam:
 
 - `DADOS!B3:D42` define 40 períodos de 16 de um mês a 15 do seguinte, indo de
   2022 a 2025, sem nenhuma linha em 2026.
@@ -53,13 +59,15 @@ Três informações que não fecham:
 - Os títulos de seção falam em `BMS 001 - 05/02/2026 a 28/02/2026`, um período de
   24 dias, que não segue o ciclo 16 a 15 nem fecha mês cheio.
 
-Se a obra começou em 05/02/2026 e o BMS 001 foi 05/02 a 28/02, o BMS 7 cairia em
-agosto, não em setembro. Se o ciclo fosse mensal cheio a partir de março, o BMS 7
-cairia em setembro. A segunda hipótese fecha, mas é hipótese.
+**Resposta (7.1):** o produto não deduz ciclo nenhum. Existe a entidade **Período
+de BMS**, com número, data inicial e data final, cadastrada pelo engenheiro na
+obra, com validação de que a final não é anterior à inicial. O BMS impresso no
+cabeçalho é o número do período cujo intervalo contém a data do RDO. A tabela de
+`DADOS` não é carregada.
 
-**O que preciso saber:** o BMS é mensal cheio a partir do segundo período? O
-primeiro período é sempre quebrado, do início do contrato até o fim do mês? A
-tabela em `DADOS` é lixo herdado de outra obra?
+**Continua pendente, em escala menor:** o que o campo `BM'S` mostra quando a data
+do RDO não cai em nenhum período cadastrado. É a pergunta aberta 2 de
+`docs/prd/v1.md`.
 
 **Impacto se errado:** o número do BMS impresso é o que amarra o RDO à medição
 financeira. Errar o BMS é errar a fatura.
@@ -68,43 +76,60 @@ financeira. Errar o BMS é errar a fatura.
 
 ## 3. Dia sem trabalho deve ser uma atividade ou um estado do dia?
 
-**Estado: RESOLVIDA PELA INVERSÃO**
+**Estado: RESOLVIDA PELA INVERSÃO · confirmada por decisão explícita em
+16/09/2026**
 
 Na planilha, dia parado vira uma linha de atividade com o texto explicando o
 motivo, e em 79 casos com status `Produção`, que é contraditório.
 
 Como o sistema novo modela o **dia** como entidade própria, o dia passa a ter
 estado explícito e tipado, separado da lista de atividades. Um dia parado tem zero
-atividades e um motivo escolhido de lista (domingo, feriado, chuva, impraticável,
-sem frente de serviço, outro). O texto livre vira complemento, não classificação.
+atividades e um motivo escolhido de lista. O texto livre vira complemento, não
+classificação.
 
-**Decisão registrada:** estado do dia é campo próprio; a lista de motivos é tabela
-de domínio editável. O RDO renderiza o dia parado com o motivo, não com uma
-atividade falsa.
+**Decisão registrada, agora com aprovação explícita (4.1, 4.2, 4.3):**
 
-**Continua pendente, em escala menor:** a lista exata de motivos, que deve sair da
-leitura dos 79 textos reais. Não inventei a lista.
+- o estado do dia é campo próprio e tem **três valores**: `não lançado`, `parado`,
+  `trabalhado` (4.2). `não lançado` é a ausência de registro, não um valor
+  digitado;
+- dia parado tem motivo tipado e **zero atividades**; no PDF, o motivo sai na
+  **primeira linha do bloco `ATIVIDADES`**, que é onde o fiscal está acostumado a
+  lê-lo (4.1);
+- atividade lançada num dia parado é **rejeitada com mensagem**; não muda o estado
+  do dia por efeito colateral (4.3);
+- a lista de motivos é tabela de domínio editável.
+
+**Continua pendente, em escala menor:** a lista exata de motivos. A extração de
+16/09/2026 achou **110 registros de dia parado com 13 textos distintos**, dos quais
+**61 não declaram motivo nenhum**, só "Não houve atividades". A lista proposta
+(`Domingo`, `Feriado`, `Chuva`, `Excesso de umidade no trecho`,
+`Interferência de terceiro`, `Impraticável`, `Sem frente de serviço`, `Outro`)
+está em `docs/prd/v1.md` e aguarda aprovação: é a pergunta aberta 1 de lá, junto
+com a obrigatoriedade do motivo. Não inventei a lista.
 
 ---
 
 ## 4. Qual é a fonte da verdade do tempo do dia?
 
-**Estado: DECISÃO DE PRODUTO PENDENTE**
+**Estado: RESPONDIDA em 16/09/2026**
 
-Há duas, e elas não conversam:
+Havia duas, e elas não conversavam:
 
-- `ATIVIDADES!D` guarda uma condição de tempo **por atividade**, de uma lista de 6
-  termos. Um dia com 5 atividades tem 5 valores de tempo, na prática sempre iguais.
+- `ATIVIDADES!D` guardava uma condição de tempo **por atividade**, de uma lista de
+  6 termos. Um dia com 5 atividades tinha 5 valores de tempo, na prática iguais.
 - `PLUVIOMETRIA` guarda **três turnos e um índice em mm por dia**, de uma lista de
   3 letras, e deriva o resumo do dia.
 
-O RDO imprime os dois: a condição de tempo aparece implícita nas atividades e os
-turnos aparecem no bloco de pluviometria. Não há regra que force coerência entre
-"Bom" na atividade e "C" no turno da manhã.
+**Resposta (2.1, 2.2, 2.3):** o tempo é **do dia** e é lançado **só** como três
+turnos (`B`, `C`, `I`) mais o índice em mm. A **condição de tempo de 6 termos
+deixa de existir**: sai do lançamento de atividade, sai do dia e sai da carga
+inicial de taxonomias. Turno em branco é aceito — domingo real fica assim (2.2). O
+PDF imprime **a letra** em `NOITE ANTER`, `MANHÃ` e `TARDE` (2.3), como a fórmula
+da planilha já faz; não há texto por extenso.
 
-**O que preciso saber:** o tempo é do dia ou da atividade? Se é do dia, a lista de
-6 termos e a de 3 letras são a mesma coisa em dois níveis de detalhe, ou medem
-coisas diferentes (percepção contra medição)? O encarregado deve lançar as duas?
+**Consequência derivada, não decisão nova:** sobra a taxonomia `Letra de turno`
+com `B`, `C`, `I`. A skill `fidelidade-documento` diz "por extenso, capitalizada"
+e precisa ser corrigida por quem responde por ela.
 
 **Impacto se errado:** ou pedimos ao encarregado a mesma informação duas vezes, o
 que fere a restrição de lançamento rápido em celular, ou perdemos o dado que o
@@ -114,23 +139,26 @@ fiscal usa para justificar paralisação por chuva.
 
 ## 5. A pessoa conta no efetivo do dia em que sai?
 
-**Estado: DECISÃO DE PRODUTO PENDENTE**
+**Estado: RESPONDIDA em 16/09/2026**
 
-A planilha responde das duas formas ao mesmo tempo: as colunas `B17` a `S17` não
+A planilha respondia das duas formas ao mesmo tempo: as colunas `B17` a `S17` não
 contam a pessoa no dia da saída, as colunas `T17` a `AP17` contam. O bloco de
 equipamento conta em todas as colunas. Detalhado em `regras-extraidas.md`,
 seção 1.1 e 1.2.
 
 Hoje o defeito é invisível porque nenhuma das 19 pessoas tem data de saída.
 
-**O que preciso saber:** a data de saída é o último dia trabalhado, e portanto a
-pessoa conta nele, ou é o dia em que ela deixou de estar na obra, e portanto não
-conta? A mesma resposta vale para equipamento?
+**Resposta (1.1, 1.2):** a data de saída é o **último dia trabalhado**, e a pessoa
+**conta** no efetivo desse dia. A regra é uma só, para toda função e toda coluna:
+
+> conta no dia D quando `entrada ≤ D` **e** (`saída` nula **ou** `saída ≥ D`)
+
+Equipamento segue **a mesma regra** (1.2).
 
 **Impacto se errado:** o efetivo do RDO diverge da folha de ponto em um dia por
 desligamento. É o tipo de divergência que o fiscal encontra.
 
-**Caso de teste obrigatório** já registrado, independentemente da resposta.
+**Caso de teste obrigatório** já registrado, agora com valor esperado.
 
 ---
 
@@ -226,53 +254,52 @@ campo com normalização de espaços nas pontas na entrada.
 maiúsculas como digitadas, comparar de forma insensível a caixa e a espaços.
 Caso de teste registrado.
 
-**Nota de fidelidade:** os espaços sobrando existem também nos textos fixos do
-cabeçalho do RDO, por exemplo `MONTES CLAROS - MG ` e `Victor Rebello Byrro `.
-Ali eles afetam o alinhamento visual do documento impresso. O agente de fidelidade
-precisa decidir, na comparação, se reproduz ou normaliza. Registrado como dúvida
-de fidelidade, não de dado.
+**Nota de fidelidade — RESPONDIDA em 16/09/2026 (17.1):** os espaços sobrando
+existem também nos textos fixos do cabeçalho do RDO, por exemplo
+`MONTES CLAROS - MG ` e `Victor Rebello Byrro `. **Normalizar**, sem os espaços:
+são resto de digitação, não intenção de layout. O agente de fidelidade compara
+contra o texto normalizado e não aponta o espaço ausente como divergência.
 
 ---
 
 ## 11. Presença é diária ou derivada do intervalo?
 
-**Estado: DECISÃO DE PRODUTO PENDENTE**
+**Estado: RESPONDIDA em 16/09/2026**
 
 A planilha deriva o efetivo do intervalo de entrada e saída, sem nenhum registro
 de presença. Quem entrou e não saiu é contado todos os dias, inclusive domingos e
 dias em que a atividade registrada foi "não houve atividades". Por isso o efetivo
 é 19 em todos os 31 dias de setembro.
 
-**O que preciso saber:** o RDO deve mostrar o efetivo **mobilizado** (quem está
-alocado à obra) ou o efetivo **presente** (quem trabalhou naquele dia)? Se for
-presente, o encarregado teria que marcar ausências, o que é mais um lançamento por
-dia e pesa na restrição de celular.
+**Resposta (5.1):** efetivo **mobilizado**, derivado do intervalo, **zerado quando
+o estado do dia é `parado`**. Vale para os dois blocos do documento, pessoal e
+equipamento — é "o efetivo do RDO". Não há marcação de ausência: controle de
+presença diária continua fora da v1, porque seria mais um lançamento por dia e
+pesa na restrição de celular.
 
 **Impacto se errado:** o efetivo do RDO é um dos números que o fiscal confere
 contra o que ele vê em campo. Mostrar 19 num domingo em que a obra estava parada
 enfraquece o documento.
 
-**Sugestão para você aprovar ou recusar:** manter derivado do intervalo na v1,
-como está hoje, e exibir o efetivo do dia parado zerado quando o estado do dia for
-parado. Não implementei nada disso.
-
 ---
 
 ## 12. O número do RDO é recalculado ou congelado?
 
-**Estado: DECISÃO DE PRODUTO PENDENTE**
+**Estado: RESPONDIDA em 16/09/2026**
 
 Na planilha o número é a data do RDO menos a data de início do contrato,
 recalculado toda vez que o arquivo abre. Consequências: o primeiro dia é o RDO
 **zero**, e uma correção na data de início do contrato **renumera retroativamente
 todos os RDOs já entregues ao fiscal**.
 
-**O que preciso saber:** o primeiro dia é RDO 0 ou RDO 1? O número deve ser
-congelado no fechamento do dia, de forma que documentos já entregues nunca mudem
-de número?
+**Resposta (6.1, 6.2):** o primeiro dia do contrato é **RDO 0**, como hoje — o
+fiscal já recebeu sete meses assim. A fórmula continua sendo `data − data de
+início`, em dias corridos, e o número **congela no fechamento do dia**: o que já
+foi fechado não é renumerado se a data de início mudar. Enquanto o dia está
+aberto, o número é derivado.
+
+Congelar o número não fere "RDO nunca armazenado pronto": o que se grava é o
+identificador do documento entregue, não o conteúdo do RDO.
 
 **Impacto se errado:** dois documentos com o mesmo número, ou o mesmo dia com dois
 números diferentes em entregas sucessivas. Problema de rastreabilidade contratual.
-
-**Sugestão para você aprovar ou recusar:** congelar o número no fechamento do dia
-e manter a fórmula como valor inicial proposto. Não implementei nada disso.
