@@ -34,6 +34,9 @@ export const CODIGO_ERRO = {
   DIA_FECHADO: 'DIA_FECHADO',
   SEM_PERMISSAO: 'SEM_PERMISSAO',
   NAO_ENCONTRADO: 'NAO_ENCONTRADO',
+  DIA_JA_TEM_ATIVIDADE: 'DIA_JA_TEM_ATIVIDADE',
+  FORA_DO_PERIODO_DA_OBRA: 'FORA_DO_PERIODO_DA_OBRA',
+  FALHA_INESPERADA: 'FALHA_INESPERADA',
 } as const;
 
 export type CodigoErro = (typeof CODIGO_ERRO)[keyof typeof CODIGO_ERRO];
@@ -85,4 +88,22 @@ export function erroDeAcesso(
   mensagem: string,
 ): ErroDeAcesso {
   return { tipo: 'acesso', codigo, mensagem };
+}
+
+/**
+ * Falha inesperada que chegou à borda.
+ *
+ * O detalhe técnico fica no log, ligado pelo identificador de correlação; o
+ * usuário recebe só a mensagem e o código curto para citar no suporte.
+ * CLAUDE.md, Segurança: erro nunca vaza rastro de pilha nem nome de pessoa.
+ *
+ * Existe aqui, e não em cada módulo, porque duas frentes já a tinham declarado
+ * localmente por não poderem tocar em `shared/`.
+ */
+export function erroInesperado(correlacaoId: string): ErroDeDominio {
+  return {
+    tipo: 'dominio',
+    codigo: CODIGO_ERRO.FALHA_INESPERADA,
+    mensagem: `Não foi possível concluir. Tente de novo; se continuar, cite o código ${correlacaoId.slice(0, 8)}.`,
+  };
 }

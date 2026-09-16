@@ -124,7 +124,11 @@ Cabeçalho: `PRODUÇÃO CONTROLADA`. Quatro colunas, nesta ordem, com estes rót
 - **Valor zero sai como `-`, um traço**, não como `0,00` nem em branco. É o que o
   formato numérico da célula produz na planilha. Decisão 17.2, aprovada em
   16/09/2026.
-- O percentual é uma **barra de progresso**, não um número solto.
+- O percentual é **barra de progresso e número, juntos**. Conferido no XML da
+  planilha em 16/09/2026: a regra de barra de dados não traz `showValue="0"`, e
+  o padrão do formato é exibir o valor, então o Excel desenha a barra atrás do
+  número. Barra sozinha, sem número, é divergência; número sozinho, sem barra,
+  também.
 
 ### 8. Atividades do dia
 
