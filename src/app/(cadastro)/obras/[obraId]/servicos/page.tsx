@@ -7,7 +7,6 @@
  * e na planilha ele vinha de um arquivo de rede sem rastro nenhum.
  */
 
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import {
@@ -19,7 +18,7 @@ import { formataBr as formataDia } from '../../../../../shared/date/dia';
 import { fusoDaObra, hojeNaObra } from '../../../../../shared/date/fuso';
 import { idConfiavel } from '../../../../../shared/id';
 import { definirQuantidadeAction } from '../../../acoes';
-import { Aviso, Bloco, Campo, Erro, estilos } from '../../../componentes';
+import { Aviso, Bloco, Campo, Erro, Vazio, Voltar } from '../../../componentes';
 import { atorDaRequisicao } from '../../../sessao';
 
 export const dynamic = 'force-dynamic';
@@ -41,21 +40,33 @@ export default async function Servicos({
   const servicos = listaServicosProtegida(ator, obraId);
   if (!servicos.ok) {
     return (
-      <main className={estilos.pagina}>
-        <h1>Serviços controlados</h1>
+      <main className="pagina pagina--estreita">
+        <Voltar para="/obras" texto="Voltar às obras" />
+        <header className="cabecalhoDaPagina">
+          <h1>Serviços controlados</h1>
+        </header>
         <Erro mensagem={servicos.erro.mensagem} />
-        <Link href="/obras">Voltar às obras</Link>
       </main>
     );
   }
 
   return (
-    <main className={estilos.pagina}>
-      <h1>Serviços controlados</h1>
+    <main className="pagina">
+      <Voltar para={`/obras/${obraId}`} texto="Voltar à obra" />
+
+      <header className="cabecalhoDaPagina">
+        <h1>Serviços controlados</h1>
+        <p className="subtitulo">A quantidade de projeto é o denominador do percentual</p>
+      </header>
+
       <Erro mensagem={erro} />
-      <nav className={estilos.navegacao}>
-        <Link href={`/obras/${obraId}`}>Voltar à obra</Link>
-      </nav>
+
+      {servicos.valor.length === 0 ? (
+        <Vazio>
+          Esta obra não tem serviço controlado. Os quatro nascem com a obra: se a lista
+          está vazia, avise quem cuida do cadastro antes de lançar produção.
+        </Vazio>
+      ) : null}
 
       {servicos.valor.map((servico) => {
         const historico = listaHistoricoDeQuantidadeProtegido(
@@ -74,7 +85,9 @@ export default async function Servicos({
             ) : (
               <p>
                 Quantidade de projeto vigente:{' '}
-                <strong>{formataQuantidade(servico.quantidadeDeProjeto)}</strong>
+                <strong className="numero">
+                  {formataQuantidade(servico.quantidadeDeProjeto)}
+                </strong>
               </p>
             )}
 
@@ -87,20 +100,29 @@ export default async function Servicos({
                 obrigatorio
                 dica="2210,392"
               />
-              <button className={estilos.botao} type="submit">
-                Definir
-              </button>
+              <div className="linhaDeAcoes">
+                <button className="botao" type="submit">
+                  Definir
+                </button>
+              </div>
             </form>
 
             {historico.ok && historico.valor.length > 0 ? (
-              <ul className={estilos.lista}>
-                {historico.valor.map((versao) => (
-                  <li key={versao.definidoEm}>
-                    {formataQuantidade(versao.quantidade)} — definida em{' '}
-                    {diaDaObraDoInstante(versao.definidoEm)}
-                  </li>
-                ))}
-              </ul>
+              <>
+                <p className="rotulo">Histórico</p>
+                <ul className="listaLimpa">
+                  {historico.valor.map((versao) => (
+                    <li className="itemDeLista" key={versao.definidoEm}>
+                      <span className="numero">
+                        {formataQuantidade(versao.quantidade)}
+                      </span>
+                      <span className="ajuda">
+                        definida em {diaDaObraDoInstante(versao.definidoEm)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
             ) : null}
           </Bloco>
         );

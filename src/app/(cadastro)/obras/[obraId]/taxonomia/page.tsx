@@ -11,7 +11,6 @@
  * resumo do dia, e isso é código, não dado.
  */
 
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { listaTermosProtegida } from '../../../../_composicao/cadastro';
@@ -19,7 +18,7 @@ import { listaLetrasDeTurno, TIPOS_DE_TAXONOMIA } from '../../../../../modules/t
 import type { TipoDeTaxonomia } from '../../../../../modules/taxonomia';
 import { idConfiavel } from '../../../../../shared/id';
 import { acrescentarTermoAction } from '../../../acoes';
-import { Aviso, Bloco, Campo, Erro, estilos } from '../../../componentes';
+import { Aviso, Bloco, Campo, Erro, Nota, Vazio, Voltar } from '../../../componentes';
 import { atorDaRequisicao } from '../../../sessao';
 
 export const dynamic = 'force-dynamic';
@@ -47,21 +46,26 @@ export default async function Taxonomias({
   const primeira = listaTermosProtegida(ator, obraId, 'funcao');
   if (!primeira.ok) {
     return (
-      <main className={estilos.pagina}>
-        <h1>Listas</h1>
+      <main className="pagina pagina--estreita">
+        <Voltar para="/obras" texto="Voltar às obras" />
+        <header className="cabecalhoDaPagina">
+          <h1>Listas</h1>
+        </header>
         <Erro mensagem={primeira.erro.mensagem} />
-        <Link href="/obras">Voltar às obras</Link>
       </main>
     );
   }
 
   return (
-    <main className={estilos.pagina}>
-      <h1>Listas</h1>
+    <main className="pagina">
+      <Voltar para={`/obras/${obraId}`} texto="Voltar à obra" />
+
+      <header className="cabecalhoDaPagina">
+        <h1>Listas</h1>
+        <p className="subtitulo">Função, tipo de equipamento e status de atividade</p>
+      </header>
+
       <Erro mensagem={erro} />
-      <nav className={estilos.navegacao}>
-        <Link href={`/obras/${obraId}`}>Voltar à obra</Link>
-      </nav>
 
       <Aviso>
         Um termo acrescentado aqui passa a valer para todas as obras do sistema.
@@ -69,33 +73,48 @@ export default async function Taxonomias({
 
       {TIPOS_DE_TAXONOMIA.map((tipo) => {
         const lista = listaTermosProtegida(ator, obraId, tipo);
+        const termos = lista.ok ? lista.valor : [];
+
         return (
           <Bloco key={tipo} titulo={ROTULO[tipo]}>
-            <ul className={estilos.lista}>
-              {lista.ok
-                ? lista.valor.map((termo) => <li key={termo.id}>{termo.termo}</li>)
-                : null}
-            </ul>
+            {termos.length === 0 ? (
+              <Vazio>
+                Lista vazia. Acrescente o primeiro termo abaixo — sem ele o campo
+                correspondente não oferece escolha nenhuma no lançamento.
+              </Vazio>
+            ) : (
+              <ul className="listaLimpa">
+                {termos.map((termo) => (
+                  <li className="itemDeLista" key={termo.id}>
+                    {termo.termo}
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <form action={acrescentarTermoAction}>
               <input type="hidden" name="obraId" value={obraId} />
               <input type="hidden" name="tipo" value={tipo} />
               <Campo nome="termo" rotulo="Acrescentar termo" obrigatorio />
-              <button className={estilos.botao} type="submit">
-                Acrescentar
-              </button>
+              <div className="linhaDeAcoes">
+                <button className="botao" type="submit">
+                  Acrescentar
+                </button>
+              </div>
             </form>
           </Bloco>
         );
       })}
 
       <Bloco titulo="Letra de turno">
-        <Aviso>
+        <Nota>
           Conjunto fechado: acrescentar uma letra mudaria a árvore do resumo do dia.
-        </Aviso>
-        <ul className={estilos.lista}>
+        </Nota>
+        <ul className="listaLimpa">
           {listaLetrasDeTurno().map((letra) => (
-            <li key={letra}>{letra}</li>
+            <li className="itemDeLista" key={letra}>
+              {letra}
+            </li>
           ))}
         </ul>
       </Bloco>

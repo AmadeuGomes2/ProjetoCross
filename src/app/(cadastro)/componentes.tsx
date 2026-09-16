@@ -4,8 +4,21 @@
  * Nada aqui decide regra de negócio: se aparecer um `if` de domínio numa
  * página ou num componente, está no lugar errado (padroes-codigo, Estrutura de
  * pastas). O que existe aqui é rótulo, campo e aviso.
+ *
+ * As classes vêm de `globals.css`, o sistema visual do produto, e não de uma
+ * folha própria do cadastro: o mesmo botão aparece em nove telas e precisa
+ * mudar num lugar só. `estilos.module.css` ficou com o que é só daqui.
+ *
+ * Os três recados são diferentes de propósito:
+ *
+ * - `Erro` é recusa, e traz a palavra escrita além da cor e da borda, porque
+ *   cor sozinha não comunica (CLAUDE.md, e a revisão de layout de 16/09/2026);
+ * - `Aviso` é o que pode dar errado depois — falta de dado, efeito colateral;
+ * - `Nota` é explicação, sem alarme nenhum;
+ * - `Vazio` é lista sem nada, e diz o PRÓXIMO PASSO, não "nenhum registro".
  */
 
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 import estilos from './estilos.module.css';
@@ -27,7 +40,7 @@ export function Campo({
   dica?: string | undefined;
 }) {
   return (
-    <label className={estilos.campo}>
+    <label className="campo">
       <span>
         {rotulo}
         {obrigatorio ? ' *' : ''}
@@ -57,7 +70,7 @@ export function Escolha({
   obrigatorio?: boolean;
 }) {
   return (
-    <label className={estilos.campo}>
+    <label className="campo">
       <span>
         {rotulo}
         {obrigatorio ? ' *' : ''}
@@ -86,22 +99,48 @@ export function Escolha({
 export function Erro({ mensagem }: { mensagem?: string | undefined }) {
   if (mensagem === undefined || mensagem === '') return null;
   return (
-    <p className={estilos.erro} role="alert">
+    <p className="recado recado--erro" role="alert">
+      <strong>Erro. </strong>
       {mensagem}
     </p>
   );
 }
 
 export function Aviso({ children }: { children: ReactNode }) {
-  return <p className={estilos.aviso}>{children}</p>;
+  return <p className="recado recado--aviso">{children}</p>;
+}
+
+export function Nota({ children }: { children: ReactNode }) {
+  return <p className="recado">{children}</p>;
+}
+
+/** Lista sem nada. A frase diz o que fazer para que deixe de estar vazia. */
+export function Vazio({ children }: { children: ReactNode }) {
+  return <p className="vazio">{children}</p>;
 }
 
 export function Bloco({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
-    <section className={estilos.bloco}>
-      <h2 className={estilos.titulo}>{titulo}</h2>
+    <section className="cartao">
+      <h2>{titulo}</h2>
       {children}
     </section>
+  );
+}
+
+/**
+ * O caminho de volta.
+ *
+ * Toda tela interna precisa de um, visível: sem ele só se chega a esta parte do
+ * sistema digitando a URL, e só se sai dela apertando o botão do navegador.
+ */
+export function Voltar({ para, texto }: { para: string; texto: string }) {
+  return (
+    <nav className="linhaDeAcoes">
+      <Link className="botao botao--secundario" href={para}>
+        ← {texto}
+      </Link>
+    </nav>
   );
 }
 

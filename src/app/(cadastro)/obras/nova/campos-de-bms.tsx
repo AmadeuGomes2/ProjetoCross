@@ -11,22 +11,22 @@
  * sob teste: `campos-de-bms.test.ts`.
  */
 
-import { Aviso, Bloco, Campo, estilos } from '../../componentes';
+import { Bloco, Campo, Nota } from '../../componentes';
 
 export function BlocoDeBms() {
   return (
     <Bloco titulo="Primeiro período de BM'S">
-      <Aviso>
+      <Nota>
         BM&apos;S é o período de medição que agrupa os dias para faturamento. O número
         dele sai no cabeçalho de todo RDO.
-      </Aviso>
-      <Aviso>
+      </Nota>
+      <Nota>
         Toda obra nasce com ao menos um período. Depois é possível cadastrar quantos forem
         necessários; dia fora de qualquer período sai com o campo{' '}
         <strong>BM&apos;S</strong> vazio e aviso na tela.
-      </Aviso>
+      </Nota>
       <Campo nome="bmsNumero" rotulo="Número" tipo="number" obrigatorio />
-      <div className={estilos.duasColunas}>
+      <div className="grade grade--dupla">
         <Campo nome="bmsInicio" rotulo="Data inicial" tipo="date" obrigatorio />
         <Campo nome="bmsFim" rotulo="Data final" tipo="date" obrigatorio />
       </div>

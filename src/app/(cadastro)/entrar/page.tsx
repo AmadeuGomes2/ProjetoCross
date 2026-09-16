@@ -14,7 +14,7 @@
  */
 
 import { entrarAction } from '../acoes';
-import { Bloco, Campo, Erro, estilos } from '../componentes';
+import { Bloco, Campo, Erro, Voltar } from '../componentes';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,21 +26,29 @@ export default async function Entrar({
   const { erro } = await searchParams;
 
   return (
-    <main className={estilos.pagina}>
-      <h1>RDO digital</h1>
+    <main className="pagina pagina--estreita">
+      <Voltar para="/" texto="Início" />
+
+      <header className="cabecalhoDaPagina">
+        <h1>Entrar</h1>
+        <p className="subtitulo">RDO digital</p>
+      </header>
+
       <Erro mensagem={erro} />
 
-      <Bloco titulo="Entrar">
+      <Bloco titulo="Sua conta">
         <form action={entrarAction}>
           <Campo nome="email" rotulo="E-mail" tipo="email" obrigatorio />
           <Campo nome="senha" rotulo="Senha" tipo="password" obrigatorio />
-          <button className={estilos.botao} type="submit">
-            Entrar
-          </button>
+          <div className="linhaDeAcoes">
+            <button className="botao botao--campo" type="submit">
+              Entrar
+            </button>
+          </div>
         </form>
       </Bloco>
 
-      <p>
+      <p className="ajuda">
         Recebeu um convite? Abra o link que o engenheiro enviou. A conta é criada ali, e o
         link vale uma vez só.
       </p>

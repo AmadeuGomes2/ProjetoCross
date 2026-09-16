@@ -123,6 +123,13 @@ export function FormularioDeAtividade({
 
   return (
     <div className={estilos.pilha}>
+      {jaLancadas.length === 0 && pendentes.length === 0 ? (
+        <p className={estilos.vazio}>
+          Nenhuma atividade neste dia ainda. Descreva a primeira abaixo e escolha o
+          status.
+        </p>
+      ) : null}
+
       {jaLancadas.length === 0 ? null : (
         <ul className={estilos.listaDeItens}>
           {jaLancadas.map((atividade) => (
@@ -166,7 +173,7 @@ export function FormularioDeAtividade({
             placeholder="Ex.: Fresagem da Rua A, estacas 10 a 14"
           />
 
-          <label className={estilos.rotulo} htmlFor="status" style={{ marginTop: 16 }}>
+          <label className={estilos.rotuloAfastado} htmlFor="status">
             Status
           </label>
           <select
@@ -185,8 +192,9 @@ export function FormularioDeAtividade({
 
           {resposta === null ? null : (
             <p
-              className={resposta.ok ? estilos.recadoBom : estilos.recadoErro}
-              style={{ marginTop: 16 }}
+              className={`${estilos.afastado} ${
+                resposta.ok ? estilos.recadoBom : estilos.recadoErro
+              }`}
             >
               {resposta.ok ? 'Atividade lançada.' : resposta.mensagem}
             </p>
@@ -194,10 +202,9 @@ export function FormularioDeAtividade({
 
           <button
             type="button"
-            className={estilos.botao}
+            className={`${estilos.botao} ${estilos.afastado}`}
             onClick={enviar}
             disabled={enviando || descricao.trim() === '' || statusId === ''}
-            style={{ marginTop: 16 }}
           >
             {enviando ? 'Enviando…' : 'Lançar atividade'}
           </button>

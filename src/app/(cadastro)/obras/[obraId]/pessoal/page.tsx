@@ -14,7 +14,6 @@
  * outra, de modo que o RDO já emitido não muda.
  */
 
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import {
@@ -24,7 +23,16 @@ import {
 import { formataBr } from '../../../../../shared/date/dia';
 import { idConfiavel } from '../../../../../shared/id';
 import { cadastrarPessoaAction, trocarFuncaoAction } from '../../../acoes';
-import { Aviso, Bloco, Campo, Erro, Escolha, estilos } from '../../../componentes';
+import {
+  Bloco,
+  Campo,
+  Erro,
+  Escolha,
+  Nota,
+  Vazio,
+  Voltar,
+  estilos,
+} from '../../../componentes';
 import { atorDaRequisicao } from '../../../sessao';
 
 export const dynamic = 'force-dynamic';
@@ -46,10 +54,12 @@ export default async function Pessoal({
   const pessoal = listaPessoalProtegida(ator, obraId);
   if (!pessoal.ok) {
     return (
-      <main className={estilos.pagina}>
-        <h1>Pessoal</h1>
+      <main className="pagina pagina--estreita">
+        <Voltar para="/obras" texto="Voltar às obras" />
+        <header className="cabecalhoDaPagina">
+          <h1>Pessoal</h1>
+        </header>
         <Erro mensagem={pessoal.erro.mensagem} />
-        <Link href="/obras">Voltar às obras</Link>
       </main>
     );
   }
@@ -58,12 +68,15 @@ export default async function Pessoal({
   const opcoes = funcoes.ok ? funcoes.valor.map((t) => t.termo) : [];
 
   return (
-    <main className={estilos.pagina}>
-      <h1>Pessoal</h1>
+    <main className="pagina">
+      <Voltar para={`/obras/${obraId}`} texto="Voltar à obra" />
+
+      <header className="cabecalhoDaPagina">
+        <h1>Pessoal</h1>
+        <p className="subtitulo">O efetivo do RDO sai daqui, agregado por função</p>
+      </header>
+
       <Erro mensagem={erro} />
-      <nav className={estilos.navegacao}>
-        <Link href={`/obras/${obraId}`}>Voltar à obra</Link>
-      </nav>
 
       <Bloco titulo="Cadastrar pessoa">
         <form action={cadastrarPessoaAction}>
@@ -75,13 +88,15 @@ export default async function Pessoal({
             opcoes={opcoes}
             obrigatorio
           />
-          <div className={estilos.duasColunas}>
+          <div className="grade grade--dupla">
             <Campo nome="entrada" rotulo="Entrada" tipo="date" obrigatorio />
             <Campo nome="saida" rotulo="Saída (deixe vazio se continua)" tipo="date" />
           </div>
-          <button className={estilos.botao} type="submit">
-            Cadastrar
-          </button>
+          <div className="linhaDeAcoes">
+            <button className="botao" type="submit">
+              Cadastrar
+            </button>
+          </div>
         </form>
       </Bloco>
 
@@ -89,7 +104,7 @@ export default async function Pessoal({
         <Bloco titulo="Trocar de função">
           <form action={trocarFuncaoAction}>
             <input type="hidden" name="obraId" value={obraId} />
-            <label className={estilos.campo}>
+            <label className="campo">
               <span>Pessoa *</span>
               {/* Valor é o id, nunca o nome: nome de trabalhador não vai
                   para URL nem para log (CLAUDE.md, Segurança). */}
@@ -111,33 +126,42 @@ export default async function Pessoal({
               tipo="date"
               obrigatorio
             />
-            <Aviso>
+            <Nota>
               A passagem atual é encerrada na véspera e uma nova começa nesta data. O RDO
               dos dias anteriores continua como está.
-            </Aviso>
-            <button className={estilos.botao} type="submit">
-              Trocar
-            </button>
+            </Nota>
+            <div className="linhaDeAcoes">
+              <button className="botao" type="submit">
+                Trocar
+              </button>
+            </div>
           </form>
         </Bloco>
       ) : null}
 
       <Bloco titulo="Pessoal cadastrado">
         {pessoal.valor.length === 0 ? (
-          <Aviso>Nenhuma pessoa cadastrada.</Aviso>
+          <Vazio>
+            Nenhuma pessoa cadastrada. Cadastre a primeira acima: enquanto a lista estiver
+            vazia, o bloco EFETIVO PESSOAL do RDO sai com total zero.
+          </Vazio>
         ) : (
-          <ul className={estilos.lista}>
+          <ul className="listaLimpa">
             {pessoal.valor.map((pessoa) => (
-              <li key={pessoa.pessoaId}>
-                <strong>{pessoa.nome}</strong>
-                <ul className={estilos.lista}>
-                  {pessoa.passagens.map((passagem) => (
-                    <li key={passagem.id}>
-                      {passagem.funcaoTermo} · {formataBr(passagem.entrada)} a{' '}
-                      {passagem.saida === null ? 'em aberto' : formataBr(passagem.saida)}
-                    </li>
-                  ))}
-                </ul>
+              <li className="itemDeLista" key={pessoa.pessoaId}>
+                <div>
+                  <strong>{pessoa.nome}</strong>
+                  <ul className={estilos.passagens}>
+                    {pessoa.passagens.map((passagem) => (
+                      <li key={passagem.id}>
+                        {passagem.funcaoTermo} · {formataBr(passagem.entrada)} a{' '}
+                        {passagem.saida === null
+                          ? 'em aberto'
+                          : formataBr(passagem.saida)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </li>
             ))}
           </ul>

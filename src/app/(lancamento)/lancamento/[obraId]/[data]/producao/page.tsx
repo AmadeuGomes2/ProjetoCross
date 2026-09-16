@@ -15,6 +15,7 @@ export default async function PaginaDeProducao({
   if (!dados.dataValida) {
     return (
       <main>
+        <Voltar para={`/obras/${obraId}`} texto="Voltar à obra" />
         <h1 className={estilos.data}>Data inválida</h1>
         <p className={estilos.recadoErro}>{dados.recado}</p>
       </main>

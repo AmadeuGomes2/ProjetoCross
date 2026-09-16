@@ -11,7 +11,7 @@ import { redirect } from 'next/navigation';
 
 import { listaObrasDoUsuarioProtegida } from '../../_composicao/cadastro';
 import { sairAction } from '../acoes';
-import { Bloco, estilos } from '../componentes';
+import { Bloco, Vazio } from '../componentes';
 import { atorDaRequisicao } from '../sessao';
 
 export const dynamic = 'force-dynamic';
@@ -23,31 +23,38 @@ export default async function Obras() {
   const obras = listaObrasDoUsuarioProtegida(ator.usuarioId);
 
   return (
-    <main className={estilos.pagina}>
-      <h1>Obras</h1>
+    <main className="pagina">
+      <header className="cabecalhoDaPagina">
+        <h1>Obras</h1>
+      </header>
 
       <Bloco titulo="Obras liberadas para você">
         {!obras.ok || obras.valor.length === 0 ? (
-          <p>Nenhuma obra ainda.</p>
+          <Vazio>
+            Você ainda não tem obra liberada. Crie a primeira em <b>Criar obra</b>, ou
+            peça ao engenheiro responsável um link de convite.
+          </Vazio>
         ) : (
-          <ul className={estilos.lista}>
+          <ul className="listaLimpa">
             {obras.valor.map((obra) => (
-              <li key={obra.obraId}>
-                <Link href={`/obras/${obra.obraId}`}>{obra.contrato}</Link> —{' '}
-                {obra.perfil}
+              <li className="itemDeLista" key={obra.obraId}>
+                <Link href={`/obras/${obra.obraId}`}>{obra.contrato}</Link>
+                <span className="etiqueta">{obra.perfil}</span>
               </li>
             ))}
           </ul>
         )}
       </Bloco>
 
-      <nav className={estilos.navegacao}>
-        <Link href="/obras/nova">Criar obra</Link>
+      <nav className="linhaDeAcoes">
+        <Link className="botao" href="/obras/nova">
+          Criar obra
+        </Link>
       </nav>
 
       {/* Sair invalida a sessão no servidor, não só no navegador. */}
-      <form action={sairAction}>
-        <button className={estilos.botao} type="submit">
+      <form className="linhaDeAcoes" action={sairAction}>
+        <button className="botao botao--secundario" type="submit">
           Sair
         </button>
       </form>

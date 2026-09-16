@@ -11,13 +11,12 @@
  * produto.
  */
 
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { listaAcessosDaObraProtegida } from '../../../../_composicao/cadastro';
 import { idConfiavel } from '../../../../../shared/id';
 import { revogarAcessoAction } from '../../../acoes';
-import { Aviso, Bloco, Erro, estilos } from '../../../componentes';
+import { Bloco, Erro, Vazio, Voltar } from '../../../componentes';
 import { atorDaRequisicao } from '../../../sessao';
 import { FormularioDeConvite } from './formulario-de-convite';
 
@@ -40,21 +39,26 @@ export default async function Acesso({
   const acessos = listaAcessosDaObraProtegida(ator, obraId);
   if (!acessos.ok) {
     return (
-      <main className={estilos.pagina}>
-        <h1>Acesso</h1>
+      <main className="pagina pagina--estreita">
+        <Voltar para="/obras" texto="Voltar às obras" />
+        <header className="cabecalhoDaPagina">
+          <h1>Acesso</h1>
+        </header>
         <Erro mensagem={acessos.erro.mensagem} />
-        <Link href="/obras">Voltar às obras</Link>
       </main>
     );
   }
 
   return (
-    <main className={estilos.pagina}>
-      <h1>Acesso</h1>
+    <main className="pagina">
+      <Voltar para={`/obras/${obraId}`} texto="Voltar à obra" />
+
+      <header className="cabecalhoDaPagina">
+        <h1>Acesso</h1>
+        <p className="subtitulo">Quem pode lançar e quem pode fechar o dia</p>
+      </header>
+
       <Erro mensagem={erro} />
-      <nav className={estilos.navegacao}>
-        <Link href={`/obras/${obraId}`}>Voltar à obra</Link>
-      </nav>
 
       <Bloco titulo="Convidar encarregado">
         <FormularioDeConvite obraId={obraId} />
@@ -62,17 +66,23 @@ export default async function Acesso({
 
       <Bloco titulo="Quem tem acesso">
         {acessos.valor.length === 0 ? (
-          <Aviso>Ninguém além de você.</Aviso>
+          <Vazio>
+            Ninguém além de você. Gere um link de convite acima e mande ao encarregado — é
+            com ele que o dia é lançado no canteiro.
+          </Vazio>
         ) : (
-          <ul className={estilos.lista}>
+          <ul className="listaLimpa">
             {acessos.valor.map((acesso) => (
-              <li key={acesso.id}>
-                {acesso.perfil} · {acesso.usuarioId.slice(0, 8)}
+              <li className="itemDeLista" key={acesso.id}>
+                <span>
+                  <span className="etiqueta">{acesso.perfil}</span>{' '}
+                  <span className="numero">{acesso.usuarioId.slice(0, 8)}</span>
+                </span>
                 {acesso.perfil === 'encarregado' ? (
                   <form action={revogarAcessoAction}>
                     <input type="hidden" name="obraId" value={obraId} />
                     <input type="hidden" name="acessoId" value={acesso.id} />
-                    <button className={estilos.botao} type="submit">
+                    <button className="botao botao--perigo" type="submit">
                       Revogar
                     </button>
                   </form>

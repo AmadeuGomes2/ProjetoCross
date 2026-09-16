@@ -82,7 +82,7 @@ export function FormularioDeProducao({
         ))}
       </select>
 
-      <label className={estilos.rotulo} htmlFor="quantidade" style={{ marginTop: 16 }}>
+      <label className={estilos.rotuloAfastado} htmlFor="quantidade">
         Quantidade executada
       </label>
       <input

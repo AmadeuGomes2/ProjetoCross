@@ -18,7 +18,6 @@ import type { ReactElement } from 'react';
 
 import { perfilAtende, type Perfil } from '../../../modules/acesso';
 import type { ObraId } from '../../../shared/id';
-import estilos from './rdo.module.css';
 
 export function ControleDeExportacao({
   perfil,
@@ -32,9 +31,10 @@ export function ControleDeExportacao({
 }): ReactElement | null {
   if (perfil === null || !perfilAtende(perfil, 'engenheiro')) return null;
 
+  // `<a>` e não `Link`: a rota devolve um PDF, não uma página do App Router.
   return (
-    <p className={estilos.pagina}>
-      <a href={`/rdo/${obraId}/${dia}/pdf`}>Exportar em PDF</a>
-    </p>
+    <a className="botao" href={`/rdo/${obraId}/${dia}/pdf`}>
+      Exportar em PDF
+    </a>
   );
 }

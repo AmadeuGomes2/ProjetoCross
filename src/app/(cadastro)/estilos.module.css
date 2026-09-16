@@ -1,128 +1,49 @@
 /*
- * Telas de cadastro.
+ * Telas de cadastro — o que é só delas.
  *
- * CLAUDE.md, Mobile: toda tela é desenhada primeiro para celular, em pé, com
- * uma mão. Estas são do engenheiro, que costuma estar no escritório, mas o
- * mínimo continua valendo: alvo de toque grande, nada de tabela com rolagem
- * horizontal, uma coluna que cresce para duas quando há espaço.
+ * Quase tudo saiu daqui em 16/09/2026: página, cartão, campo, botão, recado,
+ * lista, grade e estado vazio agora vêm de `globals.css`, que é o sistema
+ * visual do produto. Esta folha tinha o próprio verde (`#16457a`), a própria
+ * borda e o próprio vermelho, e por isso o cadastro não se parecia com o
+ * lançamento nem com o RDO.
+ *
+ * Nenhuma cor crua aqui: toda cor é `var(--token)`. Cor nova entra em
+ * `globals.css`, nunca nesta folha.
  */
 
-.pagina {
-  max-width: 52rem;
-  margin: 0 auto;
-  padding: 1rem;
-  font-family: system-ui, sans-serif;
-  line-height: 1.5;
-}
-
-.bloco {
-  border: 1px solid #d0d0d0;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.titulo {
-  font-size: 1.25rem;
-  margin: 0 0 0.75rem;
-}
-
-.campo {
-  display: block;
-  margin-bottom: 0.75rem;
-}
-
-.campo > span {
-  display: block;
-  font-size: 0.9rem;
-  margin-bottom: 0.25rem;
-}
-
-.campo input,
-.campo select {
-  /* 44 px de altura mínima: alvo de toque de quem está de luva. */
-  width: 100%;
-  min-height: 2.75rem;
-  padding: 0.5rem;
-  font-size: 1rem;
-  border: 1px solid #9a9a9a;
-  border-radius: 0.375rem;
-  box-sizing: border-box;
-}
-
-.botao {
-  min-height: 2.75rem;
-  padding: 0.5rem 1.25rem;
-  font-size: 1rem;
-  border: 0;
-  border-radius: 0.375rem;
-  background: #16457a;
-  color: #fff;
-  cursor: pointer;
-}
-
-.erro {
-  border-left: 4px solid #a11;
-  background: #fdf0f0;
-  padding: 0.75rem;
-  margin-bottom: 1rem;
-  border-radius: 0.25rem;
-}
-
-.aviso {
-  border-left: 4px solid #b58100;
-  background: #fdf8e8;
-  padding: 0.75rem;
-  margin-bottom: 1rem;
-  border-radius: 0.25rem;
-}
-
-.lista {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.lista li {
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #eee;
-}
-
-.duasColunas {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0 1rem;
-}
-
-@media (min-width: 40rem) {
-  .duasColunas {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-.navegacao {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-}
-
-.navegacao a {
-  min-height: 2.75rem;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 0.75rem;
-  border: 1px solid #16457a;
-  border-radius: 0.375rem;
-  color: #16457a;
-  text-decoration: none;
-}
-
+/*
+ * O link de convite é exibido UMA vez e precisa ser copiado inteiro. Quebra em
+ * qualquer ponto porque um token de 43 caracteres numa tela de celular faria a
+ * página rolar de lado — CLAUDE.md, Mobile.
+ */
 .link {
-  word-break: break-all;
-  font-family: ui-monospace, monospace;
-  background: #f3f3f3;
-  padding: 0.5rem;
-  border-radius: 0.25rem;
   display: block;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-pequeno);
+  background: var(--papel-recuo);
+  color: var(--tinta);
+  font-family: var(--fonte-numero);
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+
+/*
+ * As passagens de uma pessoa ou de um equipamento.
+ *
+ * Lista dentro de lista: uma pessoa que sai e volta tem duas passagens e
+ * continua sendo uma pessoa (regras-rdo §1). O recuo é o que mostra na tela
+ * que a segunda linha pertence à primeira, e não é outra pessoa.
+ */
+.passagens {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0 0 0 0.9rem;
+  border-left: 2px solid var(--borda);
+  color: var(--tinta-fraca);
+  font-size: 0.92rem;
+}
+
+.passagens li + li {
+  margin-top: 0.2rem;
 }

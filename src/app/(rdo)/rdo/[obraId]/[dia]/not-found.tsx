@@ -20,6 +20,7 @@
  * nome de pessoa: é id de obra e data (CLAUDE.md, Segurança).
  */
 
+import Link from 'next/link';
 import type { ReactElement } from 'react';
 
 import estilos from '../../../_componentes/rdo.module.css';
@@ -32,6 +33,11 @@ export default function RdoNaoEncontrado(): ReactElement {
         Confira a data no endereço: ela precisa ser um dia que exista no calendário, no
         formato AAAA-MM-DD. Datas como 31/09 e 29/02 de ano não bissexto não existem.
       </p>
+      {/* A página de 404 não recebe os parâmetros da rota: o caminho de volta
+          possível é a lista de obras, e não a obra que o endereço nomeava. */}
+      <Link className="botao botao--secundario" href="/obras">
+        ← Voltar às obras
+      </Link>
     </main>
   );
 }

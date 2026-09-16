@@ -18,7 +18,7 @@
 import { redirect } from 'next/navigation';
 
 import { criarObraAction } from '../../acoes';
-import { Aviso, Bloco, Campo, Erro, estilos } from '../../componentes';
+import { Bloco, Campo, Erro, Nota, Voltar } from '../../componentes';
 import { atorDaRequisicao } from '../../sessao';
 import { BlocoDeBms } from './campos-de-bms';
 
@@ -34,8 +34,14 @@ export default async function NovaObra({
   const { erro } = await searchParams;
 
   return (
-    <main className={estilos.pagina}>
-      <h1>Criar obra</h1>
+    <main className="pagina">
+      <Voltar para="/obras" texto="Voltar às obras" />
+
+      <header className="cabecalhoDaPagina">
+        <h1>Criar obra</h1>
+        <p className="subtitulo">Os campos do cabeçalho do RDO impresso</p>
+      </header>
+
       <Erro mensagem={erro} />
 
       <form action={criarObraAction}>
@@ -43,7 +49,7 @@ export default async function NovaObra({
           <Campo nome="contrato" rotulo="Contrato" obrigatorio />
           <Campo nome="contratante" rotulo="Contratante" obrigatorio />
           <Campo nome="contratada" rotulo="Contratada" obrigatorio />
-          <div className={estilos.duasColunas}>
+          <div className="grade grade--dupla">
             <Campo nome="dataInicio" rotulo="Data de início" tipo="date" obrigatorio />
             <Campo nome="dataTermino" rotulo="Data final" tipo="date" obrigatorio />
           </div>
@@ -59,10 +65,10 @@ export default async function NovaObra({
         <BlocoDeBms />
 
         <Bloco titulo="Responsável técnico">
-          <Aviso>
+          <Nota>
             São os três campos do bloco de assinaturas, que o fiscal assina de volta. Sem
             eles a obra não é criada.
-          </Aviso>
+          </Nota>
           <Campo nome="respTecnicoNome" rotulo="Nome" obrigatorio />
           <Campo
             nome="respTecnicoTitulo"
@@ -78,9 +84,11 @@ export default async function NovaObra({
           />
         </Bloco>
 
-        <button className={estilos.botao} type="submit">
-          Criar obra
-        </button>
+        <div className="linhaDeAcoes">
+          <button className="botao botao--campo" type="submit">
+            Criar obra
+          </button>
+        </div>
       </form>
     </main>
   );

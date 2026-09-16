@@ -16,7 +16,8 @@ import {
 import { formataBr } from '../../../../shared/date/dia';
 import { idConfiavel } from '../../../../shared/id';
 import { cadastrarPeriodoAction, definirResponsavelAction } from '../../acoes';
-import { Aviso, Bloco, Campo, Erro, estilos } from '../../componentes';
+import { Aviso, Bloco, Campo, Erro, Vazio, Voltar } from '../../componentes';
+import { perfilNaObraProtegido } from '../../../_composicao/rdo-diario';
 import { atorDaRequisicao } from '../../sessao';
 
 export const dynamic = 'force-dynamic';
@@ -39,10 +40,12 @@ export default async function Obra({
   // Obra inexistente e obra sem acesso dão a mesma resposta, de propósito.
   if (!cabecalho.ok) {
     return (
-      <main className={estilos.pagina}>
-        <h1>Obra</h1>
+      <main className="pagina pagina--estreita">
+        <Voltar para="/obras" texto="Voltar às obras" />
+        <header className="cabecalhoDaPagina">
+          <h1>Obra</h1>
+        </header>
         <Erro mensagem={cabecalho.erro.mensagem} />
-        <Link href="/obras">Voltar às obras</Link>
       </main>
     );
   }
@@ -50,57 +53,109 @@ export default async function Obra({
   const obra = cabecalho.valor;
   const periodos = listaPeriodosBmsProtegida(ator, obraId);
 
+  /**
+   * O que a tela OFERECE, não o que ela protege.
+   *
+   * Decisão 27.1: o encarregado não vê o controle que o servidor vai recusar.
+   * Aqui vale o mesmo princípio para cadastrar período de BM'S e definir o
+   * responsável técnico, que são do engenheiro (25.1 e 32.1). O servidor
+   * continua recusando de qualquer forma; isto tira o beco sem saída.
+   */
+  const ehEngenheiro = perfilNaObraProtegido(ator, obraId) === 'engenheiro';
+
   return (
-    <main className={estilos.pagina}>
-      <h1>{obra.contrato}</h1>
+    <main className="pagina">
+      <Voltar para="/obras" texto="Voltar às obras" />
+
+      <header className="cabecalhoDaPagina">
+        <h1>{obra.contrato}</h1>
+        <p className="subtitulo">{obra.nomeProjeto}</p>
+      </header>
+
       <Erro mensagem={erro} />
 
-      <nav className={estilos.navegacao}>
-        <Link href={`/obras/${obraId}/pessoal`}>Pessoal</Link>
-        <Link href={`/obras/${obraId}/equipamento`}>Equipamentos</Link>
-        <Link href={`/obras/${obraId}/servicos`}>Serviços controlados</Link>
-        <Link href={`/obras/${obraId}/taxonomia`}>Listas</Link>
-        <Link href={`/obras/${obraId}/acesso`}>Acesso</Link>
+      <nav className="linhaDeAcoes">
+        <Link className="botao botao--secundario" href={`/obras/${obraId}/pessoal`}>
+          Pessoal
+        </Link>
+        <Link className="botao botao--secundario" href={`/obras/${obraId}/equipamento`}>
+          Equipamentos
+        </Link>
+        <Link className="botao botao--secundario" href={`/obras/${obraId}/servicos`}>
+          Serviços controlados
+        </Link>
+        <Link className="botao botao--secundario" href={`/obras/${obraId}/taxonomia`}>
+          Listas
+        </Link>
+        <Link className="botao botao--secundario" href={`/obras/${obraId}/acesso`}>
+          Acesso
+        </Link>
       </nav>
 
       <Bloco titulo="Informações gerais">
-        <ul className={estilos.lista}>
-          <li>Contratante: {obra.contratante}</li>
-          <li>Contratada: {obra.contratada}</li>
-          <li>Data de início: {formataBr(obra.dataInicio)}</li>
-          <li>Data final: {formataBr(obra.dataTermino)}</li>
-          <li>Escopo: {obra.escopo}</li>
-          <li>Nome: {obra.nomeProjeto}</li>
-          <li>Área: {obra.area}</li>
-          <li>Local: {obra.local}</li>
+        <ul className="listaLimpa">
+          <li className="itemDeLista">
+            <span className="rotulo">Contratante</span> {obra.contratante}
+          </li>
+          <li className="itemDeLista">
+            <span className="rotulo">Contratada</span> {obra.contratada}
+          </li>
+          <li className="itemDeLista">
+            <span className="rotulo">Data de início</span> {formataBr(obra.dataInicio)}
+          </li>
+          <li className="itemDeLista">
+            <span className="rotulo">Data final</span> {formataBr(obra.dataTermino)}
+          </li>
+          <li className="itemDeLista">
+            <span className="rotulo">Escopo</span> {obra.escopo}
+          </li>
+          <li className="itemDeLista">
+            <span className="rotulo">Nome</span> {obra.nomeProjeto}
+          </li>
+          <li className="itemDeLista">
+            <span className="rotulo">Área</span> {obra.area}
+          </li>
+          <li className="itemDeLista">
+            <span className="rotulo">Local</span> {obra.local}
+          </li>
         </ul>
       </Bloco>
 
       <Bloco titulo="Períodos de BM'S">
         {!periodos.ok || periodos.valor.length === 0 ? (
-          <Aviso>Nenhum período cadastrado.</Aviso>
+          <Vazio>
+            Nenhum período de BM&apos;S cadastrado. Cadastre o primeiro no formulário
+            abaixo: sem ele o RDO sai com o campo BM&apos;S vazio.
+          </Vazio>
         ) : (
-          <ul className={estilos.lista}>
+          <ul className="listaLimpa">
             {periodos.valor.map((periodo) => (
-              <li key={periodo.id}>
-                BM&apos;S {periodo.numero}: {formataBr(periodo.dataInicial)} a{' '}
-                {formataBr(periodo.dataFinal)} — {periodo.dias} dias
+              <li className="itemDeLista" key={periodo.id}>
+                <span>
+                  <span className="rotulo">BM&apos;S {periodo.numero}</span>
+                  {formataBr(periodo.dataInicial)} a {formataBr(periodo.dataFinal)}
+                </span>
+                <span className="etiqueta etiqueta--neutra">{periodo.dias} dias</span>
               </li>
             ))}
           </ul>
         )}
 
-        <form action={cadastrarPeriodoAction}>
-          <input type="hidden" name="obraId" value={obraId} />
-          <Campo nome="numero" rotulo="Número" tipo="number" obrigatorio />
-          <div className={estilos.duasColunas}>
-            <Campo nome="dataInicial" rotulo="Data inicial" tipo="date" obrigatorio />
-            <Campo nome="dataFinal" rotulo="Data final" tipo="date" obrigatorio />
-          </div>
-          <button className={estilos.botao} type="submit">
-            Cadastrar período
-          </button>
-        </form>
+        {ehEngenheiro && (
+          <form action={cadastrarPeriodoAction}>
+            <input type="hidden" name="obraId" value={obraId} />
+            <Campo nome="numero" rotulo="Número" tipo="number" obrigatorio />
+            <div className="grade grade--dupla">
+              <Campo nome="dataInicial" rotulo="Data inicial" tipo="date" obrigatorio />
+              <Campo nome="dataFinal" rotulo="Data final" tipo="date" obrigatorio />
+            </div>
+            <div className="linhaDeAcoes">
+              <button className="botao" type="submit">
+                Cadastrar período
+              </button>
+            </div>
+          </form>
+        )}
       </Bloco>
 
       <Bloco titulo="Responsável técnico">
@@ -109,37 +164,41 @@ export default async function Obra({
             Ainda não informado. O bloco de assinaturas do PDF precisa dos três campos.
           </Aviso>
         ) : (
-          <ul className={estilos.lista}>
-            <li>{obra.respTecnico.nome}</li>
-            <li>{obra.respTecnico.titulo}</li>
-            <li>{obra.respTecnico.crea}</li>
+          <ul className="listaLimpa">
+            <li className="itemDeLista">{obra.respTecnico.nome}</li>
+            <li className="itemDeLista">{obra.respTecnico.titulo}</li>
+            <li className="itemDeLista">{obra.respTecnico.crea}</li>
           </ul>
         )}
 
-        <form action={definirResponsavelAction}>
-          <input type="hidden" name="obraId" value={obraId} />
-          <Campo
-            nome="respTecnicoNome"
-            rotulo="Nome"
-            obrigatorio
-            valorInicial={obra.respTecnico?.nome}
-          />
-          <Campo
-            nome="respTecnicoTitulo"
-            rotulo="Titulação"
-            obrigatorio
-            valorInicial={obra.respTecnico?.titulo}
-          />
-          <Campo
-            nome="respTecnicoCrea"
-            rotulo="Registro"
-            obrigatorio
-            valorInicial={obra.respTecnico?.crea}
-          />
-          <button className={estilos.botao} type="submit">
-            Salvar responsável técnico
-          </button>
-        </form>
+        {ehEngenheiro && (
+          <form action={definirResponsavelAction}>
+            <input type="hidden" name="obraId" value={obraId} />
+            <Campo
+              nome="respTecnicoNome"
+              rotulo="Nome"
+              obrigatorio
+              valorInicial={obra.respTecnico?.nome}
+            />
+            <Campo
+              nome="respTecnicoTitulo"
+              rotulo="Titulação"
+              obrigatorio
+              valorInicial={obra.respTecnico?.titulo}
+            />
+            <Campo
+              nome="respTecnicoCrea"
+              rotulo="Registro"
+              obrigatorio
+              valorInicial={obra.respTecnico?.crea}
+            />
+            <div className="linhaDeAcoes">
+              <button className="botao" type="submit">
+                Salvar responsável técnico
+              </button>
+            </div>
+          </form>
+        )}
       </Bloco>
     </main>
   );

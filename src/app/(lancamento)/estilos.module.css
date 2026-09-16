@@ -5,31 +5,28 @@
  * sol na tela e sinal instável. A comparação não é com outro software: é com
  * mandar um áudio no WhatsApp, que custa três segundos.
  *
- * Daí as escolhas: alvo de toque de 60px (o dedo com luva erra alvo pequeno),
- * texto de 18px para cima, contraste alto para sol na tela, tudo empilhado em
- * coluna única — nada de tabela com rolagem horizontal.
+ * Daí as escolhas, que continuam valendo: alvo de toque de 60px (o dedo com
+ * luva erra alvo pequeno), texto de 18px para cima, contraste alto para sol na
+ * tela, tudo empilhado em coluna única — nada de tabela com rolagem
+ * horizontal.
+ *
+ * O que mudou em 16/09/2026 foi a origem das cores. Esta folha declarava
+ * `--tinta`, `--papel`, `--realce` e companhia dentro de `.tela`, o que
+ * SOBRESCREVIA os tokens de `globals.css` em toda a subárvore — inclusive os
+ * do tema escuro, que nunca chegavam aqui. Agora ela só consome os tokens;
+ * nenhuma cor crua restou.
  */
 
 .tela {
-  --tinta: #10151b;
-  --papel: #ffffff;
-  --realce: #0b4f2c;
-  --recuo: #eef1f4;
-  --alerta: #8a2b06;
-  --aviso: #6b4a00;
-
   box-sizing: border-box;
   margin: 0 auto;
+  /* O rodapé de 96px é o espaço do polegar, acima do gesto do iPhone. */
   padding: 16px 16px 96px;
   max-width: 640px;
   min-height: 100dvh;
   color: var(--tinta);
   background: var(--papel);
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    sans-serif;
+  font-family: var(--fonte);
   font-size: 18px;
   line-height: 1.45;
 }
@@ -55,15 +52,17 @@
 .diaDaSemana {
   margin: 0;
   font-size: 18px;
-  color: #465061;
+  color: var(--tinta-fraca);
 }
 
 .estado {
   display: inline-block;
+  align-self: flex-start;
   margin-top: 6px;
   padding: 4px 12px;
   border-radius: 999px;
-  background: var(--recuo);
+  background: var(--papel-recuo);
+  color: var(--tinta);
   font-size: 16px;
   font-weight: 600;
 }
@@ -81,27 +80,29 @@
   gap: 12px;
   min-height: 72px;
   padding: 16px;
-  border: 2px solid var(--recuo);
+  border: 2px solid var(--borda);
   border-radius: 14px;
+  background: var(--papel);
   color: inherit;
   text-decoration: none;
   font-weight: 600;
 }
 
 .cartaoContagem {
-  color: #465061;
+  color: var(--tinta-fraca);
   font-weight: 700;
 }
 
 .botao {
   display: block;
   width: 100%;
-  min-height: 60px;
+  min-height: var(--toque);
   padding: 14px 16px;
   border: 2px solid var(--realce);
   border-radius: 14px;
   background: var(--realce);
-  color: #fff;
+  /* Texto sobre o verde: `--papel` acerta nos dois temas, `#fff` só no claro. */
+  color: var(--papel);
   font-size: 19px;
   font-weight: 700;
   text-align: center;
@@ -111,13 +112,14 @@
 
 .botaoSecundario {
   composes: botao;
-  border-color: var(--tinta);
+  border-color: var(--borda-forte);
   background: transparent;
   color: var(--tinta);
 }
 
 .botao:disabled {
   opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .grupoDeEscolha {
@@ -133,9 +135,9 @@
 }
 
 .escolha {
-  min-height: 60px;
+  min-height: var(--toque);
   padding: 10px;
-  border: 2px solid var(--tinta);
+  border: 2px solid var(--borda-forte);
   border-radius: 14px;
   background: transparent;
   color: var(--tinta);
@@ -144,25 +146,36 @@
   cursor: pointer;
 }
 
+/*
+ * A escolha marcada NÃO se distingue só pelo verde: ela ganha borda de 3px e
+ * um anel interno, que é sinal de forma. Sol na tela lava a cor; a moldura
+ * sobrevive. CLAUDE.md, Mobile, e o `aria-pressed` do componente cobrem o
+ * resto.
+ */
 .escolhaMarcada {
   composes: escolha;
-  border-color: var(--realce);
+  border-width: 3px;
+  border-color: var(--realce-forte);
   background: var(--realce);
-  color: #fff;
+  color: var(--papel);
+  box-shadow: inset 0 0 0 2px var(--papel);
 }
 
 .sugestoes {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-top: 12px;
 }
 
+/* Sugestão é o caminho rápido do motivo: alvo de dedo com luva, como o resto. */
 .sugestao {
-  min-height: 48px;
-  padding: 10px 14px;
-  border: 2px solid var(--recuo);
+  min-height: var(--toque);
+  padding: 10px 16px;
+  border: 2px solid var(--borda);
   border-radius: 999px;
-  background: var(--recuo);
+  background: var(--papel-recuo);
+  color: var(--tinta);
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
@@ -175,13 +188,25 @@
   font-weight: 700;
 }
 
+/*
+ * Ar entre dois campos da mesma tela. Era `style={{ marginTop: 16 }}` repetido
+ * em quatro lugares: o mesmo espaçamento mudando em quatro arquivos.
+ */
+.afastado {
+  margin-top: 16px;
+}
+
+.rotuloAfastado {
+  composes: rotulo afastado;
+}
+
 .campo {
   width: 100%;
-  min-height: 60px;
+  min-height: var(--toque);
   padding: 12px 14px;
-  border: 2px solid #46506180;
+  border: 2px solid var(--borda-forte);
   border-radius: 14px;
-  background: #fff;
+  background: var(--papel);
   color: var(--tinta);
   font: inherit;
 }
@@ -202,24 +227,43 @@
   font-weight: 700;
 }
 
+.turno {
+  margin-bottom: 14px;
+}
+
 .recado {
   padding: 14px 16px;
+  border: 1px solid var(--borda);
   border-left: 6px solid var(--aviso);
   border-radius: 8px;
-  background: #fff6e0;
+  background: var(--aviso-tenue);
+  color: var(--aviso);
   font-size: 17px;
 }
 
+/*
+ * "Cor nunca é o único sinal." O `::before` põe a palavra na frente da
+ * mensagem, de modo que quem não distingue o vermelho — ou está com o celular
+ * no sol — lê que aquilo é recusa, e não confirmação. Fica no CSS, e não no
+ * JSX, porque são sete pontos de uso com a mesma ternária.
+ */
 .recadoErro {
   composes: recado;
   border-left-color: var(--alerta);
-  background: #fdeceb;
+  background: var(--alerta-tenue);
+  color: var(--alerta);
+}
+
+.recadoErro::before {
+  content: 'Erro. ';
+  font-weight: 700;
 }
 
 .recadoBom {
   composes: recado;
-  border-left-color: var(--realce);
-  background: #e9f5ee;
+  border-left-color: var(--ok);
+  background: var(--ok-tenue);
+  color: var(--ok);
 }
 
 .listaDeItens {
@@ -233,14 +277,15 @@
 
 .item {
   padding: 14px 16px;
-  border: 2px solid var(--recuo);
+  border: 2px solid var(--borda);
   border-radius: 14px;
+  background: var(--papel);
 }
 
 .itemStatus {
   display: block;
   margin-top: 4px;
-  color: #465061;
+  color: var(--tinta-fraca);
   font-size: 16px;
   font-weight: 600;
 }
@@ -249,17 +294,38 @@
   display: inline-block;
   margin-top: 6px;
   padding: 2px 10px;
+  border: 1px solid var(--aviso);
   border-radius: 999px;
-  background: #fff6e0;
+  background: var(--aviso-tenue);
   color: var(--aviso);
   font-size: 15px;
   font-weight: 700;
 }
 
+/*
+ * Lista vazia diz o próximo passo. "Nenhum registro encontrado" manda o
+ * encarregado procurar o que fazer; a frase daqui já diz.
+ */
+.vazio {
+  padding: 20px 16px;
+  border: 2px dashed var(--borda-forte);
+  border-radius: 14px;
+  color: var(--tinta-fraca);
+  font-size: 17px;
+  text-align: center;
+}
+
 .voltar {
-  display: inline-block;
-  margin-bottom: 16px;
-  padding: 8px 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--toque);
+  margin-bottom: 8px;
   color: var(--tinta);
   font-weight: 700;
+  text-decoration: none;
+}
+
+.voltar:hover {
+  color: var(--realce);
+  text-decoration: underline;
 }

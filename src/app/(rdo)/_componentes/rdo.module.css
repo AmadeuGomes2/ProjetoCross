@@ -5,18 +5,33 @@
  * Nada de tabela com rolagem horizontal: os 41 pares de função e quantidade
  * viram uma lista que quebra linha, e o bloco de produção vira um cartão por
  * serviço. No papel o layout é o da planilha; na tela, o que cabe no polegar.
+ *
+ * Esta folha desenha um DOCUMENTO: os rótulos, a ordem dos blocos e as grafias
+ * herdadas (`BM'S`, `EXEC.`, `NOITE ANTER`, `INDICE`) são do gabarito e não se
+ * mexem — `.claude/skills/fidelidade-documento/SKILL.md`. O que mudou em
+ * 16/09/2026 foi só cor, espaçamento e tipografia: os treze cinzas crus viraram
+ * token de `globals.css`, e com isso o documento passou a existir no tema
+ * escuro.
  */
 
 .pagina {
   margin: 0 auto;
   max-width: 48rem;
   padding: 1rem 1rem 3rem;
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    sans-serif;
-  color: #111;
+  color: var(--tinta);
+}
+
+/*
+ * Barra de ações da tela, não do documento: voltar e exportar. Fica fora do
+ * `<main>` e some na impressão, porque o documento impresso não tem botão.
+ */
+.barraDeAcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0 auto;
+  max-width: 48rem;
+  padding: 1rem 1rem 0;
 }
 
 .titulo {
@@ -35,16 +50,19 @@
 
 .campo {
   flex: 1 1 8rem;
-  border: 1px solid #ccc;
-  border-radius: 0.5rem;
+  margin: 0;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
   padding: 0.5rem;
+  background: var(--papel);
 }
 
 .rotuloDoCampo {
   display: block;
   font-size: 0.7rem;
   text-transform: uppercase;
-  color: #555;
+  letter-spacing: 0.04em;
+  color: var(--tinta-tenue);
 }
 
 .valorDoCampo {
@@ -54,17 +72,21 @@
 
 .bloco {
   margin-top: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 0.5rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--papel);
   overflow: hidden;
 }
 
 .cabecalhoDoBloco {
   margin: 0;
   padding: 0.5rem 0.75rem;
-  background: #f2f2f2;
+  border-bottom: 1px solid var(--borda);
+  background: var(--papel-recuo);
+  color: var(--tinta-fraca);
   font-size: 0.85rem;
   font-weight: 700;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
@@ -74,7 +96,9 @@
 
 .linhaDeCampo {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
+  margin: 0;
   padding: 0.2rem 0;
   font-size: 0.9rem;
 }
@@ -96,8 +120,8 @@
 .coluna {
   flex: 1 1 6rem;
   min-height: 3rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 0.5rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-pequeno);
   padding: 0.4rem;
   text-align: center;
 }
@@ -105,24 +129,32 @@
 .rotuloDaColuna {
   display: block;
   font-size: 0.7rem;
-  color: #555;
+  color: var(--tinta-tenue);
 }
 
 .quantidade {
+  font-family: var(--fonte-numero);
+  font-variant-numeric: tabular-nums;
   font-size: 1.1rem;
   font-weight: 700;
 }
 
 .total {
-  background: #f2f2f2;
+  border-color: var(--borda-forte);
+  background: var(--papel-recuo);
 }
 
 .servico {
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--borda);
   padding: 0.6rem 0;
 }
 
+.servico:first-child {
+  border-top: 0;
+}
+
 .nomeDoServico {
+  margin: 0;
   font-weight: 600;
   font-size: 0.9rem;
 }
@@ -131,7 +163,9 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin-top: 0.25rem;
+  margin: 0.25rem 0 0;
+  font-family: var(--fonte-numero);
+  font-variant-numeric: tabular-nums;
   font-size: 0.85rem;
 }
 
@@ -139,13 +173,19 @@
   margin-top: 0.35rem;
   height: 0.5rem;
   border-radius: 0.25rem;
-  background: #e6e6e6;
+  background: var(--papel-recuo);
   overflow: hidden;
 }
 
+/*
+ * A barra de dados da planilha é cinza `#767171`. Não existe token cinza de
+ * preenchimento, e inventar um quarto verde era o defeito que esta revisão
+ * veio corrigir: a barra passa a usar `--realce`. O gabarito exige barra E
+ * número juntos, não a cor da barra.
+ */
 .barra {
   height: 100%;
-  background: #767171;
+  background: var(--realce);
 }
 
 .lista {
@@ -156,36 +196,43 @@
 
 .atividade {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 0.75rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--borda);
   padding: 0.6rem 0;
   font-size: 0.9rem;
 }
 
+.lista li:first-child {
+  border-top: 0;
+}
+
 .status {
-  color: #555;
+  color: var(--tinta-fraca);
   white-space: nowrap;
 }
 
 .motivo {
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--borda);
   padding: 0.6rem 0;
   font-size: 0.9rem;
   font-weight: 600;
 }
 
 .vazio {
-  color: #666;
+  margin: 0;
+  color: var(--tinta-tenue);
   font-size: 0.85rem;
   font-style: italic;
 }
 
 .resumo {
   margin-top: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 0.5rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
   padding: 0.75rem;
+  background: var(--papel);
   font-size: 0.95rem;
 }
 
@@ -196,24 +243,35 @@
 }
 
 .aviso {
-  border: 1px solid #b58900;
+  border: 1px solid var(--aviso);
   border-left-width: 0.35rem;
-  border-radius: 0.5rem;
+  border-radius: var(--raio-pequeno);
   padding: 0.6rem 0.75rem;
   margin-bottom: 0.5rem;
+  background: var(--aviso-tenue);
+  color: var(--aviso);
   font-size: 0.9rem;
-  background: #fffbe6;
 }
 
 .rastro {
   margin-top: 0.35rem;
   font-size: 0.8rem;
-  color: #555;
+  color: var(--tinta-tenue);
+}
+
+.rastro summary {
+  /* O resumo é clicável: alvo de dedo, não de cursor. */
+  min-height: var(--toque-minimo);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
 }
 
 .rastro ul {
   margin: 0.25rem 0 0;
   padding-left: 1rem;
+  font-family: var(--fonte-numero);
+  word-break: break-all;
 }
 
 .assinaturas {
@@ -225,17 +283,28 @@
 
 .assinatura {
   flex: 1 1 12rem;
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--tinta-fraca);
   padding-top: 0.4rem;
   font-size: 0.8rem;
   text-align: center;
 }
 
+/*
+ * Erro na tela do documento: borda, fundo e a palavra `Erro`. Cor sozinha não
+ * comunica — CLAUDE.md, e o mesmo critério da folha do lançamento.
+ */
 .erro {
-  margin: 2rem auto;
-  max-width: 32rem;
-  border: 1px solid #c0392b;
-  border-radius: 0.5rem;
-  padding: 1rem;
+  margin: 0 0 1rem;
+  border: 1px solid var(--alerta);
+  border-left-width: 0.35rem;
+  border-radius: var(--raio-pequeno);
+  padding: 0.8rem 0.9rem;
+  background: var(--alerta-tenue);
+  color: var(--alerta);
   font-size: 1rem;
+}
+
+.erro::before {
+  content: 'Erro. ';
+  font-weight: 700;
 }

@@ -6,7 +6,6 @@
  * só para organizar a frota.
  */
 
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import {
@@ -16,7 +15,15 @@ import {
 import { formataBr } from '../../../../../shared/date/dia';
 import { idConfiavel } from '../../../../../shared/id';
 import { cadastrarEquipamentoAction } from '../../../acoes';
-import { Aviso, Bloco, Campo, Erro, Escolha, estilos } from '../../../componentes';
+import {
+  Bloco,
+  Campo,
+  Erro,
+  Escolha,
+  Vazio,
+  Voltar,
+  estilos,
+} from '../../../componentes';
 import { atorDaRequisicao } from '../../../sessao';
 
 export const dynamic = 'force-dynamic';
@@ -38,10 +45,12 @@ export default async function Equipamentos({
   const equipamentos = listaEquipamentosProtegida(ator, obraId);
   if (!equipamentos.ok) {
     return (
-      <main className={estilos.pagina}>
-        <h1>Equipamentos</h1>
+      <main className="pagina pagina--estreita">
+        <Voltar para="/obras" texto="Voltar às obras" />
+        <header className="cabecalhoDaPagina">
+          <h1>Equipamentos</h1>
+        </header>
         <Erro mensagem={equipamentos.erro.mensagem} />
-        <Link href="/obras">Voltar às obras</Link>
       </main>
     );
   }
@@ -50,44 +59,57 @@ export default async function Equipamentos({
   const opcoes = tipos.ok ? tipos.valor.map((t) => t.termo) : [];
 
   return (
-    <main className={estilos.pagina}>
-      <h1>Equipamentos</h1>
+    <main className="pagina">
+      <Voltar para={`/obras/${obraId}`} texto="Voltar à obra" />
+
+      <header className="cabecalhoDaPagina">
+        <h1>Equipamentos</h1>
+        <p className="subtitulo">O RDO agrega por identificador, não por tipo</p>
+      </header>
+
       <Erro mensagem={erro} />
-      <nav className={estilos.navegacao}>
-        <Link href={`/obras/${obraId}`}>Voltar à obra</Link>
-      </nav>
 
       <Bloco titulo="Cadastrar equipamento">
         <form action={cadastrarEquipamentoAction}>
           <input type="hidden" name="obraId" value={obraId} />
           <Campo nome="identificador" rotulo="Identificador" obrigatorio dica="CF-29" />
           <Escolha nome="tipo" rotulo="Tipo" opcoes={opcoes} obrigatorio />
-          <div className={estilos.duasColunas}>
+          <div className="grade grade--dupla">
             <Campo nome="entrada" rotulo="Entrada" tipo="date" obrigatorio />
             <Campo nome="saida" rotulo="Saída (deixe vazio se continua)" tipo="date" />
           </div>
-          <button className={estilos.botao} type="submit">
-            Cadastrar
-          </button>
+          <div className="linhaDeAcoes">
+            <button className="botao" type="submit">
+              Cadastrar
+            </button>
+          </div>
         </form>
       </Bloco>
 
       <Bloco titulo="Frota da obra">
         {equipamentos.valor.length === 0 ? (
-          <Aviso>Nenhum equipamento cadastrado.</Aviso>
+          <Vazio>
+            Nenhum equipamento cadastrado. Cadastre o primeiro acima: enquanto a frota
+            estiver vazia, o bloco EFETIVO EQUIPAMENTOS do RDO sai com total zero.
+          </Vazio>
         ) : (
-          <ul className={estilos.lista}>
+          <ul className="listaLimpa">
             {equipamentos.valor.map((equipamento) => (
-              <li key={equipamento.equipamentoId}>
-                <strong>{equipamento.identificador}</strong> — {equipamento.tipoTermo}
-                <ul className={estilos.lista}>
-                  {equipamento.passagens.map((passagem) => (
-                    <li key={passagem.id}>
-                      {formataBr(passagem.entrada)} a{' '}
-                      {passagem.saida === null ? 'em aberto' : formataBr(passagem.saida)}
-                    </li>
-                  ))}
-                </ul>
+              <li className="itemDeLista" key={equipamento.equipamentoId}>
+                <div>
+                  <strong>{equipamento.identificador}</strong>
+                  <ul className={estilos.passagens}>
+                    {equipamento.passagens.map((passagem) => (
+                      <li key={passagem.id}>
+                        {formataBr(passagem.entrada)} a{' '}
+                        {passagem.saida === null
+                          ? 'em aberto'
+                          : formataBr(passagem.saida)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <span className="etiqueta etiqueta--neutra">{equipamento.tipoTermo}</span>
               </li>
             ))}
           </ul>

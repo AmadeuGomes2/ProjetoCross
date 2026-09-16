@@ -20,6 +20,7 @@
  * é falha inesperada, traz o identificador de correlação para o suporte.
  */
 
+import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import type { ReactElement } from 'react';
 
@@ -56,6 +57,9 @@ export default async function PaginaDoRdoDiario({
     return (
       <main className={estilos.pagina}>
         <p className={estilos.erro}>{resultado.erro.mensagem}</p>
+        <Link className="botao botao--secundario" href={`/obras/${obraId}`}>
+          ← Voltar à obra
+        </Link>
       </main>
     );
   }
@@ -63,14 +67,22 @@ export default async function PaginaDoRdoDiario({
   // Decisão 27.1: o encarregado não vê o controle de exportação. A recusa do
   // servidor continua onde estava, na rota e no módulo `export`; o que muda é
   // a tela deixar de oferecer o que ia terminar em 403.
+  //
+  // A barra fica ANTES do documento e some na impressão: quem imprime a tela
+  // quer o RDO, não os botões dela.
   return (
     <>
+      <nav className={`${estilos.barraDeAcoes} naoImprime`}>
+        <Link className="botao botao--secundario" href={`/obras/${obraId}`}>
+          ← Voltar à obra
+        </Link>
+        <ControleDeExportacao
+          perfil={perfilNaObraProtegido(ator, obraId)}
+          obraId={idConfiavel<'obra'>(obraId)}
+          dia={dia}
+        />
+      </nav>
       <RdoDiarioNaTela rdo={resultado.valor} />
-      <ControleDeExportacao
-        perfil={perfilNaObraProtegido(ator, obraId)}
-        obraId={idConfiavel<'obra'>(obraId)}
-        dia={dia}
-      />
     </>
   );
 }

@@ -10,7 +10,7 @@
  */
 
 import { aceitarConviteAction } from '../../acoes';
-import { Aviso, Bloco, Campo, Erro, estilos } from '../../componentes';
+import { Bloco, Campo, Erro, Nota } from '../../componentes';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,23 +25,28 @@ export default async function Convite({
   const { erro } = await searchParams;
 
   return (
-    <main className={estilos.pagina}>
-      <h1>Convite para lançar o RDO</h1>
+    <main className="pagina pagina--estreita">
+      <header className="cabecalhoDaPagina">
+        <h1>Convite para lançar o RDO</h1>
+      </header>
+
       <Erro mensagem={erro} />
 
       <Bloco titulo="Criar sua conta e aceitar">
-        <Aviso>
+        <Nota>
           O link serve uma vez só e vale por 7 dias. Se já tiver conta e estiver com a
           sessão aberta, basta confirmar.
-        </Aviso>
+        </Nota>
         <form action={aceitarConviteAction}>
           <input type="hidden" name="token" value={token} />
           <Campo nome="nome" rotulo="Seu nome" />
           <Campo nome="email" rotulo="Seu e-mail" tipo="email" />
           <Campo nome="senha" rotulo="Crie uma senha" tipo="password" />
-          <button className={estilos.botao} type="submit">
-            Aceitar convite
-          </button>
+          <div className="linhaDeAcoes">
+            <button className="botao botao--campo" type="submit">
+              Aceitar convite
+            </button>
+          </div>
         </form>
       </Bloco>
     </main>

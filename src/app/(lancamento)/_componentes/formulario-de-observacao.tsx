@@ -40,7 +40,12 @@ export function FormularioDeObservacao({
 
   return (
     <div className={estilos.pilha}>
-      {jaLancadas.length === 0 ? null : (
+      {jaLancadas.length === 0 ? (
+        <p className={estilos.vazio}>
+          Nenhuma observação neste dia. Escreva abaixo o que o fiscal precisa saber; é o
+          bloco COMENTÁRIOS CROS do RDO.
+        </p>
+      ) : (
         <ul className={estilos.listaDeItens}>
           {jaLancadas.map((observacao) => (
             <li key={observacao.id} className={estilos.item}>

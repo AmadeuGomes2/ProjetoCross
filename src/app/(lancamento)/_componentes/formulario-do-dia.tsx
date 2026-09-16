@@ -127,7 +127,7 @@ export function FormularioDoDia({
             placeholder="Escreva o motivo"
             autoComplete="off"
           />
-          <div className={estilos.sugestoes} style={{ marginTop: 12 }}>
+          <div className={estilos.sugestoes}>
             {sugestoesDeMotivo.map((sugestao) => (
               <button
                 key={sugestao}
@@ -145,7 +145,7 @@ export function FormularioDoDia({
       <section className={estilos.secao}>
         <h2 className={estilos.tituloDeSecao}>Tempo por turno</h2>
         {TURNOS.map((qual) => (
-          <div key={qual} style={{ marginBottom: 14 }}>
+          <div key={qual} className={estilos.turno}>
             <span className={estilos.rotulo}>{NOME_DO_TURNO[qual]}</span>
             <div className={estilos.grupoDeTurno}>
               {LETRAS_DE_TURNO.map((letra) => (

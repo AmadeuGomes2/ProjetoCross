@@ -34,7 +34,7 @@ export function FormularioDeConvite({ obraId }: { obraId: string }) {
     <>
       <form action={acao}>
         <input type="hidden" name="obraId" value={obraId} />
-        <label className={estilos.campo}>
+        <label className="campo">
           <span>Tipo de acesso *</span>
           <select name="perfil" required defaultValue="encarregado">
             <option value="encarregado">Encarregado — lança o dia no canteiro</option>
@@ -43,20 +43,23 @@ export function FormularioDeConvite({ obraId }: { obraId: string }) {
             </option>
           </select>
         </label>
-        <button className={estilos.botao} type="submit" disabled={enviando}>
-          Gerar link de convite
-        </button>
+        <div className="linhaDeAcoes">
+          <button className="botao" type="submit" disabled={enviando}>
+            Gerar link de convite
+          </button>
+        </div>
       </form>
 
       {estado.erro === null ? null : (
-        <p className={estilos.erro} role="alert">
+        <p className="recado recado--erro" role="alert">
+          <strong>Erro. </strong>
           {estado.erro}
         </p>
       )}
 
       {estado.link === null ? null : (
         <>
-          <p>
+          <p className="recado recado--ok">
             Envie este link a quem vai entrar como <strong>{estado.perfil}</strong>. Ele
             vale por <strong>7 dias</strong> e serve <strong>uma vez só</strong>. Não será
             exibido de novo.

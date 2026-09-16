@@ -1,0 +1,502 @@
+/*
+ * Sistema visual do RDO digital.
+ *
+ * Existe porque não existia: até 16/09/2026 o `layout.tsx` não importava folha
+ * nenhuma, então o navegador aplicava a serifada padrão e cada seção inventava
+ * o próprio verde. Havia três: `#14532d`, `#0b4f2c` e `#16457a`.
+ *
+ * As decisões daqui saem do CLAUDE.md, seção Mobile, e valem para o app todo,
+ * não só para a tela de lançamento:
+ *
+ * - O encarregado usa isto no canteiro, em pé, com uma mão, possivelmente com
+ *   luva e com sol na tela. Daí contraste alto, alvo de toque grande e corpo de
+ *   texto de 17px, não 14.
+ * - Tudo em coluna única. Tabela com rolagem horizontal é proibida; onde a
+ *   tabela é inevitável, como no RDO, ela rola dentro do próprio quadro.
+ * - Nada depende de cor sozinha para comunicar: erro tem ícone textual e
+ *   borda, não só vermelho.
+ */
+
+/* ---------------------------------------------------------------- tokens */
+
+:root {
+  color-scheme: light dark;
+
+  /* Tinta e papel. O nome vem do domínio: isto vira documento impresso. */
+  --tinta: #10151b;
+  --tinta-fraca: #4a5560;
+  --tinta-tenue: #6b7682;
+  --papel: #ffffff;
+  --papel-recuo: #f4f6f8;
+  --papel-fundo: #eef1f4;
+
+  /* Verde de obra. Um só, escolhido entre os três que existiam. */
+  --realce: #0b4f2c;
+  --realce-forte: #083a20;
+  --realce-tenue: #e6f2ea;
+  /*
+   * Tinta que vai SOBRE o realce. É token próprio porque não é sempre branco:
+   * no tema escuro o realce clareia para ser visível no fundo escuro, e aí
+   * texto branco sobre ele dá 2,8:1, abaixo do mínimo de 4,5:1. Ali a tinta
+   * precisa escurecer.
+   */
+  --realce-tinta: #ffffff;
+
+  --borda: #d6dce2;
+  --borda-forte: #b6bfc9;
+
+  --alerta: #8a2b06;
+  --alerta-tenue: #fdeceb;
+  --aviso: #6b4a00;
+  --aviso-tenue: #fff6e0;
+  --ok: #0b4f2c;
+  --ok-tenue: #e9f5ee;
+
+  --raio: 10px;
+  --raio-pequeno: 6px;
+  --sombra: 0 1px 2px rgb(16 21 27 / 6%), 0 4px 12px rgb(16 21 27 / 6%);
+
+  /* Alvo de toque. 60px é dedo com luva; 44px é o mínimo de qualquer botão. */
+  --toque: 60px;
+  --toque-minimo: 44px;
+
+  --largura-texto: 40rem;
+  --largura-tela: 64rem;
+
+  --fonte:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --fonte-numero:
+    ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tinta: #e8edf2;
+    --tinta-fraca: #a8b3bf;
+    --tinta-tenue: #8894a1;
+    --papel: #161b21;
+    --papel-recuo: #1e242b;
+    --papel-fundo: #10151b;
+
+    --realce: #4ba97a;
+    --realce-forte: #6fc397;
+    --realce-tenue: #17301f;
+    /* Escura sobre o verde claro: ~6:1, contra os 2,8:1 do branco. */
+    --realce-tinta: #08130c;
+
+    --borda: #2c353e;
+    --borda-forte: #3d4852;
+
+    --alerta: #ff9b85;
+    --alerta-tenue: #2e1a16;
+    --aviso: #e0c168;
+    --aviso-tenue: #2a2310;
+    --ok: #4ba97a;
+    --ok-tenue: #17301f;
+
+    --sombra: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 12px rgb(0 0 0 / 30%);
+  }
+}
+
+/* ----------------------------------------------------------------- base */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--papel-fundo);
+  color: var(--tinta);
+  font-family: var(--fonte);
+  /* 17px: o corpo é lido ao sol, de braço estendido. 14px não serve. */
+  font-size: 17px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+  text-wrap: balance;
+  margin: 0 0 0.4em;
+}
+
+h1 {
+  font-size: 1.55rem;
+  letter-spacing: -0.01em;
+}
+h2 {
+  font-size: 1.2rem;
+}
+h3 {
+  font-size: 1.02rem;
+}
+
+p {
+  margin: 0 0 1rem;
+  text-wrap: pretty;
+}
+
+a {
+  color: var(--realce);
+  text-underline-offset: 0.18em;
+}
+
+a:hover {
+  color: var(--realce-forte);
+}
+
+img {
+  max-width: 100%;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Foco visível sempre. Quem navega por teclado precisa saber onde está. */
+:focus-visible {
+  outline: 3px solid var(--realce);
+  outline-offset: 2px;
+  border-radius: var(--raio-pequeno);
+}
+
+/* ------------------------------------------------------------ estrutura */
+
+.pagina {
+  max-width: var(--largura-tela);
+  margin: 0 auto;
+  padding: 1.25rem 1rem 5rem;
+}
+
+.pagina--estreita {
+  max-width: var(--largura-texto);
+}
+
+.cabecalhoDaPagina {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--borda);
+}
+
+.cabecalhoDaPagina h1 {
+  margin: 0;
+}
+
+.subtitulo {
+  margin: 0;
+  color: var(--tinta-tenue);
+  font-size: 0.95rem;
+}
+
+.cartao {
+  background: var(--papel);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 1.1rem;
+  box-shadow: var(--sombra);
+}
+
+.cartao + .cartao {
+  margin-top: 1rem;
+}
+
+.pilha {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.linhaDeAcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+/* --------------------------------------------------------------- botões */
+
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: var(--toque-minimo);
+  padding: 0.7rem 1.25rem;
+  border: 1px solid transparent;
+  border-radius: var(--raio);
+  background: var(--realce);
+  color: var(--realce-tinta);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.botao:hover {
+  background: var(--realce-forte);
+  color: var(--realce-tinta);
+}
+
+.botao:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.botao--secundario {
+  background: var(--papel);
+  color: var(--tinta);
+  border-color: var(--borda-forte);
+}
+
+.botao--secundario:hover {
+  background: var(--papel-recuo);
+  color: var(--tinta);
+}
+
+.botao--perigo {
+  background: var(--alerta);
+  color: var(--papel);
+}
+
+/* Alvo grande: usado no lançamento, onde o dedo tem luva. */
+.botao--campo {
+  min-height: var(--toque);
+  width: 100%;
+  font-size: 1.05rem;
+}
+
+/* -------------------------------------------------------------- campos */
+
+.campo {
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.campo > span,
+.rotulo {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+  font-size: 0.93rem;
+}
+
+.afastado {
+  margin-top: 1.5rem;
+}
+
+.ajuda {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--tinta-tenue);
+  font-size: 0.88rem;
+  font-weight: 400;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  min-height: var(--toque-minimo);
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--raio-pequeno);
+  background: var(--papel);
+  color: var(--tinta);
+  font: inherit;
+}
+
+textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+input[type='date'] {
+  /* Sem isto o campo de data encolhe no Safari e some no iPhone. */
+  min-width: 0;
+}
+
+/* Formulário em duas colunas só onde há espaço. Nunca no celular. */
+.grade {
+  display: grid;
+  gap: 0 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 40rem) {
+  .grade--dupla {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* --------------------------------------------------------------- avisos */
+
+.recado {
+  border: 1px solid var(--borda);
+  border-left-width: 4px;
+  border-radius: var(--raio-pequeno);
+  padding: 0.8rem 0.9rem;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.recado--erro {
+  border-left-color: var(--alerta);
+  background: var(--alerta-tenue);
+  color: var(--alerta);
+}
+
+.recado--aviso {
+  border-left-color: var(--aviso);
+  background: var(--aviso-tenue);
+  color: var(--aviso);
+}
+
+.recado--ok {
+  border-left-color: var(--ok);
+  background: var(--ok-tenue);
+  color: var(--ok);
+}
+
+.vazio {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--tinta-tenue);
+  border: 1px dashed var(--borda-forte);
+  border-radius: var(--raio);
+}
+
+/* -------------------------------------------------------------- tabelas */
+
+/*
+ * Tabela nunca faz a PÁGINA rolar de lado: ela rola dentro do próprio quadro.
+ * CLAUDE.md, Mobile: "nada de tabela com rolagem horizontal".
+ */
+.quadroDeTabela {
+  overflow-x: auto;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--papel);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+th,
+td {
+  padding: 0.6rem 0.7rem;
+  text-align: left;
+  border-bottom: 1px solid var(--borda);
+}
+
+th {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tinta-tenue);
+  background: var(--papel-recuo);
+  white-space: nowrap;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.numero {
+  font-family: var(--fonte-numero);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- lista */
+
+.listaLimpa {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.itemDeLista {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--borda);
+}
+
+.itemDeLista:last-child {
+  border-bottom: 0;
+}
+
+/* --------------------------------------------------------------- etiqueta */
+
+.etiqueta {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--realce-tenue);
+  color: var(--realce);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.etiqueta--neutra {
+  background: var(--papel-recuo);
+  color: var(--tinta-fraca);
+}
+
+/* ------------------------------------------------- acessível, sem tela */
+
+.apenasLeitorDeTela {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Quem pediu menos movimento recebe menos movimento. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------------------------------------ impressão */
+
+@media print {
+  body {
+    background: #fff;
+  }
+  .naoImprime {
+    display: none !important;
+  }
+}

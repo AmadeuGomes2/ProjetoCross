@@ -7,7 +7,7 @@
 
 import Link from 'next/link';
 
-import { Erro, estilos } from '../../componentes';
+import { Erro } from '../../componentes';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,11 +19,19 @@ export default async function ConviteRecusado({
   const { erro } = await searchParams;
 
   return (
-    <main className={estilos.pagina}>
-      <h1>Convite</h1>
+    <main className="pagina pagina--estreita">
+      <header className="cabecalhoDaPagina">
+        <h1>Convite</h1>
+      </header>
+
       <Erro mensagem={erro ?? 'Não foi possível usar este convite.'} />
       <p>Peça um link novo ao engenheiro responsável pela obra.</p>
-      <Link href="/entrar">Entrar</Link>
+
+      <nav className="linhaDeAcoes">
+        <Link className="botao botao--secundario" href="/entrar">
+          Entrar
+        </Link>
+      </nav>
     </main>
   );
 }
