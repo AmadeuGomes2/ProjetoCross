@@ -366,9 +366,15 @@ O status dessas linhas é `Produção` em 79 casos, o que é contraditório: um 
 parado marcado como produção. Não há como filtrar dias parados sem interpretar
 texto livre.
 
-**Herdar:** não. O dia precisa ter um estado próprio (trabalhado, parado, com o
-motivo tipado), separado da lista de atividades. Caso de teste obrigatório:
-dia sem atividade nenhuma.
+**Herdar:** não. O dia precisa ter um estado próprio, separado da lista de
+atividades. Caso de teste obrigatório: dia sem atividade nenhuma.
+
+**Decidido em 16/09/2026** (`docs/prd/v1.md`, decisões 4.1, 4.2 e 20.1): três
+estados, `não lançado`, `parado` e `trabalhado`. O motivo da parada é **texto
+livre obrigatório**, com oito sugestões tocáveis, e não taxonomia fechada como
+esta análise supunha. A escolha é consciente e o risco está registrado em
+`duvidas.md`, dúvida 3: texto livre é o que trouxe as 13 grafias descritas acima,
+e as sugestões existem para conter a dispersão sem travar o lançamento em campo.
 
 ---
 
