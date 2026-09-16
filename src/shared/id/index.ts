@@ -29,6 +29,9 @@ export type LancamentoId = Marcado<'lancamento'>;
 export type FuncaoId = Marcado<'funcao'>;
 export type TipoEquipamentoId = Marcado<'tipo_equipamento'>;
 export type StatusAtividadeId = Marcado<'status_atividade'>;
+export type SugestaoMotivoId = Marcado<'sugestao_motivo_parada'>;
+export type QuantidadeProjetoVersaoId = Marcado<'quantidade_projeto_versao'>;
+export type RegistroExportacaoId = Marcado<'registro_exportacao'>;
 
 /** Identificador de correlação de um erro, para ligar mensagem e log. */
 export type CorrelacaoId = Marcado<'correlacao'>;
