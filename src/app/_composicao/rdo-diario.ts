@@ -52,7 +52,7 @@ import {
 } from '../../modules/obra';
 import type { CabecalhoDaObra as CabecalhoDoCadastro } from '../../modules/obra';
 import { listaMobilizacao as listaPessoalMobilizado } from '../../modules/pessoal';
-import { exigeAcessoNaObra, type Ator } from '../../modules/acesso';
+import { exigeAcessoNaObra, type Ator, type Perfil } from '../../modules/acesso';
 import { consultaRdoDiario } from '../../modules/rdo/borda/consulta-rdo';
 import type { ErroDeConsultaDoRdo } from '../../modules/rdo/borda/consulta-rdo';
 import type { CabecalhoDaObra, PortasDoRdo } from '../../modules/rdo/portas';
@@ -250,4 +250,32 @@ export async function consultaRdoProtegida(
   }
 
   return consultaRdoDiario(bruto, criaPortasDoRdo(ambiente));
+}
+
+/**
+ * O perfil de quem está olhando a obra, para a tela decidir o que **oferecer**.
+ *
+ * Existe por causa da decisão 27.1: o controle de exportação não aparece para o
+ * encarregado. A resposta vem da mesma `exigeAcessoNaObra` de sempre, lida da
+ * tabela `acesso` na requisição — a tela não recebe perfil por parâmetro nem o
+ * guarda em cookie, senão revogar acesso só valeria no próximo login.
+ *
+ * Isto **não é** controle de acesso: a rota do PDF continua exigindo perfil
+ * `engenheiro`, e o módulo `export` confere de novo. É só o que a tela mostra.
+ *
+ * `null` quando não há acesso. Na prática a página não chega aqui, porque
+ * `consultaRdoProtegida` já recusou antes; o tipo não deixa supor.
+ */
+export function perfilNaObraProtegido(
+  ator: Ator,
+  obraIdBruto: string,
+  ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
+): Perfil | null {
+  const permitido = exigeAcessoNaObra(
+    ator,
+    idConfiavel<'obra'>(obraIdBruto),
+    'encarregado',
+    paraAcesso(ambiente.cadastro),
+  );
+  return permitido.ok ? permitido.valor.perfil : null;
 }

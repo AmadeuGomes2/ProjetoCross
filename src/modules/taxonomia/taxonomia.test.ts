@@ -38,7 +38,7 @@ let obraId: ObraId;
 
 beforeEach(() => {
   cenario = montaCenario();
-  e1 = cenario.novoAtor('e1@exemplo.invalido');
+  e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
   obraId = criaObraDoPrd(e1, cenario.amb);
 });
 
@@ -187,9 +187,10 @@ describe('F2.4 — taxonomias editáveis com grafia exata', () => {
     );
     expect(criado.ok).toBe(true);
 
-    const e2 = cenario.novoAtor('e2@exemplo.invalido');
+    // A outra obra é criada por E1, que já é engenheiro da primeira (25.1). O
+    // que o caso prova é que o termo novo vale em outra obra, e não quem criou.
     const outra = criaObraProtegida(
-      e2,
+      e1,
       { ...DADOS_DA_OBRA, contrato: 'P0999/01-25 - OUTRA' },
       cenario.amb,
     );
@@ -197,7 +198,7 @@ describe('F2.4 — taxonomias editáveis com grafia exata', () => {
     if (!outra.ok) return;
 
     const pessoa = cadastraPessoaProtegida(
-      e2,
+      e1,
       outra.valor,
       { nome: 'P10', funcao: 'Encanador', entrada: '2026-02-10' },
       cenario.amb,

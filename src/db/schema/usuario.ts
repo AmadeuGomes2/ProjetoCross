@@ -9,7 +9,13 @@
 import { sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 import type { UsuarioId } from '../../shared/id';
-import { checkInstante, checkTextoNaoVazio, colunaInstante } from './convencoes';
+import {
+  checkBooleano,
+  checkInstante,
+  checkTextoNaoVazio,
+  colunaBooleano,
+  colunaInstante,
+} from './convencoes';
 
 export const usuario = sqliteTable(
   'usuario',
@@ -24,12 +30,29 @@ export const usuario = sqliteTable(
      * (arquitetura, pergunta P1). Nunca guarda senha, só o hash.
      */
     hashDeSenha: text('hash_de_senha'),
+    /**
+     * Esta conta é de engenheiro?
+     *
+     * **Atributo da pessoa, não da obra.** Engenheiro é quem tem CREA e assina
+     * o documento — o bloco 11 do RDO imprime nome, titulação e registro —,
+     * enquanto `acesso.perfil` diz o que a pessoa pode fazer *naquela* obra. Só
+     * quem tem esta coluna ligada cria obra (decisão 25.1).
+     *
+     * **Liga só pelo comando `npm run criar-engenheiro`.** Nenhum caminho da
+     * web a liga: não há cadastro público e convite só cria encarregado (14.0).
+     * O dia em que existir "promover a engenheiro", será decisão de produto.
+     *
+     * O padrão é falso de propósito: a conta que nasce por engano nasce sem
+     * poder nenhum.
+     */
+    eEngenheiro: colunaBooleano('e_engenheiro').default(0),
     criadoEm: colunaInstante('criado_em'),
   },
   (t) => [
     uniqueIndex('ux_usuario_email').on(t.email),
     checkTextoNaoVazio('ck_usuario_nome', t.nome),
     checkTextoNaoVazio('ck_usuario_email', t.email),
+    checkBooleano('ck_usuario_e_engenheiro', t.eEngenheiro),
     checkInstante('ck_usuario_criado_em', t.criadoEm),
   ],
 );

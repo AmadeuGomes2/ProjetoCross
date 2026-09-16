@@ -38,7 +38,7 @@ let obraId: ObraId;
 
 beforeEach(() => {
   cenario = montaCenario();
-  e1 = cenario.novoAtor('e1@exemplo.invalido');
+  e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
   obraId = criaObraDoPrd(e1, cenario.amb, {
     // A obra nasce com o período 1; os testes cadastram os demais.
     periodosBms: [{ numero: 1, dataInicial: '2026-02-05', dataFinal: '2026-02-28' }],
@@ -123,9 +123,10 @@ describe('F1.2 — períodos de BMS', () => {
   });
 
   it('CT-020 não cria a obra quando nenhum período de BMS é informado', () => {
-    const e2 = cenario.novoAtor('e2@exemplo.invalido');
+    // E1 já é engenheiro da obra do `beforeEach`, e por isso pode criar outra
+    // (25.1): a recusa aqui é pela falta de período, e não pela permissão.
     const resultado = criaObraProtegida(
-      e2,
+      e1,
       { ...DADOS_DA_OBRA, periodosBms: [] },
       cenario.amb,
     );
@@ -138,9 +139,8 @@ describe('F1.2 — períodos de BMS', () => {
   });
 
   it('CT-021 cria obra e período no mesmo ato', () => {
-    const e2 = cenario.novoAtor('e2@exemplo.invalido');
     const criada = criaObraProtegida(
-      e2,
+      e1,
       {
         ...DADOS_DA_OBRA,
         periodosBms: [{ numero: 1, dataInicial: '2026-02-05', dataFinal: '2026-02-28' }],
@@ -223,6 +223,23 @@ describe('F1.2 — períodos de BMS', () => {
     expect(resultado.ok).toBe(false);
     if (resultado.ok) return;
     expect(resultado.erro.mensagem).toContain('se sobrepõe ao período de BMS 6');
+    // Origem: `src/shared/result`, CODIGO_ERRO.INTERVALO_SOBREPOSTO. O código
+    // gravado no log tem de dizer a mesma coisa que a mensagem exibida; aqui
+    // não há nenhum intervalo com a ordem das datas invertida.
+    expect(resultado.erro.codigo).toBe(CODIGO_ERRO.INTERVALO_SOBREPOSTO);
+  });
+
+  it('recusa dois períodos que compartilham exatamente um dia', () => {
+    // Fronteira da sobreposição: um dia em comum já é "duas respostas para o
+    // mesmo dia", que é o que a decisão 11 da arquitetura proíbe. O vizinho que
+    // começa no dia seguinte é aceito, e isso é o CT-025.
+    expect(cadastra(6, '2026-08-01', '2026-08-31').ok).toBe(true);
+
+    const resultado = cadastra(7, '2026-08-31', '2026-09-30');
+
+    expect(resultado.ok).toBe(false);
+    if (resultado.ok) return;
+    expect(resultado.erro.codigo).toBe(CODIGO_ERRO.INTERVALO_SOBREPOSTO);
   });
 
   it('recusa número de BMS repetido na mesma obra', () => {

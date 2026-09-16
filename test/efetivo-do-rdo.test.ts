@@ -58,7 +58,7 @@ let obraId: ObraId;
 
 beforeEach(() => {
   cenario = montaCenario();
-  e1 = cenario.novoAtor('e1@exemplo.invalido');
+  e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
   obraId = criaObraDoPrd(e1, cenario.amb);
 });
 

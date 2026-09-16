@@ -54,16 +54,28 @@ export function relogioMovel(iso: string): {
  * Usuário criado por SQL cru, de propósito: a fixture não depende do módulo
  * `acesso`, senão um defeito lá derrubaria a montagem de todos os outros
  * testes. Sem senha; quem testa autenticação usa `registraUsuario`.
+ *
+ * `eEngenheiro` reproduz o que **só** o comando de instalação faz: ligar a
+ * coluna `e_engenheiro` da conta. O padrão é desligado, que é o de toda conta
+ * nascida na web — não há cadastro público, e convite só cria encarregado.
  */
 export function insereUsuario(
   conexao: ConexaoRdo,
   nome: string,
   email: string,
-  criadoEm: Instante = '2026-01-01T00:00:00.000Z',
+  opcoes: { readonly criadoEm?: Instante; readonly eEngenheiro?: boolean } = {},
 ): UsuarioId {
   const id = geraId<'usuario'>();
   conexao.sqlite
-    .prepare(`INSERT INTO usuario (id, nome, email, criado_em) VALUES (?, ?, ?, ?)`)
-    .run(id, nome, email, criadoEm);
+    .prepare(
+      `INSERT INTO usuario (id, nome, email, criado_em, e_engenheiro) VALUES (?, ?, ?, ?, ?)`,
+    )
+    .run(
+      id,
+      nome,
+      email,
+      opcoes.criadoEm ?? '2026-01-01T00:00:00.000Z',
+      opcoes.eEngenheiro === true ? 1 : 0,
+    );
   return id;
 }

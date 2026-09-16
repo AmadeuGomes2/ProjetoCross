@@ -41,7 +41,7 @@ let obraId: ObraId;
 
 beforeEach(() => {
   cenario = montaCenario();
-  e1 = cenario.novoAtor('e1@exemplo.invalido');
+  e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
   obraId = criaObraDoPrd(e1, cenario.amb);
 });
 
@@ -64,9 +64,10 @@ function idDoAcessoDe(ator: Ator): AcessoId {
 
 describe('F3.1 — convite do encarregado', () => {
   it('CT-072 o convite aceito dá acesso a uma obra só', () => {
-    const e2 = cenario.novoAtor('e2@exemplo.invalido');
+    // Desde a decisão 25.1, quem cria a segunda obra é quem já é engenheiro de
+    // alguma: E1. Só a existência da outra obra importa para este caso.
     const outra = criaObraProtegida(
-      e2,
+      e1,
       { ...DADOS_DA_OBRA, contrato: 'P0999/01-25 - OUTRA' },
       cenario.amb,
     );
@@ -107,12 +108,12 @@ describe('F3.1 — convite do encarregado', () => {
   });
 
   it('CT-074 o encarregado só enxerga a obra liberada', () => {
-    const e2 = cenario.novoAtor('e2@exemplo.invalido');
-    criaObraProtegida(
-      e2,
+    const outra = criaObraProtegida(
+      e1,
       { ...DADOS_DA_OBRA, contrato: 'P0999/01-25 - OUTRA' },
       cenario.amb,
     );
+    expect(outra.ok).toBe(true);
 
     const convite = geraConviteProtegido(e1, obraId, cenario.amb);
     expect(convite.ok).toBe(true);
@@ -127,9 +128,10 @@ describe('F3.1 — convite do encarregado', () => {
   });
 
   it('CT-075 pedir dado de outra obra é recusado sem revelar que ela existe', () => {
-    const e2 = cenario.novoAtor('e2@exemplo.invalido');
+    // Desde a decisão 25.1, quem cria a segunda obra é quem já é engenheiro de
+    // alguma: E1. Só a existência da outra obra importa para este caso.
     const outra = criaObraProtegida(
-      e2,
+      e1,
       { ...DADOS_DA_OBRA, contrato: 'P0999/01-25 - OUTRA' },
       cenario.amb,
     );
@@ -285,12 +287,31 @@ describe('F3.1 — convite do encarregado', () => {
   });
 
   it('CT-084 engenheiro de outra obra não gera convite para esta', () => {
-    const e2 = cenario.novoAtor('e2@exemplo.invalido');
-    criaObraProtegida(
-      e2,
+    // E1 cria a outra obra, que é como uma segunda obra nasce desde a 25.1, e
+    // E2 vira engenheiro **dela** por SQL cru. Não há caminho de produto para
+    // um segundo engenheiro na v1 — convite é só de encarregado (14.0) —, e o
+    // que está sob teste é a fronteira entre obras, não como o acesso nasceu.
+    const outra = criaObraProtegida(
+      e1,
       { ...DADOS_DA_OBRA, contrato: 'P0999/01-25 - OUTRA' },
       cenario.amb,
     );
+    expect(outra.ok).toBe(true);
+    if (!outra.ok) return;
+
+    const e2 = cenario.novoAtor('e2@exemplo.invalido');
+    cenario.conexao.sqlite
+      .prepare(
+        `INSERT INTO acesso (id, obra_id, usuario_id, perfil, liberado_por, liberado_em)
+         VALUES (?, ?, ?, 'engenheiro', ?, ?)`,
+      )
+      .run(
+        '99999999-9999-4999-8999-999999999999',
+        outra.valor,
+        e2.usuarioId,
+        e1.usuarioId,
+        '2026-09-16T12:00:00.000Z',
+      );
 
     expect(geraConviteProtegido(e2, obraId, cenario.amb).ok).toBe(false);
   });

@@ -160,7 +160,7 @@ describe('comAtorNaObra', () => {
   beforeEach(() => {
     cenario = montaCenario();
     amb = paraAcesso(cenario.amb);
-    atorFalso = cenario.novoAtor('e1@exemplo.invalido');
+    atorFalso = cenario.novoEngenheiro('e1@exemplo.invalido');
   });
 
   afterEach(() => {

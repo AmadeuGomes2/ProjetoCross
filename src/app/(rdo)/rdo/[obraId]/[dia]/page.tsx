@@ -23,9 +23,14 @@
 import { redirect } from 'next/navigation';
 import type { ReactElement } from 'react';
 
-import { consultaRdoProtegida } from '../../../../_composicao/rdo-diario';
+import {
+  consultaRdoProtegida,
+  perfilNaObraProtegido,
+} from '../../../../_composicao/rdo-diario';
 import { atorDaRequisicao } from '../../../../_composicao/sessao';
+import { ControleDeExportacao } from '../../../_componentes/controle-de-exportacao';
 import { RdoDiarioNaTela } from '../../../_componentes/rdo-diario-na-tela';
+import { idConfiavel } from '../../../../../shared/id';
 import estilos from '../../../_componentes/rdo.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -49,12 +54,17 @@ export default async function PaginaDoRdoDiario({
     );
   }
 
+  // Decisão 27.1: o encarregado não vê o controle de exportação. A recusa do
+  // servidor continua onde estava, na rota e no módulo `export`; o que muda é
+  // a tela deixar de oferecer o que ia terminar em 403.
   return (
     <>
       <RdoDiarioNaTela rdo={resultado.valor} />
-      <p className={estilos.pagina}>
-        <a href={`/rdo/${obraId}/${dia}/pdf`}>Exportar em PDF</a>
-      </p>
+      <ControleDeExportacao
+        perfil={perfilNaObraProtegido(ator, obraId)}
+        obraId={idConfiavel<'obra'>(obraId)}
+        dia={dia}
+      />
     </>
   );
 }

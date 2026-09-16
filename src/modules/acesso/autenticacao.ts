@@ -57,6 +57,15 @@ export interface ComandoRegistrarUsuario {
   readonly email: string;
   /** Opcional: o encarregado pode entrar por convite antes de ter senha. */
   readonly senha?: string;
+  /**
+   * Liga `usuario.e_engenheiro`, a coluna que autoriza criar obra (25.1).
+   *
+   * **Só `instalacao.ts` passa `true`.** Omitido — que é o caso de todo caminho
+   * vindo da web — a conta nasce sem o atributo: não há cadastro público, e o
+   * convite cria encarregado (14.0). Promover alguém a engenheiro seria decisão
+   * de produto, não efeito colateral de um cadastro.
+   */
+  readonly eEngenheiro?: boolean;
 }
 
 /**
@@ -97,6 +106,7 @@ export async function registraUsuario(
     nome,
     email,
     hashDeSenha,
+    eEngenheiro: cmd.eEngenheiro === true,
     criadoEm: instanteAgora(amb.relogio),
   });
   registra('info', geraId<'correlacao'>(), 'acesso.usuario_criado', { usuarioId: id });

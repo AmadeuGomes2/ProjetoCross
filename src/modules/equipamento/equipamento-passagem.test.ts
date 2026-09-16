@@ -38,7 +38,7 @@ let obraId: ObraId;
 
 beforeEach(() => {
   cenario = montaCenario();
-  e1 = cenario.novoAtor('e1@exemplo.invalido');
+  e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
   obraId = criaObraDoPrd(e1, cenario.amb);
 });
 
@@ -92,16 +92,16 @@ describe('F2.2 — cadastro de equipamento e passagens', () => {
   it('CT-043 aceita o mesmo identificador em outra obra: a frota circula', () => {
     expect(cadastra('CF-29', 'PATROL', '2026-02-05').ok).toBe(true);
 
-    const e2 = cenario.novoAtor('e2@exemplo.invalido');
+    // A segunda obra é criada por quem já é engenheiro da primeira (25.1).
     const outra = criaObraProtegida(
-      e2,
+      e1,
       { ...DADOS_DA_OBRA, contrato: 'P0999/01-25 - OUTRA' },
       cenario.amb,
     );
     expect(outra.ok).toBe(true);
     if (!outra.ok) return;
 
-    expect(cadastra('CF-29', 'PATROL', '2026-02-05', undefined, outra.valor, e2).ok).toBe(
+    expect(cadastra('CF-29', 'PATROL', '2026-02-05', undefined, outra.valor, e1).ok).toBe(
       true,
     );
   });
@@ -130,6 +130,29 @@ describe('F2.2 — cadastro de equipamento e passagens', () => {
     expect(resultado.ok).toBe(false);
     if (resultado.ok) return;
     expect(resultado.erro.codigo).toBe(CODIGO_ERRO.DATA_FINAL_ANTES_DA_INICIAL);
+  });
+
+  it('recusa a passagem sobreposta com o código de sobreposição, e não com o de ordem invertida', () => {
+    // Mesma origem do teste irmão em `pessoal`: `src/shared/result`,
+    // CODIGO_ERRO.INTERVALO_SOBREPOSTO. Um intervalo invertido e dois
+    // intervalos que brigam são defeitos diferentes e não compartilham código.
+    const criado = cadastra('MT-27', 'BASCULA', '2026-02-05', '2026-02-18');
+    expect(criado.ok).toBe(true);
+    if (!criado.ok) return;
+
+    const segunda = registraPassagemDeEquipamentoProtegida(
+      e1,
+      obraId,
+      { equipamentoId: criado.valor, entrada: '2026-02-10' },
+      cenario.amb,
+    );
+
+    expect(segunda.ok).toBe(false);
+    if (segunda.ok) return;
+    expect(segunda.erro.codigo).toBe(CODIGO_ERRO.INTERVALO_SOBREPOSTO);
+    expect(segunda.erro.mensagem).toBe(
+      'Já existe uma passagem deste equipamento cobrindo esse intervalo. Encerre a anterior antes.',
+    );
   });
 
   it('CT-046 aceita saída no mesmo dia da entrada', () => {

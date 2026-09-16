@@ -8,7 +8,7 @@
  * marcada abaixo.
  */
 
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 
 import type { BancoRdo } from '../../db';
 import { acesso, convite, obra, sessao, usuario } from '../../db/schema';
@@ -26,6 +26,22 @@ import type { ObraResumo, Perfil } from './tipos';
 export interface LinhaDeUsuario {
   readonly id: UsuarioId;
   readonly hashDeSenha: string | null;
+}
+
+/**
+ * Esta conta é de engenheiro?
+ *
+ * Pergunta sobre a **pessoa**, e não sobre a relação dela com uma obra: quem
+ * tem CREA e assina o RDO. É o que autoriza criar obra (decisão 25.1). O perfil
+ * por obra continua em `buscaAcessoAtivo`, e uma coisa não implica a outra.
+ */
+export function eContaDeEngenheiro(db: BancoRdo, usuarioId: UsuarioId): boolean {
+  const linha = db
+    .select({ eEngenheiro: usuario.eEngenheiro })
+    .from(usuario)
+    .where(eq(usuario.id, usuarioId))
+    .get();
+  return linha?.eEngenheiro === 1;
 }
 
 /** E-mail é guardado normalizado em caixa baixa, para o UNIQUE valer de fato. */
@@ -56,6 +72,12 @@ export function insereUsuario(
     readonly nome: string;
     readonly email: string;
     readonly hashDeSenha: string | null;
+    /**
+     * Só o comando de instalação manda `true` aqui. Explícito, e não opcional
+     * com padrão: quem escrever o próximo caminho de criação de conta é
+     * obrigado a decidir, e a decisão fica escrita na chamada.
+     */
+    readonly eEngenheiro: boolean;
     readonly criadoEm: Instante;
   },
 ): void {
@@ -65,6 +87,7 @@ export function insereUsuario(
       nome: dados.nome,
       email: normalizaEmail(dados.email),
       hashDeSenha: dados.hashDeSenha,
+      eEngenheiro: dados.eEngenheiro ? 1 : 0,
       criadoEm: dados.criadoEm,
     })
     .run();
@@ -152,22 +175,6 @@ export function buscaAcessoAtivo(
     )
     .get();
   return linha ?? null;
-}
-
-export function listaAcessosAtivosDoUsuario(
-  db: BancoRdo,
-  usuarioId: UsuarioId,
-): LinhaDeAcesso[] {
-  return db
-    .select({
-      id: acesso.id,
-      obraId: acesso.obraId,
-      usuarioId: acesso.usuarioId,
-      perfil: acesso.perfil,
-    })
-    .from(acesso)
-    .where(and(eq(acesso.usuarioId, usuarioId), isNull(acesso.revogadoEm)))
-    .all();
 }
 
 export interface LinhaDeAcessoDaObra {
@@ -320,6 +327,45 @@ export function listaObrasComAcesso(db: BancoRdo, usuarioId: UsuarioId): ObraRes
     .where(and(eq(acesso.usuarioId, usuarioId), isNull(acesso.revogadoEm)))
     .orderBy(obra.contrato)
     .all();
+}
+
+/**
+ * O sistema já tem conta de engenheiro?
+ *
+ * Pergunta do **comando de instalação**, que existe para a primeira delas.
+ * Note que não há consulta equivalente na autorização: lá a pergunta é sempre
+ * sobre uma conta, nunca sobre o estado global do sistema. Uma regra que lê
+ * "ainda não existe nenhum" reabre sozinha quando alguém apaga o último.
+ */
+export function existeContaDeEngenheiro(db: BancoRdo): boolean {
+  return (
+    db
+      .select({ id: usuario.id })
+      .from(usuario)
+      .where(eq(usuario.eEngenheiro, 1))
+      .limit(1)
+      .get() !== undefined
+  );
+}
+
+/**
+ * Existe alguma conta com senha cadastrada?
+ *
+ * Usado só pelo comando de instalação, para decidir se aquele sistema ainda é
+ * virgem. Conta com senha só nasce por este comando ou por aceite de convite —
+ * e convite exige obra, que exige engenheiro. Perguntar as duas coisas
+ * (`existeContaDeEngenheiro` e esta) fecha a janela em que duas contas de
+ * instalação nasceriam sem que ninguém percebesse.
+ */
+export function existeContaComSenha(db: BancoRdo): boolean {
+  return (
+    db
+      .select({ id: usuario.id })
+      .from(usuario)
+      .where(isNotNull(usuario.hashDeSenha))
+      .limit(1)
+      .get() !== undefined
+  );
 }
 
 export function contaEngenheirosAtivos(db: BancoRdo, obraId: ObraId): number {

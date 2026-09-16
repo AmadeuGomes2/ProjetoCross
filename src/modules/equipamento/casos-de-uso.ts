@@ -15,6 +15,10 @@
 import type { DiaPuro } from '../../shared/date/dia';
 import { instanteAgora } from '../../shared/date/fuso';
 import {
+  conflitaComAlgum,
+  ordemDasDatasEstaInvertida,
+} from '../../shared/date/intervalo';
+import {
   geraId,
   type EquipamentoId,
   type ObraId,
@@ -42,12 +46,18 @@ import type {
   PassagemMobilizada,
 } from './tipos';
 
-/** R14, igual a `pessoal`. Datas iguais são aceitas (CT-046). */
-function validaIntervaloDaPassagem(
+/**
+ * R14, igual a `pessoal`. Datas iguais são aceitas (CT-046).
+ *
+ * A comparação mora em `shared/date/intervalo`, que é a mesma que `pessoal`
+ * usa. O que é deste módulo é só a mensagem: a cópia local da regra — que o
+ * próprio comentário admitia ser cópia — foi apagada.
+ */
+function validaOrdemDasDatas(
   entrada: DiaPuro,
   saida: DiaPuro | null,
 ): Result<void, ErroDeDominio> {
-  if (saida !== null && saida < entrada) {
+  if (ordemDasDatasEstaInvertida({ inicio: entrada, fim: saida })) {
     return erro(
       erroDeDominio(
         CODIGO_ERRO.DATA_FINAL_ANTES_DA_INICIAL,
@@ -58,22 +68,28 @@ function validaIntervaloDaPassagem(
   return ok(undefined);
 }
 
-function validaSobreposicao(
+/**
+ * Duas passagens do mesmo equipamento não se sobrepõem.
+ *
+ * `INTERVALO_SOBREPOSTO`, e não `DATA_FINAL_ANTES_DA_INICIAL`: ali é um
+ * intervalo só, invertido; aqui são dois intervalos brigando.
+ */
+function validaSobreposicaoDePassagens(
   existentes: readonly { entrada: DiaPuro; saida: DiaPuro | null }[],
   entrada: DiaPuro,
   saida: DiaPuro | null,
 ): Result<void, ErroDeDominio> {
-  for (const p of existentes) {
-    const conflita =
-      (p.saida === null || entrada <= p.saida) && (saida === null || saida >= p.entrada);
-    if (conflita) {
-      return erro(
-        erroDeDominio(
-          CODIGO_ERRO.DATA_FINAL_ANTES_DA_INICIAL,
-          'Já existe uma passagem deste equipamento cobrindo esse intervalo. Encerre a anterior antes.',
-        ),
-      );
-    }
+  const conflita = conflitaComAlgum(
+    { inicio: entrada, fim: saida },
+    existentes.map((p) => ({ inicio: p.entrada, fim: p.saida })),
+  );
+  if (conflita) {
+    return erro(
+      erroDeDominio(
+        CODIGO_ERRO.INTERVALO_SOBREPOSTO,
+        'Já existe uma passagem deste equipamento cobrindo esse intervalo. Encerre a anterior antes.',
+      ),
+    );
   }
   return ok(undefined);
 }
@@ -111,7 +127,7 @@ export function cadastraEquipamento(
     );
   }
 
-  const intervalo = validaIntervaloDaPassagem(cmd.entrada, cmd.saida);
+  const intervalo = validaOrdemDasDatas(cmd.entrada, cmd.saida);
   if (!intervalo.ok) return intervalo;
 
   const equipamentoId = geraId<'equipamento'>();
@@ -155,7 +171,7 @@ export function registraPassagem(
     );
   }
 
-  const intervalo = validaIntervaloDaPassagem(cmd.entrada, cmd.saida);
+  const intervalo = validaOrdemDasDatas(cmd.entrada, cmd.saida);
   if (!intervalo.ok) return intervalo;
 
   const existentes = repositorio.listaPassagensDoEquipamento(
@@ -163,7 +179,7 @@ export function registraPassagem(
     cmd.obraId,
     cmd.equipamentoId,
   );
-  const sobreposicao = validaSobreposicao(existentes, cmd.entrada, cmd.saida);
+  const sobreposicao = validaSobreposicaoDePassagens(existentes, cmd.entrada, cmd.saida);
   if (!sobreposicao.ok) return sobreposicao;
 
   const id = geraId<'passagem_equipamento'>();
@@ -188,13 +204,13 @@ export function encerraPassagem(
     return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Passagem não encontrada.'));
   }
 
-  const intervalo = validaIntervaloDaPassagem(passagem.entrada, cmd.saida);
+  const intervalo = validaOrdemDasDatas(passagem.entrada, cmd.saida);
   if (!intervalo.ok) return intervalo;
 
   const outras = repositorio
     .listaPassagensDoEquipamento(amb.db, cmd.obraId, passagem.equipamentoId)
     .filter((p) => p.id !== cmd.passagemId);
-  const sobreposicao = validaSobreposicao(outras, passagem.entrada, cmd.saida);
+  const sobreposicao = validaSobreposicaoDePassagens(outras, passagem.entrada, cmd.saida);
   if (!sobreposicao.ok) return sobreposicao;
 
   repositorio.atualizaSaida(amb.db, cmd.obraId, cmd.passagemId, cmd.saida);

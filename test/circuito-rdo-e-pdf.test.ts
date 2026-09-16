@@ -104,7 +104,7 @@ beforeEach(async () => {
   cenario = montaCenario();
   defineAmbienteParaTeste(criaAmbienteDaComposicao(cenario.conexao, relogioFixo(AGORA)));
 
-  e1 = cenario.novoAtor('e1@exemplo.invalido');
+  e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
   obraId = criaObraDoPrd(e1, cenario.amb);
 
   // 1. cadastro: período de BMS que cobre o dia, pessoal, equipamento, serviço.
@@ -362,8 +362,10 @@ describe('a fronteira de confiança recusa quem não é da obra', () => {
   let c1DeOutraObra: Ator;
 
   beforeEach(() => {
-    const e2 = cenario.novoAtor('e2@exemplo.invalido');
-    const obraB = criaObraDoPrd(e2, cenario.amb, {
+    // A obra B nasce pelas mãos de E1, que já é engenheiro da obra A: desde a
+    // decisão 25.1 é assim que uma segunda obra existe. O que está sob teste
+    // aqui é o encarregado da obra B diante da obra A, e isso não muda.
+    const obraB = criaObraDoPrd(e1, cenario.amb, {
       contrato: 'P9999/01-25 - BLOCO 09',
     });
     c1DeOutraObra = daAcessoDeEncarregado(

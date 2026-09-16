@@ -43,7 +43,7 @@ afterEach(() => {
 
 describe('F1.1 — criar a obra', () => {
   it('CT-001 guarda os nove campos do cabeçalho exatamente como informados', () => {
-    const e1 = cenario.novoAtor('e1@exemplo.invalido');
+    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
     const obraId = criaObraDoPrd(e1, cenario.amb);
 
     const cabecalho = obtemCabecalhoProtegido(e1, obraId, cenario.amb);
@@ -65,7 +65,7 @@ describe('F1.1 — criar a obra', () => {
   });
 
   it('CT-002 guarda quem criou a obra e quando', () => {
-    const e1 = cenario.novoAtor('e1@exemplo.invalido');
+    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
     const obraId = criaObraDoPrd(e1, cenario.amb);
 
     const linha = cenario.conexao.sqlite
@@ -79,7 +79,7 @@ describe('F1.1 — criar a obra', () => {
   });
 
   it('CT-003 dá ao criador acesso de engenheiro à obra que ele criou', () => {
-    const e1 = cenario.novoAtor('e1@exemplo.invalido');
+    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
     const obraId = criaObraDoPrd(e1, cenario.amb);
 
     const linha = cenario.conexao.sqlite
@@ -102,7 +102,7 @@ describe('F1.1 — criar a obra', () => {
   });
 
   it('CT-005 aceita data de término igual à data de início', () => {
-    const e1 = cenario.novoAtor('e1@exemplo.invalido');
+    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
     const resultado = criaObraProtegida(
       e1,
       {
@@ -118,7 +118,7 @@ describe('F1.1 — criar a obra', () => {
   });
 
   it('CT-006 recusa data de término um dia anterior à de início', () => {
-    const e1 = cenario.novoAtor('e1@exemplo.invalido');
+    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
     const resultado = criaObraProtegida(
       e1,
       { ...DADOS_DA_OBRA, dataInicio: '2026-02-05', dataTermino: '2026-02-04' },
@@ -134,7 +134,7 @@ describe('F1.1 — criar a obra', () => {
   });
 
   it('CT-007 recusa o período de -716 dias que existe na planilha real', () => {
-    const e1 = cenario.novoAtor('e1@exemplo.invalido');
+    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
     const resultado = criaObraProtegida(
       e1,
       { ...DADOS_DA_OBRA, dataInicio: '2024-12-01', dataTermino: '2022-12-15' },
@@ -145,7 +145,7 @@ describe('F1.1 — criar a obra', () => {
   });
 
   it('CT-008 recusa contrato vazio e aponta o campo contrato', () => {
-    const e1 = cenario.novoAtor('e1@exemplo.invalido');
+    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
     const resultado = criaObraProtegida(
       e1,
       { ...DADOS_DA_OBRA, contrato: '' },
@@ -161,7 +161,7 @@ describe('F1.1 — criar a obra', () => {
   });
 
   it('CT-009 recusa nome do projeto vazio e aponta o campo nome', () => {
-    const e1 = cenario.novoAtor('e1@exemplo.invalido');
+    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
     const resultado = criaObraProtegida(
       e1,
       { ...DADOS_DA_OBRA, nomeProjeto: '   ' },
@@ -176,7 +176,7 @@ describe('F1.1 — criar a obra', () => {
   });
 
   it('CT-010 recusa 29/02/2026, que não existe: 2026 não é bissexto', () => {
-    const e1 = cenario.novoAtor('e1@exemplo.invalido');
+    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
     const resultado = criaObraProtegida(
       e1,
       { ...DADOS_DA_OBRA, dataInicio: '2026-02-29' },
@@ -190,7 +190,7 @@ describe('F1.1 — criar a obra', () => {
   });
 
   it('CT-011 recusa 31/09/2026, a data que a aba 31 da planilha produz', () => {
-    const e1 = cenario.novoAtor('e1@exemplo.invalido');
+    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
     const resultado = criaObraProtegida(
       e1,
       { ...DADOS_DA_OBRA, dataTermino: '2026-09-31' },
@@ -205,7 +205,7 @@ describe('F1.1 — criar a obra', () => {
   it('CT-012 recusa no servidor o pedido de criar obra vindo de um encarregado', () => {
     // "C1" é encarregado de uma obra existente. Esconder o botão não é
     // controle de acesso: a recusa tem de ser do servidor (R19).
-    const e1 = cenario.novoAtor('e1@exemplo.invalido');
+    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
     const obraId = criaObraDoPrd(e1, cenario.amb);
     const c1 = cenario.novoAtor('c1@exemplo.invalido');
     cenario.conexao.sqlite
@@ -236,7 +236,7 @@ describe('F1.1 — criar a obra', () => {
   });
 
   it('CT-013 guarda nome, titulação e CREA do responsável técnico na obra', () => {
-    const e1 = cenario.novoAtor('e1@exemplo.invalido');
+    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
     const obraId = criaObraDoPrd(e1, cenario.amb);
 
     const definido = defineResponsavelTecnicoProtegido(
@@ -268,7 +268,7 @@ describe('F1.1 — criar a obra', () => {
   });
 
   it('CT-058 cria a obra já com os quatro serviços controlados, na grafia herdada', () => {
-    const e1 = cenario.novoAtor('e1@exemplo.invalido');
+    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
     const obraId = criaObraDoPrd(e1, cenario.amb);
 
     const servicos = listaServicosControlados(obraId, paraObra(cenario.amb));

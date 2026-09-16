@@ -1,0 +1,2971 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "b64801a8-268b-4797-aa13-2181dae947e0",
+  "prevId": "aeeaba70-a367-4695-8ba5-24b793afa166",
+  "tables": {
+    "acesso": {
+      "name": "acesso",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "obra_id": {
+          "name": "obra_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "perfil": {
+          "name": "perfil",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "liberado_por": {
+          "name": "liberado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "liberado_em": {
+          "name": "liberado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "revogado_por": {
+          "name": "revogado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "revogado_em": {
+          "name": "revogado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ux_acesso_ativo": {
+          "name": "ux_acesso_ativo",
+          "columns": [
+            "obra_id",
+            "usuario_id"
+          ],
+          "isUnique": true,
+          "where": "\"acesso\".\"revogado_em\" IS NULL"
+        },
+        "idx_acesso_usuario": {
+          "name": "idx_acesso_usuario",
+          "columns": [
+            "usuario_id"
+          ],
+          "isUnique": false,
+          "where": "\"acesso\".\"revogado_em\" IS NULL"
+        }
+      },
+      "foreignKeys": {
+        "acesso_obra_id_obra_id_fk": {
+          "name": "acesso_obra_id_obra_id_fk",
+          "tableFrom": "acesso",
+          "tableTo": "obra",
+          "columnsFrom": [
+            "obra_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "acesso_usuario_id_usuario_id_fk": {
+          "name": "acesso_usuario_id_usuario_id_fk",
+          "tableFrom": "acesso",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "acesso_liberado_por_usuario_id_fk": {
+          "name": "acesso_liberado_por_usuario_id_fk",
+          "tableFrom": "acesso",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "liberado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "acesso_revogado_por_usuario_id_fk": {
+          "name": "acesso_revogado_por_usuario_id_fk",
+          "tableFrom": "acesso",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "revogado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_acesso_perfil": {
+          "name": "ck_acesso_perfil",
+          "value": "\"acesso\".\"perfil\" IN ('engenheiro', 'encarregado')"
+        },
+        "ck_acesso_liberado_em": {
+          "name": "ck_acesso_liberado_em",
+          "value": "\"acesso\".\"liberado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        },
+        "ck_acesso_revogado_em": {
+          "name": "ck_acesso_revogado_em",
+          "value": "\"acesso\".\"revogado_em\" IS NULL OR \"acesso\".\"revogado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "convite": {
+      "name": "convite",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "obra_id": {
+          "name": "obra_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "perfil": {
+          "name": "perfil",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "criado_por": {
+          "name": "criado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expira_em": {
+          "name": "expira_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "usado_por": {
+          "name": "usado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "usado_em": {
+          "name": "usado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ux_convite_token": {
+          "name": "ux_convite_token",
+          "columns": [
+            "token_hash"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "convite_obra_id_obra_id_fk": {
+          "name": "convite_obra_id_obra_id_fk",
+          "tableFrom": "convite",
+          "tableTo": "obra",
+          "columnsFrom": [
+            "obra_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "convite_criado_por_usuario_id_fk": {
+          "name": "convite_criado_por_usuario_id_fk",
+          "tableFrom": "convite",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "criado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "convite_usado_por_usuario_id_fk": {
+          "name": "convite_usado_por_usuario_id_fk",
+          "tableFrom": "convite",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "usado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_convite_perfil": {
+          "name": "ck_convite_perfil",
+          "value": "\"convite\".\"perfil\" = 'encarregado'"
+        },
+        "ck_convite_criado_em": {
+          "name": "ck_convite_criado_em",
+          "value": "\"convite\".\"criado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        },
+        "ck_convite_expira_em": {
+          "name": "ck_convite_expira_em",
+          "value": "\"convite\".\"expira_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        },
+        "ck_convite_usado_em": {
+          "name": "ck_convite_usado_em",
+          "value": "\"convite\".\"usado_em\" IS NULL OR \"convite\".\"usado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "dia_de_obra": {
+      "name": "dia_de_obra",
+      "columns": {
+        "obra_id": {
+          "name": "obra_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data": {
+          "name": "data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "motivo_parada": {
+          "name": "motivo_parada",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "registrado_por": {
+          "name": "registrado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "registrado_em": {
+          "name": "registrado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "atualizado_por": {
+          "name": "atualizado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fechado_por": {
+          "name": "fechado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fechado_em": {
+          "name": "fechado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "numero_rdo_congelado": {
+          "name": "numero_rdo_congelado",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ux_dia_de_obra_estado": {
+          "name": "ux_dia_de_obra_estado",
+          "columns": [
+            "obra_id",
+            "data",
+            "estado"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "dia_de_obra_obra_id_obra_id_fk": {
+          "name": "dia_de_obra_obra_id_obra_id_fk",
+          "tableFrom": "dia_de_obra",
+          "tableTo": "obra",
+          "columnsFrom": [
+            "obra_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "dia_de_obra_registrado_por_usuario_id_fk": {
+          "name": "dia_de_obra_registrado_por_usuario_id_fk",
+          "tableFrom": "dia_de_obra",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "registrado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "dia_de_obra_atualizado_por_usuario_id_fk": {
+          "name": "dia_de_obra_atualizado_por_usuario_id_fk",
+          "tableFrom": "dia_de_obra",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "atualizado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "dia_de_obra_fechado_por_usuario_id_fk": {
+          "name": "dia_de_obra_fechado_por_usuario_id_fk",
+          "tableFrom": "dia_de_obra",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "fechado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {
+        "dia_de_obra_obra_id_data_pk": {
+          "columns": [
+            "obra_id",
+            "data"
+          ],
+          "name": "dia_de_obra_obra_id_data_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_dia_de_obra_data": {
+          "name": "ck_dia_de_obra_data",
+          "value": "\"dia_de_obra\".\"data\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(\"dia_de_obra\".\"data\") IS NOT NULL AND date(\"dia_de_obra\".\"data\") = \"dia_de_obra\".\"data\""
+        },
+        "ck_dia_de_obra_estado": {
+          "name": "ck_dia_de_obra_estado",
+          "value": "\"dia_de_obra\".\"estado\" IN ('trabalhado', 'parado')"
+        },
+        "ck_dia_de_obra_motivo": {
+          "name": "ck_dia_de_obra_motivo",
+          "value": "(\"dia_de_obra\".\"estado\" = 'parado' AND \"dia_de_obra\".\"motivo_parada\" IS NOT NULL AND length(trim(\"dia_de_obra\".\"motivo_parada\")) > 0)\n       OR (\"dia_de_obra\".\"estado\" = 'trabalhado' AND \"dia_de_obra\".\"motivo_parada\" IS NULL)"
+        },
+        "ck_dia_de_obra_fechamento": {
+          "name": "ck_dia_de_obra_fechamento",
+          "value": "(\"dia_de_obra\".\"fechado_em\" IS NULL AND \"dia_de_obra\".\"fechado_por\" IS NULL AND \"dia_de_obra\".\"numero_rdo_congelado\" IS NULL)\n       OR (\"dia_de_obra\".\"fechado_em\" IS NOT NULL AND \"dia_de_obra\".\"fechado_por\" IS NOT NULL AND \"dia_de_obra\".\"numero_rdo_congelado\" IS NOT NULL)"
+        },
+        "ck_dia_de_obra_numero_rdo": {
+          "name": "ck_dia_de_obra_numero_rdo",
+          "value": "\"dia_de_obra\".\"numero_rdo_congelado\" IS NULL OR \"dia_de_obra\".\"numero_rdo_congelado\" >= 0"
+        },
+        "ck_dia_de_obra_registrado_em": {
+          "name": "ck_dia_de_obra_registrado_em",
+          "value": "\"dia_de_obra\".\"registrado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        },
+        "ck_dia_de_obra_atualizado_em": {
+          "name": "ck_dia_de_obra_atualizado_em",
+          "value": "\"dia_de_obra\".\"atualizado_em\" IS NULL OR \"dia_de_obra\".\"atualizado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        },
+        "ck_dia_de_obra_fechado_em": {
+          "name": "ck_dia_de_obra_fechado_em",
+          "value": "\"dia_de_obra\".\"fechado_em\" IS NULL OR \"dia_de_obra\".\"fechado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "equipamento": {
+      "name": "equipamento",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "obra_id": {
+          "name": "obra_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "identificador": {
+          "name": "identificador",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tipo_equipamento_id": {
+          "name": "tipo_equipamento_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "criado_por": {
+          "name": "criado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ux_equipamento_identificador": {
+          "name": "ux_equipamento_identificador",
+          "columns": [
+            "obra_id",
+            "identificador"
+          ],
+          "isUnique": true
+        },
+        "ux_equipamento_id_obra": {
+          "name": "ux_equipamento_id_obra",
+          "columns": [
+            "id",
+            "obra_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "equipamento_obra_id_obra_id_fk": {
+          "name": "equipamento_obra_id_obra_id_fk",
+          "tableFrom": "equipamento",
+          "tableTo": "obra",
+          "columnsFrom": [
+            "obra_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "equipamento_tipo_equipamento_id_tipo_equipamento_id_fk": {
+          "name": "equipamento_tipo_equipamento_id_tipo_equipamento_id_fk",
+          "tableFrom": "equipamento",
+          "tableTo": "tipo_equipamento",
+          "columnsFrom": [
+            "tipo_equipamento_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "equipamento_criado_por_usuario_id_fk": {
+          "name": "equipamento_criado_por_usuario_id_fk",
+          "tableFrom": "equipamento",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "criado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_equipamento_identificador": {
+          "name": "ck_equipamento_identificador",
+          "value": "length(trim(\"equipamento\".\"identificador\")) > 0"
+        },
+        "ck_equipamento_criado_em": {
+          "name": "ck_equipamento_criado_em",
+          "value": "\"equipamento\".\"criado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "funcao": {
+      "name": "funcao",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "termo": {
+          "name": "termo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "termo_normalizado": {
+          "name": "termo_normalizado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ordem": {
+          "name": "ordem",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ativo": {
+          "name": "ativo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ux_funcao_normalizado": {
+          "name": "ux_funcao_normalizado",
+          "columns": [
+            "termo_normalizado"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_funcao_termo": {
+          "name": "ck_funcao_termo",
+          "value": "length(trim(\"funcao\".\"termo\")) > 0"
+        },
+        "ck_funcao_normalizado": {
+          "name": "ck_funcao_normalizado",
+          "value": "length(trim(\"funcao\".\"termo_normalizado\")) > 0"
+        },
+        "ck_funcao_ativo": {
+          "name": "ck_funcao_ativo",
+          "value": "\"funcao\".\"ativo\" IN (0, 1)"
+        },
+        "ck_funcao_criado_em": {
+          "name": "ck_funcao_criado_em",
+          "value": "\"funcao\".\"criado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "lancamento_atividade": {
+      "name": "lancamento_atividade",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "obra_id": {
+          "name": "obra_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data": {
+          "name": "data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "autor_id": {
+          "name": "autor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "registrado_em": {
+          "name": "registrado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "atualizado_por": {
+          "name": "atualizado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "raiz_id": {
+          "name": "raiz_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "retifica_id": {
+          "name": "retifica_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "chave_de_rascunho": {
+          "name": "chave_de_rascunho",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "descricao": {
+          "name": "descricao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status_id": {
+          "name": "status_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ux_atividade_id_obra_data": {
+          "name": "ux_atividade_id_obra_data",
+          "columns": [
+            "id",
+            "obra_id",
+            "data"
+          ],
+          "isUnique": true
+        },
+        "ux_atividade_retifica": {
+          "name": "ux_atividade_retifica",
+          "columns": [
+            "retifica_id"
+          ],
+          "isUnique": true
+        },
+        "ux_atividade_rascunho": {
+          "name": "ux_atividade_rascunho",
+          "columns": [
+            "autor_id",
+            "chave_de_rascunho"
+          ],
+          "isUnique": true
+        },
+        "idx_atividade_dia": {
+          "name": "idx_atividade_dia",
+          "columns": [
+            "obra_id",
+            "data",
+            "registrado_em"
+          ],
+          "isUnique": false
+        },
+        "idx_atividade_raiz": {
+          "name": "idx_atividade_raiz",
+          "columns": [
+            "raiz_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "lancamento_atividade_autor_id_usuario_id_fk": {
+          "name": "lancamento_atividade_autor_id_usuario_id_fk",
+          "tableFrom": "lancamento_atividade",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "autor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "lancamento_atividade_atualizado_por_usuario_id_fk": {
+          "name": "lancamento_atividade_atualizado_por_usuario_id_fk",
+          "tableFrom": "lancamento_atividade",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "atualizado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "lancamento_atividade_status_id_status_atividade_id_fk": {
+          "name": "lancamento_atividade_status_id_status_atividade_id_fk",
+          "tableFrom": "lancamento_atividade",
+          "tableTo": "status_atividade",
+          "columnsFrom": [
+            "status_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "fk_atividade_dia": {
+          "name": "fk_atividade_dia",
+          "tableFrom": "lancamento_atividade",
+          "tableTo": "dia_de_obra",
+          "columnsFrom": [
+            "obra_id",
+            "data"
+          ],
+          "columnsTo": [
+            "obra_id",
+            "data"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "fk_atividade_retifica": {
+          "name": "fk_atividade_retifica",
+          "tableFrom": "lancamento_atividade",
+          "tableTo": "lancamento_atividade",
+          "columnsFrom": [
+            "retifica_id",
+            "obra_id",
+            "data"
+          ],
+          "columnsTo": [
+            "id",
+            "obra_id",
+            "data"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_atividade_data": {
+          "name": "ck_atividade_data",
+          "value": "\"lancamento_atividade\".\"data\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(\"lancamento_atividade\".\"data\") IS NOT NULL AND date(\"lancamento_atividade\".\"data\") = \"lancamento_atividade\".\"data\""
+        },
+        "ck_atividade_descricao": {
+          "name": "ck_atividade_descricao",
+          "value": "length(trim(\"lancamento_atividade\".\"descricao\")) > 0"
+        },
+        "ck_atividade_registrado_em": {
+          "name": "ck_atividade_registrado_em",
+          "value": "\"lancamento_atividade\".\"registrado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        },
+        "ck_atividade_atualizado_em": {
+          "name": "ck_atividade_atualizado_em",
+          "value": "\"lancamento_atividade\".\"atualizado_em\" IS NULL OR \"lancamento_atividade\".\"atualizado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "lancamento_observacao": {
+      "name": "lancamento_observacao",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "obra_id": {
+          "name": "obra_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data": {
+          "name": "data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "autor_id": {
+          "name": "autor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "registrado_em": {
+          "name": "registrado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "atualizado_por": {
+          "name": "atualizado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "raiz_id": {
+          "name": "raiz_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "retifica_id": {
+          "name": "retifica_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "chave_de_rascunho": {
+          "name": "chave_de_rascunho",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lado": {
+          "name": "lado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "texto": {
+          "name": "texto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ux_observacao_id_obra_data": {
+          "name": "ux_observacao_id_obra_data",
+          "columns": [
+            "id",
+            "obra_id",
+            "data"
+          ],
+          "isUnique": true
+        },
+        "ux_observacao_retifica": {
+          "name": "ux_observacao_retifica",
+          "columns": [
+            "retifica_id"
+          ],
+          "isUnique": true
+        },
+        "ux_observacao_rascunho": {
+          "name": "ux_observacao_rascunho",
+          "columns": [
+            "autor_id",
+            "chave_de_rascunho"
+          ],
+          "isUnique": true
+        },
+        "idx_observacao_dia": {
+          "name": "idx_observacao_dia",
+          "columns": [
+            "obra_id",
+            "data",
+            "lado",
+            "registrado_em"
+          ],
+          "isUnique": false
+        },
+        "idx_observacao_raiz": {
+          "name": "idx_observacao_raiz",
+          "columns": [
+            "raiz_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "lancamento_observacao_autor_id_usuario_id_fk": {
+          "name": "lancamento_observacao_autor_id_usuario_id_fk",
+          "tableFrom": "lancamento_observacao",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "autor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "lancamento_observacao_atualizado_por_usuario_id_fk": {
+          "name": "lancamento_observacao_atualizado_por_usuario_id_fk",
+          "tableFrom": "lancamento_observacao",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "atualizado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "fk_observacao_dia": {
+          "name": "fk_observacao_dia",
+          "tableFrom": "lancamento_observacao",
+          "tableTo": "dia_de_obra",
+          "columnsFrom": [
+            "obra_id",
+            "data"
+          ],
+          "columnsTo": [
+            "obra_id",
+            "data"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "fk_observacao_retifica": {
+          "name": "fk_observacao_retifica",
+          "tableFrom": "lancamento_observacao",
+          "tableTo": "lancamento_observacao",
+          "columnsFrom": [
+            "retifica_id",
+            "obra_id",
+            "data"
+          ],
+          "columnsTo": [
+            "id",
+            "obra_id",
+            "data"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_observacao_data": {
+          "name": "ck_observacao_data",
+          "value": "\"lancamento_observacao\".\"data\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(\"lancamento_observacao\".\"data\") IS NOT NULL AND date(\"lancamento_observacao\".\"data\") = \"lancamento_observacao\".\"data\""
+        },
+        "ck_observacao_lado": {
+          "name": "ck_observacao_lado",
+          "value": "\"lancamento_observacao\".\"lado\" = 'CROS'"
+        },
+        "ck_observacao_texto": {
+          "name": "ck_observacao_texto",
+          "value": "length(trim(\"lancamento_observacao\".\"texto\")) > 0"
+        },
+        "ck_observacao_registrado_em": {
+          "name": "ck_observacao_registrado_em",
+          "value": "\"lancamento_observacao\".\"registrado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        },
+        "ck_observacao_atualizado_em": {
+          "name": "ck_observacao_atualizado_em",
+          "value": "\"lancamento_observacao\".\"atualizado_em\" IS NULL OR \"lancamento_observacao\".\"atualizado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "lancamento_pluviometria": {
+      "name": "lancamento_pluviometria",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "obra_id": {
+          "name": "obra_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data": {
+          "name": "data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "autor_id": {
+          "name": "autor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "registrado_em": {
+          "name": "registrado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "atualizado_por": {
+          "name": "atualizado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "raiz_id": {
+          "name": "raiz_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "retifica_id": {
+          "name": "retifica_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "chave_de_rascunho": {
+          "name": "chave_de_rascunho",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "noite_anterior": {
+          "name": "noite_anterior",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "manha": {
+          "name": "manha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tarde": {
+          "name": "tarde",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "indice_mm_milesimos": {
+          "name": "indice_mm_milesimos",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ux_pluviometria_id_obra_data": {
+          "name": "ux_pluviometria_id_obra_data",
+          "columns": [
+            "id",
+            "obra_id",
+            "data"
+          ],
+          "isUnique": true
+        },
+        "ux_pluviometria_retifica": {
+          "name": "ux_pluviometria_retifica",
+          "columns": [
+            "retifica_id"
+          ],
+          "isUnique": true
+        },
+        "ux_pluviometria_rascunho": {
+          "name": "ux_pluviometria_rascunho",
+          "columns": [
+            "autor_id",
+            "chave_de_rascunho"
+          ],
+          "isUnique": true
+        },
+        "ux_pluviometria_dia": {
+          "name": "ux_pluviometria_dia",
+          "columns": [
+            "obra_id",
+            "data"
+          ],
+          "isUnique": true,
+          "where": "\"lancamento_pluviometria\".\"retifica_id\" IS NULL"
+        },
+        "idx_pluviometria_raiz": {
+          "name": "idx_pluviometria_raiz",
+          "columns": [
+            "raiz_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "lancamento_pluviometria_autor_id_usuario_id_fk": {
+          "name": "lancamento_pluviometria_autor_id_usuario_id_fk",
+          "tableFrom": "lancamento_pluviometria",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "autor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "lancamento_pluviometria_atualizado_por_usuario_id_fk": {
+          "name": "lancamento_pluviometria_atualizado_por_usuario_id_fk",
+          "tableFrom": "lancamento_pluviometria",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "atualizado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "fk_pluviometria_dia": {
+          "name": "fk_pluviometria_dia",
+          "tableFrom": "lancamento_pluviometria",
+          "tableTo": "dia_de_obra",
+          "columnsFrom": [
+            "obra_id",
+            "data"
+          ],
+          "columnsTo": [
+            "obra_id",
+            "data"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "fk_pluviometria_retifica": {
+          "name": "fk_pluviometria_retifica",
+          "tableFrom": "lancamento_pluviometria",
+          "tableTo": "lancamento_pluviometria",
+          "columnsFrom": [
+            "retifica_id",
+            "obra_id",
+            "data"
+          ],
+          "columnsTo": [
+            "id",
+            "obra_id",
+            "data"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_pluviometria_data": {
+          "name": "ck_pluviometria_data",
+          "value": "\"lancamento_pluviometria\".\"data\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(\"lancamento_pluviometria\".\"data\") IS NOT NULL AND date(\"lancamento_pluviometria\".\"data\") = \"lancamento_pluviometria\".\"data\""
+        },
+        "ck_pluviometria_noite": {
+          "name": "ck_pluviometria_noite",
+          "value": "\"lancamento_pluviometria\".\"noite_anterior\" IS NULL OR \"lancamento_pluviometria\".\"noite_anterior\" IN ('B', 'C', 'I')"
+        },
+        "ck_pluviometria_manha": {
+          "name": "ck_pluviometria_manha",
+          "value": "\"lancamento_pluviometria\".\"manha\" IS NULL OR \"lancamento_pluviometria\".\"manha\" IN ('B', 'C', 'I')"
+        },
+        "ck_pluviometria_tarde": {
+          "name": "ck_pluviometria_tarde",
+          "value": "\"lancamento_pluviometria\".\"tarde\" IS NULL OR \"lancamento_pluviometria\".\"tarde\" IN ('B', 'C', 'I')"
+        },
+        "ck_pluviometria_indice": {
+          "name": "ck_pluviometria_indice",
+          "value": "\"lancamento_pluviometria\".\"indice_mm_milesimos\" >= 0 AND \"lancamento_pluviometria\".\"indice_mm_milesimos\" <= 1000000"
+        },
+        "ck_pluviometria_registrado_em": {
+          "name": "ck_pluviometria_registrado_em",
+          "value": "\"lancamento_pluviometria\".\"registrado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        },
+        "ck_pluviometria_atualizado_em": {
+          "name": "ck_pluviometria_atualizado_em",
+          "value": "\"lancamento_pluviometria\".\"atualizado_em\" IS NULL OR \"lancamento_pluviometria\".\"atualizado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "lancamento_producao": {
+      "name": "lancamento_producao",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "obra_id": {
+          "name": "obra_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data": {
+          "name": "data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "autor_id": {
+          "name": "autor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "registrado_em": {
+          "name": "registrado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "atualizado_por": {
+          "name": "atualizado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "raiz_id": {
+          "name": "raiz_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "retifica_id": {
+          "name": "retifica_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "chave_de_rascunho": {
+          "name": "chave_de_rascunho",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "servico_id": {
+          "name": "servico_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "quantidade_milesimos": {
+          "name": "quantidade_milesimos",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ux_producao_id_obra_data": {
+          "name": "ux_producao_id_obra_data",
+          "columns": [
+            "id",
+            "obra_id",
+            "data"
+          ],
+          "isUnique": true
+        },
+        "ux_producao_retifica": {
+          "name": "ux_producao_retifica",
+          "columns": [
+            "retifica_id"
+          ],
+          "isUnique": true
+        },
+        "ux_producao_rascunho": {
+          "name": "ux_producao_rascunho",
+          "columns": [
+            "autor_id",
+            "chave_de_rascunho"
+          ],
+          "isUnique": true
+        },
+        "idx_producao_acumulado": {
+          "name": "idx_producao_acumulado",
+          "columns": [
+            "obra_id",
+            "servico_id",
+            "data"
+          ],
+          "isUnique": false
+        },
+        "idx_producao_raiz": {
+          "name": "idx_producao_raiz",
+          "columns": [
+            "raiz_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "lancamento_producao_autor_id_usuario_id_fk": {
+          "name": "lancamento_producao_autor_id_usuario_id_fk",
+          "tableFrom": "lancamento_producao",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "autor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "lancamento_producao_atualizado_por_usuario_id_fk": {
+          "name": "lancamento_producao_atualizado_por_usuario_id_fk",
+          "tableFrom": "lancamento_producao",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "atualizado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "fk_producao_dia": {
+          "name": "fk_producao_dia",
+          "tableFrom": "lancamento_producao",
+          "tableTo": "dia_de_obra",
+          "columnsFrom": [
+            "obra_id",
+            "data"
+          ],
+          "columnsTo": [
+            "obra_id",
+            "data"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "fk_producao_servico": {
+          "name": "fk_producao_servico",
+          "tableFrom": "lancamento_producao",
+          "tableTo": "servico_controlado",
+          "columnsFrom": [
+            "servico_id",
+            "obra_id"
+          ],
+          "columnsTo": [
+            "id",
+            "obra_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "fk_producao_retifica": {
+          "name": "fk_producao_retifica",
+          "tableFrom": "lancamento_producao",
+          "tableTo": "lancamento_producao",
+          "columnsFrom": [
+            "retifica_id",
+            "obra_id",
+            "data"
+          ],
+          "columnsTo": [
+            "id",
+            "obra_id",
+            "data"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_producao_data": {
+          "name": "ck_producao_data",
+          "value": "\"lancamento_producao\".\"data\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(\"lancamento_producao\".\"data\") IS NOT NULL AND date(\"lancamento_producao\".\"data\") = \"lancamento_producao\".\"data\""
+        },
+        "ck_producao_quantidade": {
+          "name": "ck_producao_quantidade",
+          "value": "\"lancamento_producao\".\"quantidade_milesimos\" > 0"
+        },
+        "ck_producao_registrado_em": {
+          "name": "ck_producao_registrado_em",
+          "value": "\"lancamento_producao\".\"registrado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        },
+        "ck_producao_atualizado_em": {
+          "name": "ck_producao_atualizado_em",
+          "value": "\"lancamento_producao\".\"atualizado_em\" IS NULL OR \"lancamento_producao\".\"atualizado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "obra": {
+      "name": "obra",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "contrato": {
+          "name": "contrato",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "contratante": {
+          "name": "contratante",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "contratada": {
+          "name": "contratada",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data_inicio": {
+          "name": "data_inicio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data_termino": {
+          "name": "data_termino",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "escopo": {
+          "name": "escopo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nome_projeto": {
+          "name": "nome_projeto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "area": {
+          "name": "area",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "local": {
+          "name": "local",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "resp_tecnico_nome": {
+          "name": "resp_tecnico_nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "resp_tecnico_titulo": {
+          "name": "resp_tecnico_titulo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "resp_tecnico_crea": {
+          "name": "resp_tecnico_crea",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "criado_por": {
+          "name": "criado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "obra_criado_por_usuario_id_fk": {
+          "name": "obra_criado_por_usuario_id_fk",
+          "tableFrom": "obra",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "criado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_obra_contrato": {
+          "name": "ck_obra_contrato",
+          "value": "length(trim(\"obra\".\"contrato\")) > 0"
+        },
+        "ck_obra_contratante": {
+          "name": "ck_obra_contratante",
+          "value": "length(trim(\"obra\".\"contratante\")) > 0"
+        },
+        "ck_obra_contratada": {
+          "name": "ck_obra_contratada",
+          "value": "length(trim(\"obra\".\"contratada\")) > 0"
+        },
+        "ck_obra_escopo": {
+          "name": "ck_obra_escopo",
+          "value": "length(trim(\"obra\".\"escopo\")) > 0"
+        },
+        "ck_obra_nome_projeto": {
+          "name": "ck_obra_nome_projeto",
+          "value": "length(trim(\"obra\".\"nome_projeto\")) > 0"
+        },
+        "ck_obra_area": {
+          "name": "ck_obra_area",
+          "value": "length(trim(\"obra\".\"area\")) > 0"
+        },
+        "ck_obra_local": {
+          "name": "ck_obra_local",
+          "value": "length(trim(\"obra\".\"local\")) > 0"
+        },
+        "ck_obra_data_inicio": {
+          "name": "ck_obra_data_inicio",
+          "value": "\"obra\".\"data_inicio\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(\"obra\".\"data_inicio\") IS NOT NULL AND date(\"obra\".\"data_inicio\") = \"obra\".\"data_inicio\""
+        },
+        "ck_obra_data_termino": {
+          "name": "ck_obra_data_termino",
+          "value": "\"obra\".\"data_termino\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(\"obra\".\"data_termino\") IS NOT NULL AND date(\"obra\".\"data_termino\") = \"obra\".\"data_termino\""
+        },
+        "ck_obra_termino_apos_inicio": {
+          "name": "ck_obra_termino_apos_inicio",
+          "value": "\"obra\".\"data_termino\" >= \"obra\".\"data_inicio\""
+        },
+        "ck_obra_criado_em": {
+          "name": "ck_obra_criado_em",
+          "value": "\"obra\".\"criado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "passagem_equipamento": {
+      "name": "passagem_equipamento",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "obra_id": {
+          "name": "obra_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "equipamento_id": {
+          "name": "equipamento_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entrada": {
+          "name": "entrada",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "saida": {
+          "name": "saida",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "registrado_por": {
+          "name": "registrado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "registrado_em": {
+          "name": "registrado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_passagem_equipamento_dia": {
+          "name": "idx_passagem_equipamento_dia",
+          "columns": [
+            "obra_id",
+            "entrada",
+            "saida"
+          ],
+          "isUnique": false
+        },
+        "idx_passagem_equipamento_equipamento": {
+          "name": "idx_passagem_equipamento_equipamento",
+          "columns": [
+            "equipamento_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "passagem_equipamento_registrado_por_usuario_id_fk": {
+          "name": "passagem_equipamento_registrado_por_usuario_id_fk",
+          "tableFrom": "passagem_equipamento",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "registrado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "fk_passagem_equipamento_equipamento": {
+          "name": "fk_passagem_equipamento_equipamento",
+          "tableFrom": "passagem_equipamento",
+          "tableTo": "equipamento",
+          "columnsFrom": [
+            "equipamento_id",
+            "obra_id"
+          ],
+          "columnsTo": [
+            "id",
+            "obra_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_passagem_equipamento_entrada": {
+          "name": "ck_passagem_equipamento_entrada",
+          "value": "\"passagem_equipamento\".\"entrada\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(\"passagem_equipamento\".\"entrada\") IS NOT NULL AND date(\"passagem_equipamento\".\"entrada\") = \"passagem_equipamento\".\"entrada\""
+        },
+        "ck_passagem_equipamento_saida": {
+          "name": "ck_passagem_equipamento_saida",
+          "value": "\"passagem_equipamento\".\"saida\" IS NULL OR (\"passagem_equipamento\".\"saida\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(\"passagem_equipamento\".\"saida\") IS NOT NULL AND date(\"passagem_equipamento\".\"saida\") = \"passagem_equipamento\".\"saida\")"
+        },
+        "ck_passagem_equipamento_intervalo": {
+          "name": "ck_passagem_equipamento_intervalo",
+          "value": "\"passagem_equipamento\".\"saida\" IS NULL OR \"passagem_equipamento\".\"saida\" >= \"passagem_equipamento\".\"entrada\""
+        },
+        "ck_passagem_equipamento_registrado_em": {
+          "name": "ck_passagem_equipamento_registrado_em",
+          "value": "\"passagem_equipamento\".\"registrado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "passagem_pessoa": {
+      "name": "passagem_pessoa",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "obra_id": {
+          "name": "obra_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pessoa_id": {
+          "name": "pessoa_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entrada": {
+          "name": "entrada",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "saida": {
+          "name": "saida",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "registrado_por": {
+          "name": "registrado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "registrado_em": {
+          "name": "registrado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_passagem_pessoa_dia": {
+          "name": "idx_passagem_pessoa_dia",
+          "columns": [
+            "obra_id",
+            "entrada",
+            "saida"
+          ],
+          "isUnique": false
+        },
+        "idx_passagem_pessoa_pessoa": {
+          "name": "idx_passagem_pessoa_pessoa",
+          "columns": [
+            "pessoa_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "passagem_pessoa_registrado_por_usuario_id_fk": {
+          "name": "passagem_pessoa_registrado_por_usuario_id_fk",
+          "tableFrom": "passagem_pessoa",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "registrado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "fk_passagem_pessoa_pessoa": {
+          "name": "fk_passagem_pessoa_pessoa",
+          "tableFrom": "passagem_pessoa",
+          "tableTo": "pessoa",
+          "columnsFrom": [
+            "pessoa_id",
+            "obra_id"
+          ],
+          "columnsTo": [
+            "id",
+            "obra_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_passagem_pessoa_entrada": {
+          "name": "ck_passagem_pessoa_entrada",
+          "value": "\"passagem_pessoa\".\"entrada\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(\"passagem_pessoa\".\"entrada\") IS NOT NULL AND date(\"passagem_pessoa\".\"entrada\") = \"passagem_pessoa\".\"entrada\""
+        },
+        "ck_passagem_pessoa_saida": {
+          "name": "ck_passagem_pessoa_saida",
+          "value": "\"passagem_pessoa\".\"saida\" IS NULL OR (\"passagem_pessoa\".\"saida\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(\"passagem_pessoa\".\"saida\") IS NOT NULL AND date(\"passagem_pessoa\".\"saida\") = \"passagem_pessoa\".\"saida\")"
+        },
+        "ck_passagem_pessoa_intervalo": {
+          "name": "ck_passagem_pessoa_intervalo",
+          "value": "\"passagem_pessoa\".\"saida\" IS NULL OR \"passagem_pessoa\".\"saida\" >= \"passagem_pessoa\".\"entrada\""
+        },
+        "ck_passagem_pessoa_registrado_em": {
+          "name": "ck_passagem_pessoa_registrado_em",
+          "value": "\"passagem_pessoa\".\"registrado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "periodo_bms": {
+      "name": "periodo_bms",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "obra_id": {
+          "name": "obra_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "numero": {
+          "name": "numero",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data_inicial": {
+          "name": "data_inicial",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data_final": {
+          "name": "data_final",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "criado_por": {
+          "name": "criado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ux_periodo_bms_numero": {
+          "name": "ux_periodo_bms_numero",
+          "columns": [
+            "obra_id",
+            "numero"
+          ],
+          "isUnique": true
+        },
+        "idx_periodo_bms_busca": {
+          "name": "idx_periodo_bms_busca",
+          "columns": [
+            "obra_id",
+            "data_inicial",
+            "data_final"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "periodo_bms_obra_id_obra_id_fk": {
+          "name": "periodo_bms_obra_id_obra_id_fk",
+          "tableFrom": "periodo_bms",
+          "tableTo": "obra",
+          "columnsFrom": [
+            "obra_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "periodo_bms_criado_por_usuario_id_fk": {
+          "name": "periodo_bms_criado_por_usuario_id_fk",
+          "tableFrom": "periodo_bms",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "criado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_periodo_bms_numero": {
+          "name": "ck_periodo_bms_numero",
+          "value": "\"periodo_bms\".\"numero\" >= 0"
+        },
+        "ck_periodo_bms_data_inicial": {
+          "name": "ck_periodo_bms_data_inicial",
+          "value": "\"periodo_bms\".\"data_inicial\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(\"periodo_bms\".\"data_inicial\") IS NOT NULL AND date(\"periodo_bms\".\"data_inicial\") = \"periodo_bms\".\"data_inicial\""
+        },
+        "ck_periodo_bms_data_final": {
+          "name": "ck_periodo_bms_data_final",
+          "value": "\"periodo_bms\".\"data_final\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(\"periodo_bms\".\"data_final\") IS NOT NULL AND date(\"periodo_bms\".\"data_final\") = \"periodo_bms\".\"data_final\""
+        },
+        "ck_periodo_bms_final_apos_inicial": {
+          "name": "ck_periodo_bms_final_apos_inicial",
+          "value": "\"periodo_bms\".\"data_final\" >= \"periodo_bms\".\"data_inicial\""
+        },
+        "ck_periodo_bms_criado_em": {
+          "name": "ck_periodo_bms_criado_em",
+          "value": "\"periodo_bms\".\"criado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "pessoa": {
+      "name": "pessoa",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "obra_id": {
+          "name": "obra_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "funcao_id": {
+          "name": "funcao_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "criado_por": {
+          "name": "criado_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_pessoa_obra": {
+          "name": "idx_pessoa_obra",
+          "columns": [
+            "obra_id"
+          ],
+          "isUnique": false
+        },
+        "ux_pessoa_id_obra": {
+          "name": "ux_pessoa_id_obra",
+          "columns": [
+            "id",
+            "obra_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "pessoa_obra_id_obra_id_fk": {
+          "name": "pessoa_obra_id_obra_id_fk",
+          "tableFrom": "pessoa",
+          "tableTo": "obra",
+          "columnsFrom": [
+            "obra_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "pessoa_funcao_id_funcao_id_fk": {
+          "name": "pessoa_funcao_id_funcao_id_fk",
+          "tableFrom": "pessoa",
+          "tableTo": "funcao",
+          "columnsFrom": [
+            "funcao_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "pessoa_criado_por_usuario_id_fk": {
+          "name": "pessoa_criado_por_usuario_id_fk",
+          "tableFrom": "pessoa",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "criado_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_pessoa_nome": {
+          "name": "ck_pessoa_nome",
+          "value": "length(trim(\"pessoa\".\"nome\")) > 0"
+        },
+        "ck_pessoa_criado_em": {
+          "name": "ck_pessoa_criado_em",
+          "value": "\"pessoa\".\"criado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "quantidade_projeto_versao": {
+      "name": "quantidade_projeto_versao",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "obra_id": {
+          "name": "obra_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "servico_id": {
+          "name": "servico_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "quantidade_milesimos": {
+          "name": "quantidade_milesimos",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "definido_por": {
+          "name": "definido_por",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "definido_em": {
+          "name": "definido_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_qtd_projeto_atual": {
+          "name": "idx_qtd_projeto_atual",
+          "columns": [
+            "servico_id",
+            "\"definido_em\" desc"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "quantidade_projeto_versao_definido_por_usuario_id_fk": {
+          "name": "quantidade_projeto_versao_definido_por_usuario_id_fk",
+          "tableFrom": "quantidade_projeto_versao",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "definido_por"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "fk_quantidade_projeto_servico": {
+          "name": "fk_quantidade_projeto_servico",
+          "tableFrom": "quantidade_projeto_versao",
+          "tableTo": "servico_controlado",
+          "columnsFrom": [
+            "servico_id",
+            "obra_id"
+          ],
+          "columnsTo": [
+            "id",
+            "obra_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_quantidade_projeto_positiva": {
+          "name": "ck_quantidade_projeto_positiva",
+          "value": "\"quantidade_projeto_versao\".\"quantidade_milesimos\" > 0"
+        },
+        "ck_quantidade_projeto_definido_em": {
+          "name": "ck_quantidade_projeto_definido_em",
+          "value": "\"quantidade_projeto_versao\".\"definido_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "registro_exportacao": {
+      "name": "registro_exportacao",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "obra_id": {
+          "name": "obra_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "momento": {
+          "name": "momento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data_rdo": {
+          "name": "data_rdo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "formato": {
+          "name": "formato",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_exportacao": {
+          "name": "idx_exportacao",
+          "columns": [
+            "obra_id",
+            "\"momento\" desc"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "registro_exportacao_obra_id_obra_id_fk": {
+          "name": "registro_exportacao_obra_id_obra_id_fk",
+          "tableFrom": "registro_exportacao",
+          "tableTo": "obra",
+          "columnsFrom": [
+            "obra_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        },
+        "registro_exportacao_usuario_id_usuario_id_fk": {
+          "name": "registro_exportacao_usuario_id_usuario_id_fk",
+          "tableFrom": "registro_exportacao",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_exportacao_formato": {
+          "name": "ck_exportacao_formato",
+          "value": "\"registro_exportacao\".\"formato\" = 'PDF'"
+        },
+        "ck_exportacao_data_rdo": {
+          "name": "ck_exportacao_data_rdo",
+          "value": "\"registro_exportacao\".\"data_rdo\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND date(\"registro_exportacao\".\"data_rdo\") IS NOT NULL AND date(\"registro_exportacao\".\"data_rdo\") = \"registro_exportacao\".\"data_rdo\""
+        },
+        "ck_exportacao_momento": {
+          "name": "ck_exportacao_momento",
+          "value": "\"registro_exportacao\".\"momento\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "servico_controlado": {
+      "name": "servico_controlado",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "obra_id": {
+          "name": "obra_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nome_normalizado": {
+          "name": "nome_normalizado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ordem": {
+          "name": "ordem",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ativo": {
+          "name": "ativo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "ux_servico_nome": {
+          "name": "ux_servico_nome",
+          "columns": [
+            "obra_id",
+            "nome_normalizado"
+          ],
+          "isUnique": true
+        },
+        "ux_servico_ordem": {
+          "name": "ux_servico_ordem",
+          "columns": [
+            "obra_id",
+            "ordem"
+          ],
+          "isUnique": true
+        },
+        "ux_servico_id_obra": {
+          "name": "ux_servico_id_obra",
+          "columns": [
+            "id",
+            "obra_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "servico_controlado_obra_id_obra_id_fk": {
+          "name": "servico_controlado_obra_id_obra_id_fk",
+          "tableFrom": "servico_controlado",
+          "tableTo": "obra",
+          "columnsFrom": [
+            "obra_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_servico_nome": {
+          "name": "ck_servico_nome",
+          "value": "length(trim(\"servico_controlado\".\"nome\")) > 0"
+        },
+        "ck_servico_normalizado": {
+          "name": "ck_servico_normalizado",
+          "value": "length(trim(\"servico_controlado\".\"nome_normalizado\")) > 0"
+        },
+        "ck_servico_ativo": {
+          "name": "ck_servico_ativo",
+          "value": "\"servico_controlado\".\"ativo\" IN (0, 1)"
+        }
+      }
+    },
+    "sessao": {
+      "name": "sessao",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expira_em": {
+          "name": "expira_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "revogada_em": {
+          "name": "revogada_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ux_sessao_token": {
+          "name": "ux_sessao_token",
+          "columns": [
+            "token_hash"
+          ],
+          "isUnique": true
+        },
+        "idx_sessao_usuario": {
+          "name": "idx_sessao_usuario",
+          "columns": [
+            "usuario_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "sessao_usuario_id_usuario_id_fk": {
+          "name": "sessao_usuario_id_usuario_id_fk",
+          "tableFrom": "sessao",
+          "tableTo": "usuario",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_sessao_criado_em": {
+          "name": "ck_sessao_criado_em",
+          "value": "\"sessao\".\"criado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        },
+        "ck_sessao_expira_em": {
+          "name": "ck_sessao_expira_em",
+          "value": "\"sessao\".\"expira_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        },
+        "ck_sessao_revogada_em": {
+          "name": "ck_sessao_revogada_em",
+          "value": "\"sessao\".\"revogada_em\" IS NULL OR \"sessao\".\"revogada_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "status_atividade": {
+      "name": "status_atividade",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "termo": {
+          "name": "termo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "termo_normalizado": {
+          "name": "termo_normalizado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ordem": {
+          "name": "ordem",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ativo": {
+          "name": "ativo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ux_status_atividade_normalizado": {
+          "name": "ux_status_atividade_normalizado",
+          "columns": [
+            "termo_normalizado"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_status_atividade_termo": {
+          "name": "ck_status_atividade_termo",
+          "value": "length(trim(\"status_atividade\".\"termo\")) > 0"
+        },
+        "ck_status_atividade_normalizado": {
+          "name": "ck_status_atividade_normalizado",
+          "value": "length(trim(\"status_atividade\".\"termo_normalizado\")) > 0"
+        },
+        "ck_status_atividade_ativo": {
+          "name": "ck_status_atividade_ativo",
+          "value": "\"status_atividade\".\"ativo\" IN (0, 1)"
+        },
+        "ck_status_atividade_criado_em": {
+          "name": "ck_status_atividade_criado_em",
+          "value": "\"status_atividade\".\"criado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "sugestao_motivo_parada": {
+      "name": "sugestao_motivo_parada",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "texto": {
+          "name": "texto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "texto_normalizado": {
+          "name": "texto_normalizado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ordem": {
+          "name": "ordem",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ativo": {
+          "name": "ativo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "ux_sugestao_motivo_normalizado": {
+          "name": "ux_sugestao_motivo_normalizado",
+          "columns": [
+            "texto_normalizado"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_sugestao_motivo_texto": {
+          "name": "ck_sugestao_motivo_texto",
+          "value": "length(trim(\"sugestao_motivo_parada\".\"texto\")) > 0"
+        },
+        "ck_sugestao_motivo_normalizado": {
+          "name": "ck_sugestao_motivo_normalizado",
+          "value": "length(trim(\"sugestao_motivo_parada\".\"texto_normalizado\")) > 0"
+        },
+        "ck_sugestao_motivo_ativo": {
+          "name": "ck_sugestao_motivo_ativo",
+          "value": "\"sugestao_motivo_parada\".\"ativo\" IN (0, 1)"
+        }
+      }
+    },
+    "tipo_equipamento": {
+      "name": "tipo_equipamento",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "termo": {
+          "name": "termo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "termo_normalizado": {
+          "name": "termo_normalizado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ordem": {
+          "name": "ordem",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ativo": {
+          "name": "ativo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ux_tipo_equipamento_normalizado": {
+          "name": "ux_tipo_equipamento_normalizado",
+          "columns": [
+            "termo_normalizado"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_tipo_equipamento_termo": {
+          "name": "ck_tipo_equipamento_termo",
+          "value": "length(trim(\"tipo_equipamento\".\"termo\")) > 0"
+        },
+        "ck_tipo_equipamento_normalizado": {
+          "name": "ck_tipo_equipamento_normalizado",
+          "value": "length(trim(\"tipo_equipamento\".\"termo_normalizado\")) > 0"
+        },
+        "ck_tipo_equipamento_ativo": {
+          "name": "ck_tipo_equipamento_ativo",
+          "value": "\"tipo_equipamento\".\"ativo\" IN (0, 1)"
+        },
+        "ck_tipo_equipamento_criado_em": {
+          "name": "ck_tipo_equipamento_criado_em",
+          "value": "\"tipo_equipamento\".\"criado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    },
+    "usuario": {
+      "name": "usuario",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "hash_de_senha": {
+          "name": "hash_de_senha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "e_engenheiro": {
+          "name": "e_engenheiro",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ux_usuario_email": {
+          "name": "ux_usuario_email",
+          "columns": [
+            "email"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "ck_usuario_nome": {
+          "name": "ck_usuario_nome",
+          "value": "length(trim(\"usuario\".\"nome\")) > 0"
+        },
+        "ck_usuario_email": {
+          "name": "ck_usuario_email",
+          "value": "length(trim(\"usuario\".\"email\")) > 0"
+        },
+        "ck_usuario_e_engenheiro": {
+          "name": "ck_usuario_e_engenheiro",
+          "value": "\"usuario\".\"e_engenheiro\" IN (0, 1)"
+        },
+        "ck_usuario_criado_em": {
+          "name": "ck_usuario_criado_em",
+          "value": "\"usuario\".\"criado_em\" GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {
+      "idx_qtd_projeto_atual": {
+        "columns": {
+          "\"definido_em\" desc": {
+            "isExpression": true
+          }
+        }
+      },
+      "idx_exportacao": {
+        "columns": {
+          "\"momento\" desc": {
+            "isExpression": true
+          }
+        }
+      }
+    }
+  }
+}

@@ -15,6 +15,10 @@
  */
 
 import { diaEstaNoIntervalo, diferencaEmDias, type DiaPuro } from '../../shared/date/dia';
+import {
+  intervalosSeSobrepoem,
+  ordemDasDatasEstaInvertida,
+} from '../../shared/date/intervalo';
 import { instanteAgora, type Instante } from '../../shared/date/fuso';
 import { geraId, type ObraId, type PeriodoBmsId, type UsuarioId } from '../../shared/id';
 import {
@@ -36,12 +40,15 @@ export function diasDoPeriodo(dataInicial: DiaPuro, dataFinal: DiaPuro): number 
 /**
  * "Não anterior" inclui o mesmo dia (R14): um período de um dia é válido, e o
  * dia igual é o limite exato do aceite.
+ *
+ * A comparação mora em `shared/date/intervalo`, como já acontece em `pessoal` e
+ * `equipamento`. O que é deste módulo é só a mensagem.
  */
 export function validaIntervalo(
   dataInicial: DiaPuro,
   dataFinal: DiaPuro,
 ): Result<void, ErroDeDominio> {
-  if (dataFinal < dataInicial) {
+  if (ordemDasDatasEstaInvertida({ inicio: dataInicial, fim: dataFinal })) {
     return erro(
       erroDeDominio(
         CODIGO_ERRO.DATA_FINAL_ANTES_DA_INICIAL,
@@ -52,11 +59,12 @@ export function validaIntervalo(
   return ok(undefined);
 }
 
-function seSobrepoem(
-  a: { readonly dataInicial: DiaPuro; readonly dataFinal: DiaPuro },
-  b: { readonly dataInicial: DiaPuro; readonly dataFinal: DiaPuro },
-): boolean {
-  return a.dataInicial <= b.dataFinal && b.dataInicial <= a.dataFinal;
+/** Período de BMS na forma de intervalo de `shared/date`. Fim sempre fechado. */
+function comoIntervalo(p: {
+  readonly dataInicial: DiaPuro;
+  readonly dataFinal: DiaPuro;
+}): { inicio: DiaPuro; fim: DiaPuro } {
+  return { inicio: p.dataInicial, fim: p.dataFinal };
 }
 
 /**
@@ -94,11 +102,21 @@ export function validaConjuntoDePeriodos(
       );
     }
 
-    const conflito = acumulados.find((p) => seSobrepoem(p, periodo));
+    // `find`, e não `conflitaComAlgum`: a mensagem diz **qual** período está no
+    // caminho, e "se sobrepõe a algum" mandaria o engenheiro procurar. A regra
+    // da sobreposição, essa sim, é a de `shared/date/intervalo` — era a
+    // terceira cópia dela no sistema, depois de `pessoal` e `equipamento`.
+    const conflito = acumulados.find((p) =>
+      intervalosSeSobrepoem(comoIntervalo(p), comoIntervalo(periodo)),
+    );
     if (conflito !== undefined) {
       return erro(
         erroDeDominio(
-          CODIGO_ERRO.DATA_FINAL_ANTES_DA_INICIAL,
+          // Sobreposição não é ordem invertida: aquela é um intervalo só, de
+          // cabeça para baixo (`validaIntervalo`, acima); esta são dois
+          // intervalos brigando pelo mesmo trecho de calendário. O código é
+          // chave de log, e o errado fazia o registro contradizer a mensagem.
+          CODIGO_ERRO.INTERVALO_SOBREPOSTO,
           `Este intervalo se sobrepõe ao período de BMS ${conflito.numero}. Ajuste as datas.`,
         ),
       );

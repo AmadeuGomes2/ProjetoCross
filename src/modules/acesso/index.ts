@@ -28,6 +28,19 @@ export {
   type SessaoAberta,
 } from './autenticacao';
 
+/**
+ * A conta que nasce fora da web, pelo comando de instalação (decisão 25.1).
+ * Quem a consome é `src/db/criar-engenheiro.ts`, que é raiz de composição da
+ * linha de comando — não há caminho HTTP para esta função, e é o ponto dela.
+ */
+export {
+  criaContaDeEngenheiroDeInstalacao,
+  SENHA_MINIMA_DE_CARACTERES,
+  type ComandoCriarEngenheiro,
+  type ContaDeInstalacao,
+  type SituacaoDaInstalacao,
+} from './instalacao';
+
 export {
   comAtorNaObra,
   exigeAcessoNaObra,

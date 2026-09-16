@@ -1,0 +1,25 @@
+-- Decisão 25.1, corrigida em 16/09/2026: **ser engenheiro é atributo da conta.**
+--
+-- Engenheiro é quem tem CREA e assina o documento — o bloco 11 do RDO imprime
+-- nome, titulação e registro. `acesso.perfil` é outra coisa: diz o que a pessoa
+-- pode fazer *naquela* obra. Estavam coladas, e a permissão de criar obra era
+-- deduzida do estado global do sistema ("ainda não há engenheiro nenhum"), uma
+-- regra que qualquer rotina que apague, arquive ou migre obras reabriria sem
+-- que ninguém lembrasse dela.
+--
+-- A coluna nasce falsa: a conta criada por engano nasce sem poder nenhum. Quem
+-- a liga é só `npm run criar-engenheiro`; nenhum caminho da web a liga.
+--
+-- O `UPDATE` migra quem já existe. Sem ele, um banco em uso perderia a
+-- capacidade de criar a segunda obra no instante em que esta migration
+-- rodasse. O critério é o mesmo que a regra antiga usava: acesso **ativo**
+-- (`revogado_em IS NULL`) com perfil de engenheiro em alguma obra.
+--
+-- Escrito à mão, e não gerado: para um CHECK novo o `drizzle-kit` recria a
+-- tabela inteira, e recriar `usuario` significa DROP de uma tabela referenciada
+-- por `acesso`, `sessao`, `convite` e pelos quatro tipos de lançamento — dentro
+-- da transação da migration, onde `PRAGMA foreign_keys=OFF` é ignorado pelo
+-- SQLite. O `ADD COLUMN` com CHECK nomeado chega ao mesmo esquema sem tocar em
+-- linha nenhuma das tabelas filhas.
+ALTER TABLE `usuario` ADD `e_engenheiro` integer DEFAULT 0 NOT NULL CONSTRAINT "ck_usuario_e_engenheiro" CHECK (`e_engenheiro` IN (0, 1));--> statement-breakpoint
+UPDATE `usuario` SET `e_engenheiro` = 1 WHERE `id` IN (SELECT `usuario_id` FROM `acesso` WHERE `perfil` = 'engenheiro' AND `revogado_em` IS NULL);

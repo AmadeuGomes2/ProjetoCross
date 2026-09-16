@@ -35,7 +35,13 @@ export interface Cenario {
   readonly conexao: ConexaoRdo;
   readonly amb: AmbienteDeCadastro;
   fecha(): void;
+  /** Conta comum: a que nasce na web. Não cria obra (decisão 25.1). */
   novoAtor(email: string): Ator;
+  /**
+   * Conta de engenheiro, como a que `npm run criar-engenheiro` fabrica: a
+   * coluna `usuario.e_engenheiro` ligada. É quem cria obra.
+   */
+  novoEngenheiro(email: string): Ator;
 }
 
 export function montaCenario(instante: string = AGORA): Cenario {
@@ -48,6 +54,12 @@ export function montaCenario(instante: string = AGORA): Cenario {
     fecha: () => conexao.fecha(),
     novoAtor(email: string): Ator {
       const usuarioId = insereUsuario(conexao, `Pessoa ${email}`, email);
+      return { usuarioId, sessaoId: geraId<'sessao'>() };
+    },
+    novoEngenheiro(email: string): Ator {
+      const usuarioId = insereUsuario(conexao, `Pessoa ${email}`, email, {
+        eEngenheiro: true,
+      });
       return { usuarioId, sessaoId: geraId<'sessao'>() };
     },
   };

@@ -62,29 +62,15 @@ export async function entrarAction(dados: FormData): Promise<void> {
   redirect('/obras');
 }
 
-export async function criarContaAction(dados: FormData): Promise<void> {
-  const amb = ambienteDeCadastroPadrao();
-  const criado = await registraUsuario(
-    {
-      nome: texto(dados, 'nome'),
-      email: texto(dados, 'email'),
-      senha: texto(dados, 'senha'),
-    },
-    paraAcesso(amb),
-  );
-  if (!criado.ok) voltaCom('/entrar', criado.erro.mensagem);
-
-  const entrada = await iniciaSessaoComSenha(
-    texto(dados, 'email'),
-    texto(dados, 'senha'),
-    paraAcesso(amb),
-  );
-  if (!entrada.ok) voltaCom('/entrar', entrada.erro.mensagem);
-
-  await gravaCookieDeSessao(entrada.valor.token, entrada.valor.atributos);
-  redirect('/obras');
-}
-
+/**
+ * Não existe `criarContaAction`.
+ *
+ * Decisão 25.1, de 16/09/2026: **não há cadastro público**. A ação que criava
+ * conta de engenheiro a partir da tela de entrada foi removida — com ela,
+ * qualquer pessoa que alcançasse o endereço abria conta. A primeira conta nasce
+ * por `npm run criar-engenheiro`, fora da web; o encarregado ganha a dele ao
+ * aceitar o convite, em `aceitarConviteAction`, que exige um token válido.
+ */
 export async function sairAction(): Promise<void> {
   await apagaCookieDeSessao();
   redirect('/entrar');

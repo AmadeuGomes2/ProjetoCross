@@ -14,6 +14,10 @@
 import { instanteAgora } from '../../shared/date/fuso';
 import type { DiaPuro } from '../../shared/date/dia';
 import {
+  conflitaComAlgum,
+  ordemDasDatasEstaInvertida,
+} from '../../shared/date/intervalo';
+import {
   geraId,
   type FuncaoId,
   type ObraId,
@@ -48,12 +52,15 @@ import type {
  * descobre por quê — que é o que acontece com o período de −716 dias da
  * planilha (caso de teste obrigatório 2). Datas iguais são aceitas: uma
  * passagem de um dia é válida.
+ *
+ * A comparação mora em `shared/date/intervalo`. O que é deste módulo é só a
+ * mensagem: a cópia local da regra foi apagada.
  */
-function validaIntervaloDaPassagem(
+function validaOrdemDasDatas(
   entrada: DiaPuro,
   saida: DiaPuro | null,
 ): Result<void, ErroDeDominio> {
-  if (saida !== null && saida < entrada) {
+  if (ordemDasDatasEstaInvertida({ inicio: entrada, fim: saida })) {
     return erro(
       erroDeDominio(
         CODIGO_ERRO.DATA_FINAL_ANTES_DA_INICIAL,
@@ -70,23 +77,27 @@ function validaIntervaloDaPassagem(
  * docs/arquitetura/v1.md, pergunta P4: assumido que não, rejeitado com
  * mensagem. Sobreposição não muda o número do efetivo, que conta pessoas
  * distintas, mas torna o cadastro impossível de ler e a saída ambígua.
+ *
+ * O código é `INTERVALO_SOBREPOSTO`, e não `DATA_FINAL_ANTES_DA_INICIAL`:
+ * ali é um intervalo só, invertido; aqui são dois intervalos brigando. Com o
+ * código errado, a mensagem exibida contradizia o que ficava no log.
  */
-function validaSobreposicao(
+function validaSobreposicaoDePassagens(
   existentes: readonly { entrada: DiaPuro; saida: DiaPuro | null }[],
   entrada: DiaPuro,
   saida: DiaPuro | null,
 ): Result<void, ErroDeDominio> {
-  for (const p of existentes) {
-    const conflita =
-      (p.saida === null || entrada <= p.saida) && (saida === null || saida >= p.entrada);
-    if (conflita) {
-      return erro(
-        erroDeDominio(
-          CODIGO_ERRO.DATA_FINAL_ANTES_DA_INICIAL,
-          'Já existe uma passagem nesta obra cobrindo esse intervalo. Encerre a anterior antes.',
-        ),
-      );
-    }
+  const conflita = conflitaComAlgum(
+    { inicio: entrada, fim: saida },
+    existentes.map((p) => ({ inicio: p.entrada, fim: p.saida })),
+  );
+  if (conflita) {
+    return erro(
+      erroDeDominio(
+        CODIGO_ERRO.INTERVALO_SOBREPOSTO,
+        'Já existe uma passagem nesta obra cobrindo esse intervalo. Encerre a anterior antes.',
+      ),
+    );
   }
   return ok(undefined);
 }
@@ -111,7 +122,7 @@ export function cadastraPessoa(
     );
   }
 
-  const intervalo = validaIntervaloDaPassagem(cmd.entrada, cmd.saida);
+  const intervalo = validaOrdemDasDatas(cmd.entrada, cmd.saida);
   if (!intervalo.ok) return intervalo;
 
   const pessoaId = geraId<'pessoa'>();
@@ -157,11 +168,11 @@ export function registraPassagem(
     );
   }
 
-  const intervalo = validaIntervaloDaPassagem(cmd.entrada, cmd.saida);
+  const intervalo = validaOrdemDasDatas(cmd.entrada, cmd.saida);
   if (!intervalo.ok) return intervalo;
 
   const existentes = repositorio.listaPassagensDaPessoa(amb.db, cmd.obraId, cmd.pessoaId);
-  const sobreposicao = validaSobreposicao(existentes, cmd.entrada, cmd.saida);
+  const sobreposicao = validaSobreposicaoDePassagens(existentes, cmd.entrada, cmd.saida);
   if (!sobreposicao.ok) return sobreposicao;
 
   const id = geraId<'passagem_pessoa'>();
@@ -186,13 +197,13 @@ export function encerraPassagem(
     return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Passagem não encontrada.'));
   }
 
-  const intervalo = validaIntervaloDaPassagem(passagem.entrada, cmd.saida);
+  const intervalo = validaOrdemDasDatas(passagem.entrada, cmd.saida);
   if (!intervalo.ok) return intervalo;
 
   const outras = repositorio
     .listaPassagensDaPessoa(amb.db, cmd.obraId, passagem.pessoaId)
     .filter((p) => p.id !== cmd.passagemId);
-  const sobreposicao = validaSobreposicao(outras, passagem.entrada, cmd.saida);
+  const sobreposicao = validaSobreposicaoDePassagens(outras, passagem.entrada, cmd.saida);
   if (!sobreposicao.ok) return sobreposicao;
 
   repositorio.atualizaSaida(amb.db, cmd.obraId, cmd.passagemId, cmd.saida);

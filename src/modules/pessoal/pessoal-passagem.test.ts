@@ -38,7 +38,7 @@ let obraId: ObraId;
 
 beforeEach(() => {
   cenario = montaCenario();
-  e1 = cenario.novoAtor('e1@exemplo.invalido');
+  e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
   obraId = criaObraDoPrd(e1, cenario.amb);
 });
 
@@ -159,6 +159,30 @@ describe('F2.1 — cadastro de pessoal e passagens', () => {
     const lista = listaPessoalDaObra(obraId, paraPessoal(cenario.amb));
     expect(lista.ok && lista.valor).toHaveLength(1);
     expect(lista.ok && lista.valor[0]?.passagens).toHaveLength(2);
+  });
+
+  it('recusa a passagem sobreposta com o código de sobreposição, e não com o de ordem invertida', () => {
+    // Origem: `src/shared/result`, CODIGO_ERRO.INTERVALO_SOBREPOSTO — "não
+    // confundir com DATA_FINAL_ANTES_DA_INICIAL, que é um intervalo só,
+    // invertido". Aqui são dois intervalos brigando, e a mensagem exibida
+    // precisa combinar com o código gravado no log.
+    const criada = cadastra('P7', 'Motorista', '2026-02-10', '2026-02-28');
+    expect(criada.ok).toBe(true);
+    if (!criada.ok) return;
+
+    const segunda = registraPassagemProtegida(
+      e1,
+      obraId,
+      { pessoaId: criada.valor, entrada: '2026-02-20' },
+      cenario.amb,
+    );
+
+    expect(segunda.ok).toBe(false);
+    if (segunda.ok) return;
+    expect(segunda.erro.codigo).toBe(CODIGO_ERRO.INTERVALO_SOBREPOSTO);
+    expect(segunda.erro.mensagem).toBe(
+      'Já existe uma passagem nesta obra cobrindo esse intervalo. Encerre a anterior antes.',
+    );
   });
 
   it('CT-034 recusa a lista de pessoal ao encarregado, e a resposta não traz nome', () => {

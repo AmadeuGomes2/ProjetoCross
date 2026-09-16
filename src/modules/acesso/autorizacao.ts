@@ -67,24 +67,28 @@ export function exigeAcessoNaObra(
 /**
  * Criar obra é o único ato do sistema que não tem obra para verificar.
  *
- * Regra aplicada: quem já é **encarregado** de alguma obra e não é engenheiro
- * de nenhuma não cria obra (CT-012). Quem ainda não tem acesso nenhum cria —
- * sem isso a primeira obra do sistema nunca existiria.
+ * **Decisão 25.1, de 16/09/2026: só o engenheiro cria obra.** A pergunta é
+ * sobre a **conta** — `usuario.e_engenheiro` —, e não sobre o perfil em alguma
+ * obra: ser engenheiro é atributo da pessoa, que tem CREA e assina o documento
+ * (bloco 11 do RDO), enquanto `acesso.perfil` diz o que ela pode fazer naquela
+ * obra. Ganhar o perfil de engenheiro numa obra, por qualquer caminho, não
+ * torna ninguém engenheiro para efeito de criar obra.
  *
- * **Isto não está escrito no PRD**, que trata perfil sempre dentro de uma
- * obra. Está isolado nesta função de propósito: se a resposta for outra
- * (convite de engenheiro, papel de administrador), muda aqui e em nenhum outro
- * lugar. Ver relatório de entrega.
+ * A coluna nasce falsa e **só o comando `npm run criar-engenheiro` a liga**:
+ * não há cadastro público e convite só cria encarregado (14.0). É de lá que sai
+ * a primeira obra do sistema.
+ *
+ * O que estava aqui antes e saiu: uma exceção que liberava qualquer conta
+ * enquanto o sistema inteiro não tivesse engenheiro nenhum. Funcionava, mas era
+ * uma regra que ninguém lendo o código esperaria, escrita como consulta a
+ * estado global — e qualquer rotina que um dia apague, arquive ou migre obras a
+ * reabriria, sem que ninguém lembrasse que ela existe.
  */
 export function exigePermissaoParaCriarObra(
   ator: Ator,
   amb: Ambiente,
 ): Result<Ator, ErroDeAcesso> {
-  const acessos = repositorio.listaAcessosAtivosDoUsuario(amb.db, ator.usuarioId);
-  const eEngenheiroDeAlguma = acessos.some((a) => a.perfil === 'engenheiro');
-  const eEncarregadoDeAlguma = acessos.some((a) => a.perfil === 'encarregado');
-
-  if (eEngenheiroDeAlguma || !eEncarregadoDeAlguma) return ok(ator);
+  if (repositorio.eContaDeEngenheiro(amb.db, ator.usuarioId)) return ok(ator);
 
   registra('aviso', geraId<'correlacao'>(), 'acesso.criar_obra_recusado', {
     usuarioId: ator.usuarioId,
