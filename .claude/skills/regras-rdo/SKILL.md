@@ -13,9 +13,9 @@ planilha. **[DECIDIDO 16/09/2026]** é resposta dada por quem responde pelo
 produto, registrada em `docs/prd/v1-decisoes.md` e em `docs/dominio/duvidas.md`.
 **[PENDENTE]** ainda depende de decisão — não escolha por conta própria.
 
-As 39 decisões da v1 foram tomadas em 16/09/2026. O que restou pendente está
-marcado como tal, e é pouco: a lista de motivos de dia parado, que é proposta e
-espera aprovação.
+As 42 decisões da v1 foram tomadas em 16/09/2026 e **não há pergunta aberta no
+PRD**. Nada aqui espera resposta. Quando algo novo aparecer, volta para
+`docs/prd/v1.md` como pergunta, nunca como decisão tomada por conta própria.
 
 ---
 
@@ -82,8 +82,6 @@ numero(dia) = dia − data de inicio do contrato
 Três turnos: noite anterior, manhã, tarde. Cada um recebe `B` bom, `C` chuva ou
 `I` impraticável. Mais um índice em mm.
 
-Árvore da planilha, na ordem, parando na primeira verdadeira:
-
 Árvore **corrigida**, decisão 3.1 de 16/09/2026. Na ordem, para na primeira
 verdadeira:
 
@@ -121,17 +119,21 @@ verdadeira:
 - **[DECIDIDO 16/09/2026]** o dia tem **três estados**: `não lançado`, `parado`,
   `trabalhado`. Decisão 4.2. Ninguém ter lançado é diferente de ter lançado que
   não houve trabalho.
-- **[DECIDIDO 16/09/2026]** dia parado tem **motivo tipado** e zero atividades.
-  Decisão 4.1. Tentar lançar atividade num dia parado é **rejeitado** com
-  mensagem, não muda o estado do dia. Decisão 4.3. Caso de teste 4.
+- **[DECIDIDO 16/09/2026]** dia parado tem **motivo** e zero atividades. Decisão
+  4.1; a forma do motivo está na decisão 20.1, abaixo. Tentar lançar atividade num
+  dia parado é **rejeitado** com mensagem, e isso não muda o estado do dia.
+  Decisão 4.3. Caso de teste 4.
 - **[DECIDIDO 16/09/2026]** no PDF, o motivo sai na **primeira linha do bloco
   ATIVIDADES**, que é onde o fiscal está acostumado a lê-lo. Decisão 4.1.
 - **[DECIDIDO 16/09/2026]** efetivo de pessoal e de equipamento sai **zerado** em
   dia parado. Decisão 5.1.
-- Lista de motivos proposta a partir dos textos reais, **pendente de aprovação**:
+- **[DECIDIDO 16/09/2026]** o motivo é **texto livre e obrigatório** quando o dia
+  é parado. Decisão 20.1. Oito sugestões tocáveis preenchem o campo sem fechá-lo:
   `Domingo`, `Feriado`, `Chuva`, `Excesso de umidade no trecho`,
   `Interferência de terceiro`, `Impraticável`, `Sem frente de serviço`, `Outro`.
-  Complemento em texto livre continua existindo, opcional.
+  Não existe campo `complemento`: o texto livre do motivo já o absorve.
+- **[DECIDIDO 16/09/2026]** só o **engenheiro** retifica lançamento em dia
+  fechado, e retifica o de **qualquer autor**, inclusive os dele. Decisão 22.1.
 
 ## 6. Composição do RDO diário
 
@@ -178,9 +180,11 @@ dias do periodo = data final − data inicial + 1
   períodos de BMS da obra** (número, início, fim) e o RDO deriva o número pela
   data do dia. Decisão 7.1. A tabela legada, que ia de 2022 a 2025 e não cobria
   2026, é descartada.
+- **[DECIDIDO 16/09/2026]** cadastrar **ao menos um período é obrigatório ao criar
+  a obra**. Decisão 21.1. Obra sem período nenhum não existe.
 - Consequência: existe a entidade **Período de BMS**, com a mesma validação de
-  data final não anterior à inicial. Dia fora de todo período cadastrado sai com
-  o campo `BM'S` vazio, não com erro.
+  data final não anterior à inicial. Data não coberta por nenhum período sai com
+  `BM'S` vazio e aviso na tela, nunca com erro nem bloqueio de exportação.
 
 ---
 
@@ -202,9 +206,11 @@ Fica aqui como registro do que a planilha tinha.
 **Turno de pluviometria** (3): `B`, `C`, `I`. É a única taxonomia de tempo do
 produto. A letra `N` que a macro VBA pinta não entra.
 
-**Motivo de dia parado** (proposta pendente de aprovação): `Domingo`, `Feriado`,
-`Chuva`, `Excesso de umidade no trecho`, `Interferência de terceiro`,
-`Impraticável`, `Sem frente de serviço`, `Outro`.
+**Motivo de dia parado**: **não é taxonomia fechada.** É texto livre obrigatório
+(20.1) com oito sugestões: `Domingo`, `Feriado`, `Chuva`,
+`Excesso de umidade no trecho`, `Interferência de terceiro`, `Impraticável`,
+`Sem frente de serviço`, `Outro`. Comparação e agrupamento continuam insensíveis a
+caixa e a espaços nas pontas.
 
 **Resumo do dia** (3): `Trabalhado`, `Perca de produção`, `Impraticavél`.
 

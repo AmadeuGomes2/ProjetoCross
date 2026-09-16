@@ -65,9 +65,11 @@ obra, com validação de que a final não é anterior à inicial. O BMS impresso
 cabeçalho é o número do período cujo intervalo contém a data do RDO. A tabela de
 `DADOS` não é carregada.
 
-**Continua pendente, em escala menor:** o que o campo `BM'S` mostra quando a data
-do RDO não cai em nenhum período cadastrado. É a pergunta aberta 2 de
-`docs/prd/v1.md`.
+**Completada em 16/09/2026 (21.1):** cadastrar ao menos um período de BMS é
+**obrigatório ao criar a obra**, então a situação "obra sem período nenhum" deixa
+de existir. Quando a data do RDO não é coberta por nenhum dos períodos
+cadastrados, o campo `BM'S` sai **vazio**, a tela **avisa**, e o RDO é gerado
+normalmente. Nada de bloquear a exportação por causa disso.
 
 **Impacto se errado:** o número do BMS impresso é o que amarra o RDO à medição
 financeira. Errar o BMS é errar a fatura.
@@ -92,20 +94,30 @@ classificação.
 - o estado do dia é campo próprio e tem **três valores**: `não lançado`, `parado`,
   `trabalhado` (4.2). `não lançado` é a ausência de registro, não um valor
   digitado;
-- dia parado tem motivo tipado e **zero atividades**; no PDF, o motivo sai na
+- dia parado tem motivo e **zero atividades**; a forma do motivo é texto livre
+  obrigatório, ver 20.1 abaixo; no PDF, o motivo sai na
   **primeira linha do bloco `ATIVIDADES`**, que é onde o fiscal está acostumado a
   lê-lo (4.1);
 - atividade lançada num dia parado é **rejeitada com mensagem**; não muda o estado
   do dia por efeito colateral (4.3);
 - a lista de motivos é tabela de domínio editável.
 
-**Continua pendente, em escala menor:** a lista exata de motivos. A extração de
-16/09/2026 achou **110 registros de dia parado com 13 textos distintos**, dos quais
-**61 não declaram motivo nenhum**, só "Não houve atividades". A lista proposta
-(`Domingo`, `Feriado`, `Chuva`, `Excesso de umidade no trecho`,
-`Interferência de terceiro`, `Impraticável`, `Sem frente de serviço`, `Outro`)
-está em `docs/prd/v1.md` e aguarda aprovação: é a pergunta aberta 1 de lá, junto
-com a obrigatoriedade do motivo. Não inventei a lista.
+**Completada em 16/09/2026 (20.1):** o motivo é **texto livre e obrigatório**
+quando o dia é parado. As oito sugestões extraídas dos registros reais — `Domingo`,
+`Feriado`, `Chuva`, `Excesso de umidade no trecho`, `Interferência de terceiro`,
+`Impraticável`, `Sem frente de serviço`, `Outro` — aparecem como botões que
+preenchem o campo ao toque, sem fechá-lo. O campo `complemento do motivo` deixa de
+existir, porque o motivo em texto livre já o absorve.
+
+A extração achou **110 registros de dia parado com 13 textos distintos**, dos quais
+**61 não declaravam motivo nenhum**. Como o motivo passa a ser obrigatório, esses
+61 casos não se repetem: o encarregado toca uma sugestão ou escreve.
+
+**Risco assumido conscientemente:** texto livre é o que a planilha fazia, e é por
+isso que hoje não dá para filtrar dias parados sem interpretar texto. As sugestões
+existem justamente para que a maioria dos lançamentos caia em oito grafias
+estáveis. Se a dispersão voltar, a correção é promover as sugestões a lista
+fechada, não culpar o encarregado.
 
 ---
 

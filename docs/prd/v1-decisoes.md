@@ -6,8 +6,11 @@ Quem responde pelo produto marcou as sugestões de todos os 19 blocos. As respos
 estão aplicadas em `docs/prd/v1.md` (seção DECISÕES TOMADAS) e em
 `docs/dominio/duvidas.md` (dúvidas 1, 2, 3, 4, 5, 10, 11 e 12).
 
-Continua pendente só o que a decisão 4.4 mandou fazer: a lista de motivos de dia
-parado foi extraída e está proposta em `docs/prd/v1.md`, aguardando aprovação.
+**Nada continua pendente.** As três perguntas que sobraram depois da primeira
+rodada foram respondidas no mesmo dia, e viraram as decisões **20.1** (motivo de
+dia parado em texto livre obrigatório, com oito sugestões), **21.1** (período de
+BMS obrigatório ao criar a obra) e **22.1** (só o engenheiro retifica, lançamento
+de qualquer autor). Estão na tabela DECISÕES TOMADAS de `docs/prd/v1.md`.
 
 As 19 perguntas abertas de `docs/prd/v1.md`, quebradas em decisões pequenas.
 Cada decisão tem um código e opções. Responda de um destes jeitos:
