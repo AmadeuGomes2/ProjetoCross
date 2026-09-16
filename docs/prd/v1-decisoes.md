@@ -6,6 +6,14 @@ Quem responde pelo produto marcou as sugestões de todos os 19 blocos. As respos
 estão aplicadas em `docs/prd/v1.md` (seção DECISÕES TOMADAS) e em
 `docs/dominio/duvidas.md` (dúvidas 1, 2, 3, 4, 5, 10, 11 e 12).
 
+**Segunda rodada, 16/09/2026.** Quatro pontos que as frentes de implementação
+tinham decidido sozinhas voltaram para quem responde pelo produto e foram
+respondidos: **25.1** só o engenheiro cria obra, sem cadastro público, com a
+primeira conta nascendo por comando de instalação; **26.1** a lista de funções do
+efetivo inclui as desativadas; **27.1** só o engenheiro exporta o PDF, e o
+controle some da tela do encarregado; **28.1** e-mail com senha e sessão de 12
+horas, confirmando o que a frente A tinha escolhido.
+
 **Nada continua pendente.** As três perguntas que sobraram depois da primeira
 rodada foram respondidas no mesmo dia, e viraram as decisões **20.1** (motivo de
 dia parado em texto livre obrigatório, com oito sugestões), **21.1** (período de
