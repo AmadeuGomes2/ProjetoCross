@@ -283,3 +283,95 @@ describe('F1.1 — criar a obra', () => {
     ]);
   });
 });
+
+/**
+ * Decisão 32.1, de 16/09/2026: **responsável técnico é obrigatório para criar a
+ * obra — sem nome, titulação e CREA não se cria.**
+ *
+ * Origem da expectativa: `docs/prd/v1.md`, tabela DECISÕES TOMADAS, 32.1. O
+ * motivo é o bloco 11 do gabarito: é o campo que o fiscal assina de volta, e
+ * uma obra que nasce sem ele exporta um PDF com o rodapé em branco.
+ *
+ * A decisão vale para a **criação**. O cabeçalho continua sabendo ler
+ * `respTecnico` nulo porque as três colunas do banco aceitam nulo e as obras
+ * criadas antes desta decisão continuam existindo.
+ */
+describe('32.1 — responsável técnico obrigatório para criar a obra', () => {
+  const semCampo = (campo: string) =>
+    criaObraProtegida(
+      cenario.novoEngenheiro('e1@exemplo.invalido'),
+      { ...DADOS_DA_OBRA, [campo]: '   ' },
+      cenario.amb,
+    );
+
+  it('recusa a obra sem o nome do responsável técnico', () => {
+    const resultado = semCampo('respTecnicoNome');
+
+    expect(resultado.ok).toBe(false);
+    if (resultado.ok) return;
+    expect(resultado.erro.tipo === 'entrada' ? resultado.erro.campo : null).toBe(
+      'respTecnicoNome',
+    );
+  });
+
+  it('recusa a obra sem a titulação do responsável técnico', () => {
+    const resultado = semCampo('respTecnicoTitulo');
+
+    expect(resultado.ok).toBe(false);
+    if (resultado.ok) return;
+    expect(resultado.erro.tipo === 'entrada' ? resultado.erro.campo : null).toBe(
+      'respTecnicoTitulo',
+    );
+  });
+
+  it('recusa a obra sem o registro no CREA', () => {
+    const resultado = semCampo('respTecnicoCrea');
+
+    expect(resultado.ok).toBe(false);
+    if (resultado.ok) return;
+    expect(resultado.erro.tipo === 'entrada' ? resultado.erro.campo : null).toBe(
+      'respTecnicoCrea',
+    );
+  });
+
+  it('recusa a obra quando os três campos nem chegam no formulário', () => {
+    // Antes da 32.1 este era o caminho aceito: os três ausentes viravam
+    // `respTecnico` nulo e a obra nascia com o bloco 11 vazio.
+    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
+    const semResponsavel: Record<string, unknown> = { ...DADOS_DA_OBRA };
+    delete semResponsavel['respTecnicoNome'];
+    delete semResponsavel['respTecnicoTitulo'];
+    delete semResponsavel['respTecnicoCrea'];
+
+    const resultado = criaObraProtegida(e1, semResponsavel, cenario.amb);
+
+    expect(resultado.ok).toBe(false);
+    if (resultado.ok) return;
+    expect(resultado.erro.tipo === 'entrada' ? resultado.erro.campo : null).toBe(
+      'respTecnicoNome',
+    );
+  });
+
+  it('não grava obra nenhuma quando o responsável técnico falta', () => {
+    semCampo('respTecnicoCrea');
+
+    const total = cenario.conexao.sqlite
+      .prepare('SELECT count(*) AS total FROM obra')
+      .get() as { total: number };
+    expect(total.total).toBe(0);
+  });
+
+  it('a obra criada já sai com o bloco de assinaturas preenchido', () => {
+    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
+    const obraId = criaObraDoPrd(e1, cenario.amb);
+
+    const cabecalho = obtemCabecalhoProtegido(e1, obraId, cenario.amb);
+    expect(cabecalho.ok).toBe(true);
+    if (!cabecalho.ok) return;
+    expect(cabecalho.valor.respTecnico).toEqual({
+      nome: 'R1',
+      titulo: 'Engenheiro Civil',
+      crea: 'CREA - MG 000000/D',
+    });
+  });
+});

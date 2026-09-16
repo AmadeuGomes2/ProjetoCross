@@ -20,6 +20,7 @@ import { montaOuFalha } from './teste/ajuda';
 import {
   diaParado,
   FUNCAO_MOTORISTA,
+  FUNCAO_PEDREIRO,
   idDaPessoa,
   PESSOAL_PADRAO,
   dia,
@@ -71,8 +72,13 @@ describe('efetivo de pessoal, fronteiras da passagem', () => {
       ...PESSOAL_PADRAO,
       {
         pessoaId: idDaPessoa('P4'),
-        funcaoId: FUNCAO_MOTORISTA,
-        passagens: [{ entrada: dia('2026-02-10'), saida: dia('2026-02-10') }],
+        passagens: [
+          {
+            funcaoId: FUNCAO_MOTORISTA,
+            entrada: dia('2026-02-10'),
+            saida: dia('2026-02-10'),
+          },
+        ],
       },
     ];
     const noves = await montaOuFalha('2026-02-09', { pessoas });
@@ -91,15 +97,71 @@ describe('efetivo de pessoal, fronteiras da passagem', () => {
     const pessoas = [
       {
         pessoaId: idDaPessoa('P9'),
-        funcaoId: FUNCAO_MOTORISTA,
         passagens: [
-          { entrada: dia('2026-02-05'), saida: dia('2026-02-18') },
-          { entrada: dia('2026-02-10'), saida: null },
+          {
+            funcaoId: FUNCAO_MOTORISTA,
+            entrada: dia('2026-02-05'),
+            saida: dia('2026-02-18'),
+          },
+          { funcaoId: FUNCAO_MOTORISTA, entrada: dia('2026-02-10'), saida: null },
         ],
       },
     ];
     const rdo = await montaOuFalha('2026-02-12', { pessoas });
     expect(quantidadeDe(rdo.efetivoPessoal, 'Motorista')).toBe(1);
+  });
+
+  it('conta uma vez só, na função da passagem mais recente, se duas cobrirem o dia', async () => {
+    // Decisão 29.1 com R3: o cadastro rejeita passagens sobrepostas da mesma
+    // pessoa, então este dado não nasce pelo caminho normal. Se nascer, o que
+    // NÃO pode acontecer é a pessoa entrar em duas colunas e dobrar o `TOTAL`
+    // do bloco 5 — é o primeiro número que o fiscal confere. Vale a passagem
+    // que começou depois, que é a notícia mais recente sobre ela.
+    const pessoas = [
+      {
+        pessoaId: idDaPessoa('P9'),
+        passagens: [
+          {
+            funcaoId: FUNCAO_MOTORISTA,
+            entrada: dia('2026-02-05'),
+            saida: dia('2026-02-18'),
+          },
+          { funcaoId: FUNCAO_PEDREIRO, entrada: dia('2026-02-10'), saida: null },
+        ],
+      },
+    ];
+    const rdo = await montaOuFalha('2026-02-12', { pessoas });
+
+    expect(quantidadeDe(rdo.efetivoPessoal, 'Motorista')).toBe(0);
+    expect(quantidadeDe(rdo.efetivoPessoal, 'Pedreiro')).toBe(1);
+    expect(rdo.efetivoPessoal.total).toBe(1);
+  });
+
+  it('conta a pessoa na função da passagem que cobre o dia, e não na da outra', async () => {
+    // Decisão 29.1, o caso que a decisão existe para resolver: a mesma pessoa,
+    // Motorista até 20/03 e Operador II de 21/03. O RDO de 15/03 não pode
+    // mudar quando a troca é registrada.
+    const pessoas = [
+      {
+        pessoaId: idDaPessoa('P9'),
+        passagens: [
+          {
+            funcaoId: FUNCAO_MOTORISTA,
+            entrada: dia('2026-02-10'),
+            saida: dia('2026-03-20'),
+          },
+          { funcaoId: FUNCAO_PEDREIRO, entrada: dia('2026-03-21'), saida: null },
+        ],
+      },
+    ];
+
+    const antes = await montaOuFalha('2026-03-15', { pessoas });
+    const depois = await montaOuFalha('2026-03-25', { pessoas });
+
+    expect(quantidadeDe(antes.efetivoPessoal, 'Motorista')).toBe(1);
+    expect(quantidadeDe(antes.efetivoPessoal, 'Pedreiro')).toBe(0);
+    expect(quantidadeDe(depois.efetivoPessoal, 'Motorista')).toBe(0);
+    expect(quantidadeDe(depois.efetivoPessoal, 'Pedreiro')).toBe(1);
   });
 });
 

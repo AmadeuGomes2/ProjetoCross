@@ -28,6 +28,11 @@ export const DADOS_DA_OBRA = {
   nomeProjeto: 'SERVIÇOS DE PAVIMENTAÇÃO  - BLOCO 02',
   area: 'MONTES CLAROS - MG',
   local: 'VIAS URBANAS  DA CIDADE MONTES CLAROS - MG',
+  // Decisão 32.1, de 16/09/2026: os três campos do bloco 11 são obrigatórios
+  // para criar a obra. "R1" é rótulo do próprio PRD, não nome de pessoa.
+  respTecnicoNome: 'R1',
+  respTecnicoTitulo: 'Engenheiro Civil',
+  respTecnicoCrea: 'CREA - MG 000000/D',
   periodosBms: [{ numero: 1, dataInicial: '2026-02-05', dataFinal: '2026-02-28' }],
 } as const;
 

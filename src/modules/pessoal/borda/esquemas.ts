@@ -18,7 +18,11 @@ import {
   type ErroDeEntrada,
   type Result,
 } from '../../../shared/result';
-import type { ComandoCadastrarPessoa, ComandoPassagem } from '../tipos';
+import type {
+  ComandoCadastrarPessoa,
+  ComandoPassagem,
+  ComandoTrocarFuncao,
+} from '../tipos';
 
 const MAXIMO_DE_NOME = 120;
 
@@ -40,6 +44,19 @@ function diaOpcional(
   if (bruto === undefined || bruto === null) return ok(null);
   if (typeof bruto === 'string' && bruto.trim() === '') return ok(null);
   return exigeDia(bruto, campo);
+}
+
+/**
+ * Sem função a passagem não tem coluna no bloco 5 e some do RDO em silêncio
+ * (CT-036). O termo é resolvido contra o cadastro no caso de uso.
+ */
+function exigeFuncao(bruto: unknown): Result<string, ErroDeEntrada> {
+  if (typeof bruto !== 'string' || bruto.trim() === '') {
+    return erro(
+      erroDeEntrada(CODIGO_ERRO.TERMO_VAZIO, 'Escolha a função na lista.', 'funcao'),
+    );
+  }
+  return ok(bruto);
 }
 
 const formaDeCadastrarPessoa = z.object({
@@ -73,13 +90,8 @@ export function analisaCadastrarPessoa(
     return erro(erroDeEntrada(CODIGO_ERRO.TERMO_VAZIO, 'O nome é longo demais.', 'nome'));
   }
 
-  // Sem função a pessoa não tem coluna no bloco 5 e some do RDO em silêncio
-  // (CT-036). O termo é resolvido contra o cadastro no caso de uso.
-  if (typeof dados.funcao !== 'string' || dados.funcao.trim() === '') {
-    return erro(
-      erroDeEntrada(CODIGO_ERRO.TERMO_VAZIO, 'Escolha a função na lista.', 'funcao'),
-    );
-  }
+  const funcao = exigeFuncao(dados.funcao);
+  if (!funcao.ok) return funcao;
 
   const entrada = exigeDia(dados.entrada, 'entrada');
   if (!entrada.ok) return entrada;
@@ -90,7 +102,7 @@ export function analisaCadastrarPessoa(
   return ok({
     obraId: idConfiavel<'obra'>(dados.obraId),
     nome: dados.nome.trim(),
-    funcaoTermo: dados.funcao,
+    funcaoTermo: funcao.valor,
     entrada: entrada.valor,
     saida: saida.valor,
   });
@@ -99,6 +111,7 @@ export function analisaCadastrarPessoa(
 const formaDePassagem = z.object({
   obraId: z.string(),
   pessoaId: z.string(),
+  funcao: z.unknown(),
   entrada: z.unknown(),
   saida: z.unknown().optional(),
 });
@@ -111,6 +124,10 @@ export function analisaPassagem(bruto: unknown): Result<ComandoPassagem, ErroDeE
     );
   }
 
+  // A passagem é que tem função (decisão 29.1), então abri-la exige escolhê-la.
+  const funcao = exigeFuncao(forma.data.funcao);
+  if (!funcao.ok) return funcao;
+
   const entrada = exigeDia(forma.data.entrada, 'entrada');
   if (!entrada.ok) return entrada;
   const saida = diaOpcional(forma.data.saida, 'saida');
@@ -119,7 +136,45 @@ export function analisaPassagem(bruto: unknown): Result<ComandoPassagem, ErroDeE
   return ok({
     obraId: idConfiavel<'obra'>(forma.data.obraId),
     pessoaId: idConfiavel<'pessoa'>(forma.data.pessoaId),
+    funcaoTermo: funcao.valor,
     entrada: entrada.valor,
     saida: saida.valor,
+  });
+}
+
+const formaDeTrocarFuncao = z.object({
+  obraId: z.string(),
+  pessoaId: z.string(),
+  funcao: z.unknown(),
+  aPartirDe: z.unknown(),
+});
+
+/**
+ * Troca de função (decisão 29.1). `aPartirDe` é o primeiro dia na função nova.
+ *
+ * A data é obrigatória: sem ela não há corte, e sem corte a única alternativa
+ * seria reescrever a passagem inteira — que é o que a decisão proíbe.
+ */
+export function analisaTrocarFuncao(
+  bruto: unknown,
+): Result<ComandoTrocarFuncao, ErroDeEntrada> {
+  const forma = formaDeTrocarFuncao.safeParse(bruto);
+  if (!forma.success) {
+    return erro(
+      erroDeEntrada(CODIGO_ERRO.TERMO_VAZIO, 'O formulário chegou incompleto.'),
+    );
+  }
+
+  const funcao = exigeFuncao(forma.data.funcao);
+  if (!funcao.ok) return funcao;
+
+  const aPartirDe = exigeDia(forma.data.aPartirDe, 'aPartirDe');
+  if (!aPartirDe.ok) return aPartirDe;
+
+  return ok({
+    obraId: idConfiavel<'obra'>(forma.data.obraId),
+    pessoaId: idConfiavel<'pessoa'>(forma.data.pessoaId),
+    funcaoTermo: funcao.valor,
+    aPartirDe: aPartirDe.valor,
   });
 }

@@ -7,6 +7,9 @@
  * `passagem_pessoa` existe porque uma pessoa pode sair e voltar. Intervalo
  * único na pessoa contaria duas linhas como duas pessoas (R3, caso de teste
  * obrigatório 8). O efetivo conta `COUNT(DISTINCT pessoa_id)`.
+ *
+ * **A função mora na passagem, não na pessoa** (decisão 29.1, de 16/09/2026).
+ * Ver a migration `0002_funcao_na_passagem.sql`.
  */
 
 import {
@@ -42,18 +45,9 @@ export const pessoa = sqliteTable(
       .references(() => obra.id, { onDelete: 'restrict', onUpdate: 'restrict' }),
     /** **Dado pessoal.** Só o engenheiro da obra lê. Nunca sai no RDO. */
     nome: text('nome').notNull(),
-    /**
-     * Referência ao cadastro, nunca texto solto (R2, R13): a planilha tinha
-     * `Servente ` com espaço no fim e o Excel deixava passar.
-     *
-     * A função mora na pessoa, como o PRD manda. Consequência conhecida e
-     * isolada em `resolveFuncaoDaPessoa`: mudar a função reescreve o efetivo
-     * passado (arquitetura, pergunta P3).
-     */
-    funcaoId: text('funcao_id')
-      .$type<FuncaoId>()
-      .notNull()
-      .references(() => funcao.id, { onDelete: 'restrict', onUpdate: 'restrict' }),
+    // Sem `funcao_id`: decisão 29.1. A função é atributo da PASSAGEM. Com ela
+    // aqui, promover o Motorista a Operador II em setembro reescrevia o efetivo
+    // de março, e o RDO que o fiscal já recebeu mudava sozinho.
     criadoPor: colunaAutor('criado_por'),
     criadoEm: colunaInstante('criado_em'),
   },
@@ -75,6 +69,18 @@ export const passagemPessoa = sqliteTable(
     /** Denormalizado de propósito: o filtro de autorização é sempre o mesmo. */
     obraId: text('obra_id').$type<ObraId>().notNull(),
     pessoaId: text('pessoa_id').$type<PessoaId>().notNull(),
+    /**
+     * A função **desta passagem** (decisão 29.1). Referência ao cadastro,
+     * nunca texto solto (R2, R13): a planilha tinha `Servente ` com espaço no
+     * fim e o Excel deixava passar.
+     *
+     * Trocar de função encerra a passagem e abre outra, então o efetivo de um
+     * dia passado continua dizendo o que era verdade naquele dia.
+     */
+    funcaoId: text('funcao_id')
+      .$type<FuncaoId>()
+      .notNull()
+      .references(() => funcao.id, { onDelete: 'restrict', onUpdate: 'restrict' }),
     entrada: colunaDia('entrada'),
     /** Nulo = ainda na obra. */
     saida: colunaDiaOpcional('saida'),
@@ -96,6 +102,7 @@ export const passagemPessoa = sqliteTable(
     // lexicográfica de AAAA-MM-DD é a cronológica, então o índice serve direto.
     index('idx_passagem_pessoa_dia').on(t.obraId, t.entrada, t.saida),
     index('idx_passagem_pessoa_pessoa').on(t.pessoaId),
+    index('idx_passagem_pessoa_funcao').on(t.funcaoId),
     checkDia('ck_passagem_pessoa_entrada', t.entrada),
     checkDiaOpcional('ck_passagem_pessoa_saida', t.saida),
     checkSaidaNaoAntesDaEntrada('ck_passagem_pessoa_intervalo', t.saida, t.entrada),

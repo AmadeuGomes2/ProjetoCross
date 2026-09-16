@@ -19,10 +19,10 @@ import type {
   UsuarioId,
 } from '../../shared/id';
 
+/** Sem função: ela é atributo da passagem (decisão 29.1). */
 export interface LinhaDePessoa {
   readonly id: PessoaId;
   readonly nome: string;
-  readonly funcaoId: FuncaoId;
 }
 
 export function inserePessoa(
@@ -31,7 +31,6 @@ export function inserePessoa(
     readonly id: PessoaId;
     readonly obraId: ObraId;
     readonly nome: string;
-    readonly funcaoId: FuncaoId;
     readonly criadoPor: UsuarioId;
     readonly criadoEm: Instante;
   },
@@ -46,7 +45,7 @@ export function buscaPessoa(
 ): LinhaDePessoa | null {
   return (
     db
-      .select({ id: pessoa.id, nome: pessoa.nome, funcaoId: pessoa.funcaoId })
+      .select({ id: pessoa.id, nome: pessoa.nome })
       .from(pessoa)
       .where(and(eq(pessoa.obraId, obraId), eq(pessoa.id, pessoaId)))
       .get() ?? null
@@ -61,6 +60,7 @@ export function contaPessoas(db: BancoRdo, obraId: ObraId): number {
 export interface LinhaDePassagem {
   readonly id: PassagemPessoaId;
   readonly pessoaId: PessoaId;
+  readonly funcaoId: FuncaoId;
   readonly entrada: DiaPuro;
   readonly saida: DiaPuro | null;
 }
@@ -71,6 +71,7 @@ export function inserePassagem(
     readonly id: PassagemPessoaId;
     readonly obraId: ObraId;
     readonly pessoaId: PessoaId;
+    readonly funcaoId: FuncaoId;
     readonly entrada: DiaPuro;
     readonly saida: DiaPuro | null;
     readonly registradoPor: UsuarioId;
@@ -80,18 +81,21 @@ export function inserePassagem(
   db.insert(passagemPessoa).values(dados).run();
 }
 
+const CAMPOS_DA_PASSAGEM = {
+  id: passagemPessoa.id,
+  pessoaId: passagemPessoa.pessoaId,
+  funcaoId: passagemPessoa.funcaoId,
+  entrada: passagemPessoa.entrada,
+  saida: passagemPessoa.saida,
+} as const;
+
 export function listaPassagensDaPessoa(
   db: BancoRdo,
   obraId: ObraId,
   pessoaId: PessoaId,
 ): LinhaDePassagem[] {
   return db
-    .select({
-      id: passagemPessoa.id,
-      pessoaId: passagemPessoa.pessoaId,
-      entrada: passagemPessoa.entrada,
-      saida: passagemPessoa.saida,
-    })
+    .select(CAMPOS_DA_PASSAGEM)
     .from(passagemPessoa)
     .where(and(eq(passagemPessoa.obraId, obraId), eq(passagemPessoa.pessoaId, pessoaId)))
     .orderBy(asc(passagemPessoa.entrada))
@@ -105,12 +109,7 @@ export function buscaPassagem(
 ): LinhaDePassagem | null {
   return (
     db
-      .select({
-        id: passagemPessoa.id,
-        pessoaId: passagemPessoa.pessoaId,
-        entrada: passagemPessoa.entrada,
-        saida: passagemPessoa.saida,
-      })
+      .select(CAMPOS_DA_PASSAGEM)
       .from(passagemPessoa)
       .where(and(eq(passagemPessoa.obraId, obraId), eq(passagemPessoa.id, passagemId)))
       .get() ?? null
@@ -139,7 +138,7 @@ export interface LinhaDeEfetivo {
 }
 
 /**
- * Todas as passagens da obra, com a função da pessoa.
+ * Todas as passagens da obra, cada uma com a **sua** função (decisão 29.1).
  *
  * **Nenhum filtro de data em SQL, de propósito.** Quem decide se a passagem
  * cobre o dia é `intervaloCobreODia`, em `shared/date/intervalo`, que é a
@@ -153,53 +152,39 @@ export function listaPassagensDaObra(db: BancoRdo, obraId: ObraId): LinhaDeEfeti
   return db
     .select({
       pessoaId: passagemPessoa.pessoaId,
-      funcaoId: pessoa.funcaoId,
+      funcaoId: passagemPessoa.funcaoId,
       funcaoTermo: funcao.termo,
       funcaoOrdem: funcao.ordem,
       entrada: passagemPessoa.entrada,
       saida: passagemPessoa.saida,
     })
     .from(passagemPessoa)
-    .innerJoin(pessoa, eq(pessoa.id, passagemPessoa.pessoaId))
-    .innerJoin(funcao, eq(funcao.id, pessoa.funcaoId))
+    .innerJoin(funcao, eq(funcao.id, passagemPessoa.funcaoId))
     .where(eq(passagemPessoa.obraId, obraId))
     .all();
 }
 
-export interface LinhaDePessoaComFuncao {
-  readonly id: PessoaId;
-  readonly nome: string;
-  readonly funcaoId: FuncaoId;
-  readonly funcaoTermo: string;
-}
-
-export function listaPessoasComFuncao(
-  db: BancoRdo,
-  obraId: ObraId,
-): LinhaDePessoaComFuncao[] {
+export function listaPessoas(db: BancoRdo, obraId: ObraId): LinhaDePessoa[] {
   return db
-    .select({
-      id: pessoa.id,
-      nome: pessoa.nome,
-      funcaoId: pessoa.funcaoId,
-      funcaoTermo: funcao.termo,
-    })
+    .select({ id: pessoa.id, nome: pessoa.nome })
     .from(pessoa)
-    .innerJoin(funcao, eq(funcao.id, pessoa.funcaoId))
     .where(eq(pessoa.obraId, obraId))
     .orderBy(asc(pessoa.nome))
     .all();
 }
 
-export function listaTodasAsPassagens(db: BancoRdo, obraId: ObraId): LinhaDePassagem[] {
+export interface LinhaDePassagemComTermo extends LinhaDePassagem {
+  readonly funcaoTermo: string;
+}
+
+export function listaTodasAsPassagens(
+  db: BancoRdo,
+  obraId: ObraId,
+): LinhaDePassagemComTermo[] {
   return db
-    .select({
-      id: passagemPessoa.id,
-      pessoaId: passagemPessoa.pessoaId,
-      entrada: passagemPessoa.entrada,
-      saida: passagemPessoa.saida,
-    })
+    .select({ ...CAMPOS_DA_PASSAGEM, funcaoTermo: funcao.termo })
     .from(passagemPessoa)
+    .innerJoin(funcao, eq(funcao.id, passagemPessoa.funcaoId))
     .where(eq(passagemPessoa.obraId, obraId))
     .orderBy(asc(passagemPessoa.entrada))
     .all();

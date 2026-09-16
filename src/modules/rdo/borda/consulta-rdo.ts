@@ -39,6 +39,28 @@ export interface ErroDeConsultaDoRdo {
   readonly mensagem: string;
 }
 
+/**
+ * O endereço nomeia um dia que não existe?
+ *
+ * Decisão 36.1, de 16/09/2026: **dia inexistente vira 404.** Verificado por
+ * HTTP no mesmo dia: `/rdo/<obra>/2026-09-31` respondia 200 com a frase certa.
+ * A frase continua; o código muda, porque o endereço aponta para um documento
+ * que não existe e nunca vai existir, e 200 ensina navegador, robô e cache a
+ * guardar o erro como se fosse página boa.
+ *
+ * Só o erro de **entrada** entra aqui, e nesta superfície ele é sempre sobre o
+ * dia: o identificador da obra já passou por `exigeAcessoNaObra` antes de o
+ * pedido ser interpretado, e obra inexistente sai como recusa de acesso, para
+ * não revelar existência (CT-075).
+ *
+ * O que deliberadamente **não** é 404: dia fora do período do contrato
+ * (decisão 23.1). Aquele dia existe no calendário, a resposta é uma explicação
+ * na tela, e devolvê-lo como 404 esconderia do engenheiro que ele errou o ano.
+ */
+export function eDiaInexistente(erroDaConsulta: ErroDeConsultaDoRdo): boolean {
+  return erroDaConsulta.tipo === 'entrada';
+}
+
 export async function consultaRdoDiario(
   bruto: unknown,
   portas: PortasDoRdo,

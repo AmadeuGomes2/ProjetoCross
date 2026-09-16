@@ -30,6 +30,7 @@ import {
   defineResponsavelTecnicoProtegido,
   geraConviteProtegido,
   revogaAcessoProtegido,
+  trocaFuncaoProtegida,
 } from '../_composicao/cadastro';
 import {
   ambienteDeCadastroPadrao,
@@ -155,6 +156,23 @@ export async function cadastrarPessoaAction(dados: FormData): Promise<void> {
     saida: texto(dados, 'saida'),
   });
   if (!criada.ok) voltaCom(`/obras/${obraId}/pessoal`, criada.erro.mensagem);
+  redirect(`/obras/${obraId}/pessoal`);
+}
+
+/**
+ * Decisão 29.1: trocar de função **encerra a passagem e abre outra**. Não
+ * existe ação que edite a função de uma passagem já gravada.
+ */
+export async function trocarFuncaoAction(dados: FormData): Promise<void> {
+  const obraId = obraDaForma(dados);
+  const { ator } = await exigeAtor();
+
+  const trocada = trocaFuncaoProtegida(ator, obraId, {
+    pessoaId: texto(dados, 'pessoaId'),
+    funcao: texto(dados, 'funcao'),
+    aPartirDe: texto(dados, 'aPartirDe'),
+  });
+  if (!trocada.ok) voltaCom(`/obras/${obraId}/pessoal`, trocada.erro.mensagem);
   redirect(`/obras/${obraId}/pessoal`);
 }
 

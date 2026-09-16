@@ -5,6 +5,9 @@
  * **passagens cruas**, sem nome. Quem agrega o efetivo é `rdo/efetivo.ts`, e
  * só ele — este módulo não conta ninguém. `PessoaMobilizada` não tem campo de
  * nome: o vazamento é impossível pelo tipo.
+ *
+ * Cada passagem carrega a **sua** função (decisão 29.1). `trocaFuncao` é o
+ * único caminho de troca, e ele encerra uma passagem e abre outra.
  */
 
 export {
@@ -13,9 +16,14 @@ export {
   listaMobilizacao,
   listaPessoalDaObra,
   registraPassagem,
+  trocaFuncao,
 } from './casos-de-uso';
 
-export { analisaCadastrarPessoa, analisaPassagem } from './borda/esquemas';
+export {
+  analisaCadastrarPessoa,
+  analisaPassagem,
+  analisaTrocarFuncao,
+} from './borda/esquemas';
 
 export type {
   Ambiente,
@@ -23,6 +31,7 @@ export type {
   ComandoCadastrarPessoa,
   ComandoEncerrarPassagem,
   ComandoPassagem,
+  ComandoTrocarFuncao,
   Passagem,
   PassagemMobilizada,
   PessoaComPassagens,

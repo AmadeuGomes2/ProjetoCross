@@ -60,10 +60,12 @@ import {
 import {
   analisaCadastrarPessoa,
   analisaPassagem,
+  analisaTrocarFuncao,
   cadastraPessoa,
   listaMobilizacao as listaMobilizacaoDePessoal,
   listaPessoalDaObra,
   registraPassagem,
+  trocaFuncao,
   type PessoaComPassagens,
   type PessoaMobilizada,
 } from '../../modules/pessoal';
@@ -244,6 +246,29 @@ export function registraPassagemProtegida(
   const criada = registraPassagem(cmd.valor, ator, paraPessoal(amb));
   if (!criada.ok) return erro(criada.erro);
   return ok(criada.valor);
+}
+
+/**
+ * Troca de função (decisão 29.1): encerra a passagem vigente e abre outra.
+ *
+ * **Só o engenheiro**, como todo o cadastro de pessoal. Devolve o id da
+ * passagem nova.
+ */
+export function trocaFuncaoProtegida(
+  ator: Ator,
+  obraId: ObraId,
+  bruto: Record<string, unknown>,
+  amb: Amb = ambienteDeCadastroPadrao(),
+): Resposta<string> {
+  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+  if (!permitido.ok) return permitido;
+
+  const cmd = analisaTrocarFuncao({ ...bruto, obraId });
+  if (!cmd.ok) return erro(cmd.erro);
+
+  const trocada = trocaFuncao(cmd.valor, ator, paraPessoal(amb));
+  if (!trocada.ok) return erro(trocada.erro);
+  return ok(trocada.valor);
 }
 
 /**

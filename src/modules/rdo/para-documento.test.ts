@@ -36,8 +36,14 @@ function funcoes(quantidade: number): FuncaoParaEfetivo[] {
 function pessoas(quantidade: number): PessoaMobilizada[] {
   return Array.from({ length: quantidade }, (_, i) => ({
     pessoaId: idConfiavel<'pessoa'>(`p-${i + 1}`),
-    funcaoId: idConfiavel<'funcao'>(`f-${i + 1}`),
-    passagens: [{ entrada: dia('2026-02-05'), saida: null }],
+    // A função é da passagem (decisão 29.1).
+    passagens: [
+      {
+        funcaoId: idConfiavel<'funcao'>(`f-${i + 1}`),
+        entrada: dia('2026-02-05'),
+        saida: null,
+      },
+    ],
   }));
 }
 

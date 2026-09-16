@@ -8,6 +8,11 @@
  *
  * Os rótulos usam as palavras do documento, e não as do banco: quem preenche é
  * a mesma pessoa que lê o RDO impresso.
+ *
+ * Duas decisões de 16/09/2026 mudaram este formulário: a **32.1** tornou os três
+ * campos do responsável técnico obrigatórios, e a **37.1** pôs no bloco de BM'S
+ * a linha que explica o que a sigla quer dizer. O `required` do HTML é
+ * conveniência; quem recusa de verdade é `analisaCriarObra`, no servidor.
  */
 
 import { redirect } from 'next/navigation';
@@ -15,6 +20,7 @@ import { redirect } from 'next/navigation';
 import { criarObraAction } from '../../acoes';
 import { Aviso, Bloco, Campo, Erro, estilos } from '../../componentes';
 import { atorDaRequisicao } from '../../sessao';
+import { BlocoDeBms } from './campos-de-bms';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,27 +56,26 @@ export default async function NovaObra({
           <Campo nome="local" rotulo="Local" obrigatorio />
         </Bloco>
 
-        <Bloco titulo="Primeiro período de BM'S">
-          <Aviso>
-            Toda obra nasce com ao menos um período. Depois é possível cadastrar quantos
-            forem necessários; dia fora de qualquer período sai com o campo{' '}
-            <strong>BM&apos;S</strong> vazio e aviso na tela.
-          </Aviso>
-          <Campo nome="bmsNumero" rotulo="Número" tipo="number" obrigatorio />
-          <div className={estilos.duasColunas}>
-            <Campo nome="bmsInicio" rotulo="Data inicial" tipo="date" obrigatorio />
-            <Campo nome="bmsFim" rotulo="Data final" tipo="date" obrigatorio />
-          </div>
-        </Bloco>
+        <BlocoDeBms />
 
         <Bloco titulo="Responsável técnico">
           <Aviso>
-            Pode ficar para depois, mas é exigido na exportação do PDF: são os três campos
-            do bloco de assinaturas.
+            São os três campos do bloco de assinaturas, que o fiscal assina de volta. Sem
+            eles a obra não é criada.
           </Aviso>
-          <Campo nome="respTecnicoNome" rotulo="Nome" />
-          <Campo nome="respTecnicoTitulo" rotulo="Titulação" dica="Engenheiro Civil" />
-          <Campo nome="respTecnicoCrea" rotulo="Registro" dica="CREA - MG 000000/D" />
+          <Campo nome="respTecnicoNome" rotulo="Nome" obrigatorio />
+          <Campo
+            nome="respTecnicoTitulo"
+            rotulo="Titulação"
+            dica="Engenheiro Civil"
+            obrigatorio
+          />
+          <Campo
+            nome="respTecnicoCrea"
+            rotulo="Registro"
+            dica="CREA - MG 000000/D"
+            obrigatorio
+          />
         </Bloco>
 
         <button className={estilos.botao} type="submit">

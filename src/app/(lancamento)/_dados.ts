@@ -16,11 +16,22 @@
  *    quem chama, e quem chama é este arquivo.
  */
 
+import { redirect } from 'next/navigation';
+
 import { criaDiaPuro } from '../../shared/date/dia';
 import { idConfiavel } from '../../shared/id';
 import type { EstadoDoDia, LetraDeTurno } from '../../shared/taxonomia';
 import { casosDeLancamento, portasDeLancamento } from '../_composicao/lancamento';
 import { atorDaRequisicaoOuRecusa } from '../_composicao/sessao';
+
+/** A porta de entrada, a mesma de `(cadastro)` e de `(rdo)`. */
+export const ENTRADA = '/entrar';
+
+/**
+ * Quem lê o portador da requisição. Injetável só para teste: em produção é
+ * sempre o cookie, e o perfil nunca vem dele.
+ */
+export type LeitorDeAtor = typeof atorDaRequisicaoOuRecusa;
 
 export interface DadosDaTela {
   readonly dataValida: boolean;
@@ -76,7 +87,18 @@ function vazia(
 export async function carregaDadosDaTelaProtegida(
   obraIdBruto: string,
   dataBruta: string,
+  leAtor: LeitorDeAtor = atorDaRequisicaoOuRecusa,
 ): Promise<DadosDaTela> {
+  // Decisão 36.1: **sem sessão, redireciona**, como todas as outras telas
+  // protegidas já faziam. Responder 200 com "sua sessão terminou" faz
+  // monitoramento e cache lerem "página entregue" onde houve sessão expirada —
+  // e os dois leem o código, não a mensagem.
+  //
+  // Antes de tudo: quem não entrou não recebe nem a validação da data nem uma
+  // consulta ao banco.
+  const ator = await leAtor();
+  if (!ator.ok) redirect(ENTRADA);
+
   const data = criaDiaPuro(dataBruta);
   if (!data.ok) return vazia(data.erro.mensagem, false);
 
@@ -84,9 +106,6 @@ export async function carregaDadosDaTelaProtegida(
   const portas = portasDeLancamento();
   const casos = casosDeLancamento(portas);
   const sugestoesDeMotivo = await portas.sugestoesDeMotivo();
-
-  const ator = await atorDaRequisicaoOuRecusa();
-  if (!ator.ok) return vazia(ator.erro.mensagem, true, sugestoesDeMotivo);
 
   // A leitura passa pela mesma fronteira da escrita. `lancar` é o perfil
   // mínimo `encarregado`: os dois perfis leem a tela do dia.

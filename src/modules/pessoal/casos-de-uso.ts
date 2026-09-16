@@ -9,12 +9,18 @@
  * **Este módulo não conta efetivo.** Ele entrega a mobilização crua, e quem
  * agrega é `src/modules/rdo/efetivo.ts`, que é quem conhece o estado do dia
  * (5.1) e o formato do bloco 5. Uma regra, um lugar.
+ *
+ * **A função é atributo da passagem** (decisão 29.1). Cadastrar pessoa não
+ * pergunta "qual é a função dela": pergunta a função da passagem que está
+ * sendo aberta. Trocar de função encerra a passagem vigente e abre outra, em
+ * `trocaFuncao`, e por isso o RDO já emitido não muda.
  */
 
 import { instanteAgora } from '../../shared/date/fuso';
-import type { DiaPuro } from '../../shared/date/dia';
+import { somaDias, type DiaPuro } from '../../shared/date/dia';
 import {
   conflitaComAlgum,
+  intervaloCobreODia,
   ordemDasDatasEstaInvertida,
 } from '../../shared/date/intervalo';
 import {
@@ -40,6 +46,7 @@ import type {
   ComandoCadastrarPessoa,
   ComandoEncerrarPassagem,
   ComandoPassagem,
+  ComandoTrocarFuncao,
   PassagemMobilizada,
   PessoaComPassagens,
   PessoaMobilizada,
@@ -102,6 +109,28 @@ function validaSobreposicaoDePassagens(
   return ok(undefined);
 }
 
+/**
+ * O termo escolhido vira referência ao cadastro (R13).
+ *
+ * **Não cria termo por efeito colateral** (CT-037): foi assim que a planilha
+ * ganhou `Servente ` e `Servente` como duas funções diferentes.
+ */
+function resolveFuncaoOuErro(
+  termo: string,
+  amb: Ambiente,
+): Result<{ id: FuncaoId }, ErroDeDominio> {
+  const funcao = amb.resolveFuncao(termo);
+  if (funcao === null) {
+    return erro(
+      erroDeDominio(
+        CODIGO_ERRO.NAO_ENCONTRADO,
+        'Escolha uma função da lista. Para usar uma função nova, cadastre-a antes.',
+      ),
+    );
+  }
+  return ok(funcao);
+}
+
 export function cadastraPessoa(
   cmd: ComandoCadastrarPessoa,
   ator: AtorDePessoal,
@@ -112,15 +141,10 @@ export function cadastraPessoa(
     return erro(erroDeDominio(CODIGO_ERRO.TERMO_VAZIO, 'Informe o nome da pessoa.'));
   }
 
-  const funcao = amb.resolveFuncao(cmd.funcaoTermo);
-  if (funcao === null) {
-    return erro(
-      erroDeDominio(
-        CODIGO_ERRO.NAO_ENCONTRADO,
-        'Escolha uma função da lista. Para usar uma função nova, cadastre-a antes.',
-      ),
-    );
-  }
+  // A função vai para a PASSAGEM que este cadastro abre, não para a pessoa
+  // (decisão 29.1).
+  const funcao = resolveFuncaoOuErro(cmd.funcaoTermo, amb);
+  if (!funcao.ok) return funcao;
 
   const intervalo = validaOrdemDasDatas(cmd.entrada, cmd.saida);
   if (!intervalo.ok) return intervalo;
@@ -133,7 +157,6 @@ export function cadastraPessoa(
       id: pessoaId,
       obraId: cmd.obraId,
       nome,
-      funcaoId: funcao.id,
       criadoPor: ator.usuarioId,
       criadoEm: em,
     });
@@ -141,6 +164,7 @@ export function cadastraPessoa(
       id: geraId<'passagem_pessoa'>(),
       obraId: cmd.obraId,
       pessoaId,
+      funcaoId: funcao.valor.id,
       entrada: cmd.entrada,
       saida: cmd.saida,
       registradoPor: ator.usuarioId,
@@ -156,7 +180,12 @@ export function cadastraPessoa(
   return ok(pessoaId);
 }
 
-/** A segunda ida da mesma pessoa. O cadastro **não** ganha outra pessoa (CT-033). */
+/**
+ * A segunda ida da mesma pessoa. O cadastro **não** ganha outra pessoa (CT-033).
+ *
+ * Pede função porque quem volta à obra pode voltar em outra (decisão 29.1), e
+ * a passagem antiga continua dizendo a função antiga.
+ */
 export function registraPassagem(
   cmd: ComandoPassagem,
   ator: AtorDePessoal,
@@ -167,6 +196,9 @@ export function registraPassagem(
       erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Pessoa não encontrada nesta obra.'),
     );
   }
+
+  const funcao = resolveFuncaoOuErro(cmd.funcaoTermo, amb);
+  if (!funcao.ok) return funcao;
 
   const intervalo = validaOrdemDasDatas(cmd.entrada, cmd.saida);
   if (!intervalo.ok) return intervalo;
@@ -180,10 +212,102 @@ export function registraPassagem(
     id,
     obraId: cmd.obraId,
     pessoaId: cmd.pessoaId,
+    funcaoId: funcao.valor.id,
     entrada: cmd.entrada,
     saida: cmd.saida,
     registradoPor: ator.usuarioId,
     registradoEm: instanteAgora(amb.relogio),
+  });
+  return ok(id);
+}
+
+/**
+ * Troca de função: **encerra a passagem vigente e abre outra** (decisão 29.1).
+ *
+ * `aPartirDe` é o primeiro dia na função nova; a passagem antiga é encerrada na
+ * véspera, porque a saída é o último dia trabalhado (decisão 1.1). O período na
+ * obra não muda: a passagem nova herda a saída da antiga, inclusive quando é
+ * nula.
+ *
+ * Não existe caminho que atualize a função de uma passagem já gravada. Se
+ * existisse, o efetivo dos dias que ela cobre mudaria junto, e o RDO entregue
+ * ao fiscal mudaria em silêncio — que é o defeito que esta decisão corrige.
+ *
+ * As duas escritas vão na **mesma transação**: recusa que grava metade deixaria
+ * a pessoa fora da obra entre a véspera e o dia do corte.
+ */
+export function trocaFuncao(
+  cmd: ComandoTrocarFuncao,
+  ator: AtorDePessoal,
+  amb: Ambiente,
+): Result<PassagemPessoaId, ErroDeDominio> {
+  if (repositorio.buscaPessoa(amb.db, cmd.obraId, cmd.pessoaId) === null) {
+    return erro(
+      erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Pessoa não encontrada nesta obra.'),
+    );
+  }
+
+  const funcao = resolveFuncaoOuErro(cmd.funcaoTermo, amb);
+  if (!funcao.ok) return funcao;
+
+  const passagens = repositorio.listaPassagensDaPessoa(amb.db, cmd.obraId, cmd.pessoaId);
+  // Quem decide se a passagem cobre o dia é `shared/date/intervalo`, a única
+  // implementação da regra no sistema. Reescrevê-la aqui criaria a segunda
+  // verdade que a divergência da planilha provou ser cara.
+  const vigente = passagens.find((p) =>
+    intervaloCobreODia(p.entrada, p.saida, cmd.aPartirDe),
+  );
+  if (vigente === undefined) {
+    return erro(
+      erroDeDominio(
+        CODIGO_ERRO.NAO_ENCONTRADO,
+        'Nenhuma passagem desta pessoa cobre essa data. Confira o período na obra.',
+      ),
+    );
+  }
+
+  // Corte no primeiro dia da passagem não divide nada: a passagem antiga
+  // ficaria com saída anterior à entrada, o período de −716 dias da planilha em
+  // miniatura (caso obrigatório 2).
+  if (cmd.aPartirDe <= vigente.entrada) {
+    return erro(
+      erroDeDominio(
+        CODIGO_ERRO.DATA_FINAL_ANTES_DA_INICIAL,
+        'A troca precisa começar depois do primeiro dia da passagem atual.',
+      ),
+    );
+  }
+
+  const vespera = somaDias(cmd.aPartirDe, -1);
+  const outras = passagens.filter((p) => p.id !== vigente.id);
+  const sobreposicao = validaSobreposicaoDePassagens(
+    outras,
+    cmd.aPartirDe,
+    vigente.saida,
+  );
+  if (!sobreposicao.ok) return sobreposicao;
+
+  const id = geraId<'passagem_pessoa'>();
+  amb.db.transaction((tx) => {
+    repositorio.atualizaSaida(tx, cmd.obraId, vigente.id, vespera);
+    repositorio.inserePassagem(tx, {
+      id,
+      obraId: cmd.obraId,
+      pessoaId: cmd.pessoaId,
+      funcaoId: funcao.valor.id,
+      entrada: cmd.aPartirDe,
+      saida: vigente.saida,
+      registradoPor: ator.usuarioId,
+      registradoEm: instanteAgora(amb.relogio),
+    });
+  });
+
+  // Id, nunca nome (CLAUDE.md, Segurança). `ContextoDeLog` não tem campo de
+  // passagem, e acrescentá-lo é mexer em `shared/`: o par obra + pessoa já
+  // localiza o registro.
+  registra('info', geraId<'correlacao'>(), 'pessoal.funcao_trocada', {
+    obraId: cmd.obraId,
+    pessoaId: cmd.pessoaId,
   });
   return ok(id);
 }
@@ -221,15 +345,17 @@ export function listaPessoalDaObra(
 ): Result<PessoaComPassagens[], ErroDeDominio> {
   const passagens = repositorio.listaTodasAsPassagens(amb.db, obraId);
   return ok(
-    repositorio.listaPessoasComFuncao(amb.db, obraId).map((p) => ({
+    repositorio.listaPessoas(amb.db, obraId).map((p) => ({
       pessoaId: p.id,
       nome: p.nome,
-      funcaoId: p.funcaoId,
-      funcaoTermo: p.funcaoTermo,
+      // A função sai por passagem, e não uma só no topo: depois de uma troca
+      // não existe "a função dela" (decisão 29.1).
       passagens: passagens
         .filter((passagem) => passagem.pessoaId === p.id)
         .map((passagem) => ({
           id: passagem.id,
+          funcaoId: passagem.funcaoId,
+          funcaoTermo: passagem.funcaoTermo,
           entrada: passagem.entrada,
           saida: passagem.saida,
         })),
@@ -257,27 +383,23 @@ export function listaMobilizacao(
   obraId: ObraId,
   amb: Ambiente,
 ): Result<PessoaMobilizada[], ErroDeDominio> {
-  const porPessoa = new Map<
-    PessoaId,
-    { funcaoId: FuncaoId; passagens: PassagemMobilizada[] }
-  >();
+  const porPessoa = new Map<PessoaId, PassagemMobilizada[]>();
 
   for (const linha of repositorio.listaPassagensDaObra(amb.db, obraId)) {
-    const atual = porPessoa.get(linha.pessoaId) ?? {
-      funcaoId: linha.funcaoId,
-      passagens: [],
-    };
+    const passagens = porPessoa.get(linha.pessoaId) ?? [];
     // Uma pessoa, várias passagens: é o que impede contar duas vezes quem sai
-    // e volta (R3, caso obrigatório 8).
-    atual.passagens.push({ entrada: linha.entrada, saida: linha.saida });
-    porPessoa.set(linha.pessoaId, atual);
+    // e volta (R3, caso obrigatório 8). Cada passagem leva a SUA função
+    // (decisão 29.1), porque duas passagens da mesma pessoa podem ter funções
+    // diferentes.
+    passagens.push({
+      funcaoId: linha.funcaoId,
+      entrada: linha.entrada,
+      saida: linha.saida,
+    });
+    porPessoa.set(linha.pessoaId, passagens);
   }
 
   return ok(
-    [...porPessoa.entries()].map(([pessoaId, dados]) => ({
-      pessoaId,
-      funcaoId: dados.funcaoId,
-      passagens: dados.passagens,
-    })),
+    [...porPessoa.entries()].map(([pessoaId, passagens]) => ({ pessoaId, passagens })),
   );
 }

@@ -20,11 +20,12 @@
  * é falha inesperada, traz o identificador de correlação para o suporte.
  */
 
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import type { ReactElement } from 'react';
 
 import {
   consultaRdoProtegida,
+  eDiaInexistente,
   perfilNaObraProtegido,
 } from '../../../../_composicao/rdo-diario';
 import { atorDaRequisicao } from '../../../../_composicao/sessao';
@@ -47,6 +48,11 @@ export default async function PaginaDoRdoDiario({
   const resultado = await consultaRdoProtegida(ator, { obraId, dia });
 
   if (!resultado.ok) {
+    // Decisão 36.1: o endereço que nomeia um dia inexistente responde **404**,
+    // e não 200 com um parágrafo de erro. `notFound()` interrompe aqui e
+    // renderiza `not-found.tsx` deste segmento, que repete a mesma frase.
+    if (eDiaInexistente(resultado.erro)) notFound();
+
     return (
       <main className={estilos.pagina}>
         <p className={estilos.erro}>{resultado.erro.mensagem}</p>

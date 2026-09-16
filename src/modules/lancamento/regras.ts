@@ -186,6 +186,19 @@ export const ERRO_SEM_PERMISSAO: ErroDeDominio = erroDeDominio(
   'Esta ação é do engenheiro responsável pela obra.',
 );
 
+/**
+ * Decisão 30.1: **o engenheiro** edita e exclui lançamento de qualquer autor. O
+ * encarregado mexe só no que é dele, e só enquanto o dia está aberto.
+ *
+ * A mensagem não diz de quem é o lançamento: quem lançou é informação que só o
+ * engenheiro vê (14.0), e mensagem de erro não carrega nome de pessoa
+ * (`CLAUDE.md`, Segurança). Diz o que fazer, que é pedir ao engenheiro.
+ */
+export const ERRO_LANCAMENTO_DE_OUTRO_AUTOR: ErroDeDominio = erroDeDominio(
+  CODIGO_ERRO.SEM_PERMISSAO,
+  'Você corrige só os lançamentos que você mesmo fez. Peça ao engenheiro da obra.',
+);
+
 export const ERRO_NAO_ENCONTRADO: ErroDeDominio = erroDeDominio(
   CODIGO_ERRO.NAO_ENCONTRADO,
   'Lançamento não encontrado nesta obra.',

@@ -157,10 +157,11 @@ describe('efetivo de pessoal: as fronteiras da regra R1 contra o cadastro', () =
     const criada = cadastra('P1', 'Motorista', '2026-02-10', '2026-02-28');
     expect(criada.ok).toBe(true);
     if (!criada.ok) return;
+    // A passagem nova pede função: ela é atributo da passagem (decisão 29.1).
     registraPassagemProtegida(
       e1,
       obraId,
-      { pessoaId: criada.valor, entrada: '2026-03-15' },
+      { pessoaId: criada.valor, funcao: 'Motorista', entrada: '2026-03-15' },
       cenario.amb,
     );
 

@@ -39,7 +39,12 @@ export interface ComandoCadastrarPessoa {
   readonly obraId: ObraId;
   /** **Dado pessoal.** Só o engenheiro da obra lê; nunca sai no RDO. */
   readonly nome: string;
-  /** Texto escolhido na lista; vira referência ao cadastro (R13). */
+  /**
+   * Texto escolhido na lista; vira referência ao cadastro (R13).
+   *
+   * É a função da **primeira passagem**, não um atributo da pessoa (decisão
+   * 29.1): cadastrar abre a passagem, e é a passagem que tem função.
+   */
   readonly funcaoTermo: string;
   readonly entrada: DiaPuro;
   /** Nulo = ainda na obra. */
@@ -49,6 +54,8 @@ export interface ComandoCadastrarPessoa {
 export interface ComandoPassagem {
   readonly obraId: ObraId;
   readonly pessoaId: PessoaId;
+  /** Obrigatória: quem volta à obra pode voltar em outra função (29.1). */
+  readonly funcaoTermo: string;
   readonly entrada: DiaPuro;
   readonly saida: DiaPuro | null;
 }
@@ -59,28 +66,59 @@ export interface ComandoEncerrarPassagem {
   readonly saida: DiaPuro;
 }
 
+/**
+ * Troca de função: encerra a passagem vigente e abre outra (decisão 29.1).
+ *
+ * Não existe "atualizar a função da passagem". Atualizar reescreveria o efetivo
+ * dos dias que a passagem já cobriu, que é justamente o defeito que a decisão
+ * corrige.
+ */
+export interface ComandoTrocarFuncao {
+  readonly obraId: ObraId;
+  readonly pessoaId: PessoaId;
+  /** A função nova. Texto da lista, resolvido contra o cadastro (R13). */
+  readonly funcaoTermo: string;
+  /**
+   * **Primeiro dia na função nova.** A passagem antiga é encerrada na véspera,
+   * porque a saída é o último dia trabalhado (decisão 1.1).
+   */
+  readonly aPartirDe: DiaPuro;
+}
+
 export interface Passagem {
   readonly id: PassagemPessoaId;
+  /** A função **desta** passagem (29.1), e não do cadastro da pessoa. */
+  readonly funcaoId: FuncaoId;
+  readonly funcaoTermo: string;
   readonly entrada: DiaPuro;
   readonly saida: DiaPuro | null;
 }
 
-/** Resposta **só para o engenheiro**: carrega nome. Ver a tabela "Quem usa". */
+/**
+ * Resposta **só para o engenheiro**: carrega nome. Ver a tabela "Quem usa".
+ *
+ * Sem `funcaoTermo` no topo, de propósito: a mesma pessoa pode ter passado pela
+ * obra como Motorista e voltado como Operador II, e não existe "a função dela"
+ * (decisão 29.1). Cada passagem traz a sua.
+ */
 export interface PessoaComPassagens {
   readonly pessoaId: PessoaId;
   readonly nome: string;
-  readonly funcaoId: FuncaoId;
-  readonly funcaoTermo: string;
   readonly passagens: readonly Passagem[];
 }
 
 /**
- * Uma passagem pela obra, como o RDO a recebe: só as duas datas.
+ * Uma passagem pela obra, como o RDO a recebe: a função e as duas datas.
  *
  * Sem `id`, porque quem agrega não precisa dele e identificador de passagem
  * numa resposta é superfície a mais.
+ *
+ * A função vem aqui, e não na pessoa, porque é aqui que ela é verdade
+ * (decisão 29.1): o efetivo de um dia lê a função da passagem que cobre
+ * aquele dia.
  */
 export interface PassagemMobilizada {
+  readonly funcaoId: FuncaoId;
   readonly entrada: DiaPuro;
   readonly saida: DiaPuro | null;
 }
@@ -95,6 +133,5 @@ export interface PassagemMobilizada {
  */
 export interface PessoaMobilizada {
   readonly pessoaId: PessoaId;
-  readonly funcaoId: FuncaoId;
   readonly passagens: readonly PassagemMobilizada[];
 }

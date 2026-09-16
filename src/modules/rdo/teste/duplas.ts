@@ -113,22 +113,29 @@ export const PESSOA_2: PessoaId = idConfiavel('P2');
 export const PESSOA_3: PessoaId = idConfiavel('P3');
 export const EQUIPAMENTO_MT26: EquipamentoId = idConfiavel('MT-26');
 
-/** O contexto de CT-182 a CT-196, em `docs/qa/v1-casos-passo-5.md`. */
+/**
+ * O contexto de CT-182 a CT-196, em `docs/qa/v1-casos-passo-5.md`.
+ *
+ * A função vai na passagem, e não na pessoa: decisão 29.1.
+ */
 export const PESSOAL_PADRAO: readonly PessoaMobilizada[] = [
   {
     pessoaId: PESSOA_1,
-    funcaoId: FUNCAO_MOTORISTA,
-    passagens: [{ entrada: dia('2026-02-10'), saida: dia('2026-02-20') }],
+    passagens: [
+      {
+        funcaoId: FUNCAO_MOTORISTA,
+        entrada: dia('2026-02-10'),
+        saida: dia('2026-02-20'),
+      },
+    ],
   },
   {
     pessoaId: PESSOA_2,
-    funcaoId: FUNCAO_MOTORISTA,
-    passagens: [{ entrada: dia('2026-02-05'), saida: null }],
+    passagens: [{ funcaoId: FUNCAO_MOTORISTA, entrada: dia('2026-02-05'), saida: null }],
   },
   {
     pessoaId: PESSOA_3,
-    funcaoId: FUNCAO_PEDREIRO,
-    passagens: [{ entrada: dia('2026-02-16'), saida: null }],
+    passagens: [{ funcaoId: FUNCAO_PEDREIRO, entrada: dia('2026-02-16'), saida: null }],
   },
 ];
 

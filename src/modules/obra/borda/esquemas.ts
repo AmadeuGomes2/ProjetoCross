@@ -122,10 +122,14 @@ export function analisaCriarObra(
     periodos.push(periodo.valor);
   }
 
-  const resp = analisaResponsavelOpcional(dados);
+  // Decisão 32.1, de 16/09/2026: os três campos do bloco 11 são exigidos na
+  // criação. Antes havia um caminho "nenhum dos três preenchido vira nulo", e
+  // era por ele que nascia a obra cujo PDF sai com o rodapé de assinatura em
+  // branco — que é justamente o campo que o fiscal assina de volta.
+  const resp = analisaResponsavelTecnico(dados);
   if (!resp.ok) return resp;
 
-  const base = {
+  return ok({
     contrato: textos.contrato ?? '',
     contratante: textos.contratante ?? '',
     contratada: textos.contratada ?? '',
@@ -135,24 +139,9 @@ export function analisaCriarObra(
     nomeProjeto: textos.nomeProjeto ?? '',
     area: textos.area ?? '',
     local: textos.local ?? '',
+    respTecnico: resp.valor,
     periodosBms: periodos,
-  };
-
-  // `exactOptionalPropertyTypes` não deixa atribuir `undefined` a campo
-  // opcional: ou a chave existe com valor, ou não existe.
-  return ok(resp.valor === null ? base : { ...base, respTecnico: resp.valor });
-}
-
-function analisaResponsavelOpcional(dados: {
-  respTecnicoNome?: unknown;
-  respTecnicoTitulo?: unknown;
-  respTecnicoCrea?: unknown;
-}): Result<ResponsavelTecnico | null, ErroDeEntrada> {
-  const cru = [dados.respTecnicoNome, dados.respTecnicoTitulo, dados.respTecnicoCrea];
-  const preenchidos = cru.filter((v) => typeof v === 'string' && v.trim() !== '');
-  if (preenchidos.length === 0) return ok(null);
-
-  return analisaResponsavelTecnico(dados);
+  });
 }
 
 export function analisaResponsavelTecnico(bruto: {

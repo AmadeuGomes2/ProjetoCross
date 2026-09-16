@@ -76,7 +76,13 @@ describe('F2.1 — cadastro de pessoal e passagens', () => {
 
     const p1 = lista.valor.find((p) => p.nome === 'P1');
     expect(p1?.passagens).toEqual([
-      { id: p1?.passagens[0]?.id, entrada: '2026-02-10', saida: null },
+      {
+        id: p1?.passagens[0]?.id,
+        funcaoId: p1?.passagens[0]?.funcaoId,
+        funcaoTermo: 'Motorista',
+        entrada: '2026-02-10',
+        saida: null,
+      },
     ]);
   });
 
@@ -88,8 +94,12 @@ describe('F2.1 — cadastro de pessoal e passagens', () => {
     if (!termos.ok) return;
     const motorista = termos.valor.find((t) => t.termo === 'Motorista');
 
+    // A referência fica na PASSAGEM (decisão 29.1), não no cadastro da pessoa.
     const linha = cenario.conexao.sqlite
-      .prepare('SELECT funcao_id FROM pessoa WHERE nome = ?')
+      .prepare(
+        `SELECT pp.funcao_id AS funcao_id FROM passagem_pessoa pp
+         JOIN pessoa p ON p.id = pp.pessoa_id WHERE p.nome = ?`,
+      )
       .get('P1') as { funcao_id: string };
     expect(linha.funcao_id).toBe(motorista?.id);
   });
@@ -117,10 +127,13 @@ describe('F2.1 — cadastro de pessoal e passagens', () => {
       termos.valor.filter((t) => t.termo.toLowerCase() === 'motorista'),
     ).toHaveLength(1);
 
+    // A função exibida é a da passagem, não a do cadastro da pessoa
+    // (decisão 29.1), e sai com a grafia oficial do cadastro.
     const lista = listaPessoalDaObra(obraId, paraPessoal(cenario.amb));
-    expect(lista.ok && lista.valor.find((p) => p.nome === 'P5')?.funcaoTermo).toBe(
-      'Motorista',
-    );
+    expect(
+      lista.ok &&
+        lista.valor.find((p) => p.nome === 'P5')?.passagens.map((p) => p.funcaoTermo),
+    ).toEqual(['Motorista']);
   });
 
   it('CT-031 recusa saída anterior à entrada e diz o que corrigir', () => {
@@ -139,7 +152,13 @@ describe('F2.1 — cadastro de pessoal e passagens', () => {
 
     const lista = listaPessoalDaObra(obraId, paraPessoal(cenario.amb));
     expect(lista.ok && lista.valor.find((p) => p.nome === 'P4')?.passagens).toEqual([
-      { id: expect.any(String), entrada: '2026-02-10', saida: '2026-02-10' },
+      {
+        id: expect.any(String),
+        funcaoId: expect.any(String),
+        funcaoTermo: 'Motorista',
+        entrada: '2026-02-10',
+        saida: '2026-02-10',
+      },
     ]);
   });
 
@@ -151,7 +170,7 @@ describe('F2.1 — cadastro de pessoal e passagens', () => {
     const segunda = registraPassagemProtegida(
       e1,
       obraId,
-      { pessoaId: criada.valor, entrada: '2026-03-15' },
+      { pessoaId: criada.valor, funcao: 'Motorista', entrada: '2026-03-15' },
       cenario.amb,
     );
     expect(segunda.ok).toBe(true);
@@ -159,6 +178,47 @@ describe('F2.1 — cadastro de pessoal e passagens', () => {
     const lista = listaPessoalDaObra(obraId, paraPessoal(cenario.amb));
     expect(lista.ok && lista.valor).toHaveLength(1);
     expect(lista.ok && lista.valor[0]?.passagens).toHaveLength(2);
+  });
+
+  it('quem volta à obra pode voltar em outra função, sem mexer na passagem antiga', () => {
+    // Decisão 29.1: a função é da passagem. Duas passagens da mesma pessoa
+    // podem ter funções diferentes, e a primeira continua como estava.
+    const criada = cadastra('P1', 'Motorista', '2026-02-10', '2026-02-28');
+    expect(criada.ok).toBe(true);
+    if (!criada.ok) return;
+
+    const segunda = registraPassagemProtegida(
+      e1,
+      obraId,
+      { pessoaId: criada.valor, funcao: 'Operador II', entrada: '2026-03-15' },
+      cenario.amb,
+    );
+    expect(segunda.ok).toBe(true);
+
+    const lista = listaPessoalDaObra(obraId, paraPessoal(cenario.amb));
+    expect(lista.ok && lista.valor[0]?.passagens.map((p) => p.funcaoTermo)).toEqual([
+      'Motorista',
+      'Operador II',
+    ]);
+  });
+
+  it('recusa abrir passagem sem função', () => {
+    // Sem função a passagem não tem coluna no bloco 5 e some do RDO em
+    // silêncio (CT-036, agora do lado da passagem).
+    const criada = cadastra('P1', 'Motorista', '2026-02-10', '2026-02-28');
+    expect(criada.ok).toBe(true);
+    if (!criada.ok) return;
+
+    const segunda = registraPassagemProtegida(
+      e1,
+      obraId,
+      { pessoaId: criada.valor, funcao: '', entrada: '2026-03-15' },
+      cenario.amb,
+    );
+
+    expect(segunda.ok).toBe(false);
+    if (segunda.ok) return;
+    expect(segunda.erro.codigo).toBe(CODIGO_ERRO.TERMO_VAZIO);
   });
 
   it('recusa a passagem sobreposta com o código de sobreposição, e não com o de ordem invertida', () => {
@@ -173,7 +233,7 @@ describe('F2.1 — cadastro de pessoal e passagens', () => {
     const segunda = registraPassagemProtegida(
       e1,
       obraId,
-      { pessoaId: criada.valor, entrada: '2026-02-20' },
+      { pessoaId: criada.valor, funcao: 'Motorista', entrada: '2026-02-20' },
       cenario.amb,
     );
 
@@ -274,13 +334,10 @@ describe('a mobilização que o RDO recebe', () => {
     expect(mobilizacao.ok).toBe(true);
     if (!mobilizacao.ok) return;
 
-    expect(Object.keys(mobilizacao.valor[0] ?? {})).toEqual([
-      'pessoaId',
-      'funcaoId',
-      'passagens',
-    ]);
+    expect(Object.keys(mobilizacao.valor[0] ?? {})).toEqual(['pessoaId', 'passagens']);
+    // A função vem por passagem (decisão 29.1), nunca uma só na pessoa.
     expect(mobilizacao.valor[0]?.passagens).toEqual([
-      { entrada: '2026-02-10', saida: '2026-02-20' },
+      { funcaoId: expect.any(String), entrada: '2026-02-10', saida: '2026-02-20' },
     ]);
     expect(JSON.stringify(mobilizacao.valor)).not.toContain('P1');
   });
@@ -293,7 +350,7 @@ describe('a mobilização que o RDO recebe', () => {
     registraPassagemProtegida(
       e1,
       obraId,
-      { pessoaId: criada.valor, entrada: '2026-03-15' },
+      { pessoaId: criada.valor, funcao: 'Motorista', entrada: '2026-03-15' },
       cenario.amb,
     );
 

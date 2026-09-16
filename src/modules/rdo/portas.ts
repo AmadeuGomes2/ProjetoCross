@@ -78,10 +78,21 @@ export interface FuncaoParaEfetivo {
   readonly ordem: number;
 }
 
+/**
+ * Passagem de pessoa: a função é atributo **dela**, não da pessoa.
+ *
+ * Decisão 29.1, de 16/09/2026. Trocar de função encerra a passagem e abre
+ * outra, então o efetivo de um dia passado continua dizendo a função daquele
+ * dia. Com a função na pessoa, promovê-la em setembro reescrevia o RDO de
+ * março que o fiscal já tinha recebido.
+ */
+export interface PassagemDePessoa extends Passagem {
+  readonly funcaoId: FuncaoId;
+}
+
 export interface PessoaMobilizada {
   readonly pessoaId: PessoaId;
-  readonly funcaoId: FuncaoId;
-  readonly passagens: readonly Passagem[];
+  readonly passagens: readonly PassagemDePessoa[];
 }
 
 /** Bloco 6 agrega por identificador, não por tipo. Duas granularidades, de propósito. */

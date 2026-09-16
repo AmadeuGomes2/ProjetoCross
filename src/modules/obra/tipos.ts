@@ -71,6 +71,12 @@ export interface PeriodoBmsNovo {
  * `periodosBms` tem ao menos um elemento: cadastrar período é obrigatório ao
  * criar a obra (decisão 21.1). Obra sem período nenhum imprimiria `BM'S` vazio
  * desde o primeiro dia.
+ *
+ * `respTecnico` **não é opcional** desde a decisão 32.1, de 16/09/2026: sem
+ * nome, titulação e CREA a obra não é criada. O bloco 11 é o que o fiscal
+ * assina de volta, e obra que nasce sem ele exporta um PDF com o rodapé em
+ * branco. Quem preenche depois continua tendo `defineResponsavelTecnico`, para
+ * as obras que já existem e para a troca de responsável.
  */
 export interface ComandoCriarObra {
   readonly contrato: string;
@@ -82,8 +88,8 @@ export interface ComandoCriarObra {
   readonly nomeProjeto: string;
   readonly area: string;
   readonly local: string;
-  /** Opcional no cadastro, exigido na exportação (arquitetura, pergunta P7). */
-  readonly respTecnico?: ResponsavelTecnico;
+  /** Obrigatório desde a decisão 32.1. É o bloco 11 do gabarito. */
+  readonly respTecnico: ResponsavelTecnico;
   readonly periodosBms: readonly PeriodoBmsNovo[];
 }
 

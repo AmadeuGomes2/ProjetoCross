@@ -56,6 +56,7 @@ import {
   eDiaFechado,
   ERRO_DIA_FECHADO,
   ERRO_DIA_PARADO,
+  ERRO_LANCAMENTO_DE_OUTRO_AUTOR,
   ERRO_NAO_ENCONTRADO,
   ERRO_PARADO_COM_ATIVIDADE,
   ERRO_SEM_PERMISSAO,
@@ -550,6 +551,16 @@ export function criaCasosDeLancamento(deps: DependenciasDeLancamento) {
     return erro(ERRO_NAO_ENCONTRADO);
   }
 
+  /**
+   * Decisão 30.1: **o engenheiro edita qualquer lançamento**, de qualquer
+   * autor, inclusive em dia fechado; o encarregado edita só o que é dele e só
+   * enquanto o dia está aberto.
+   *
+   * O que 30.1 amplia é o alcance, não o rastro. Em dia fechado a mudança vira
+   * **versão nova na cadeia** e a anterior continua no histórico — `CLAUDE.md`,
+   * Modelo: "RDO entregue ao fiscal não muda em silêncio". Por isso o caminho do
+   * dia fechado é o mesmo da retificação (22.1), e não um `UPDATE` no lugar.
+   */
   async function corrigeLancamento(comando: ComandoCorrigir, ator: Ator): Escrita<void> {
     const acesso = await autoriza(ator, comando.obraId, 'corrigir_lancamento');
     if (!acesso.ok) return acesso;
@@ -557,8 +568,23 @@ export function criaCasosDeLancamento(deps: DependenciasDeLancamento) {
     const linha = await colecao.porId(comando.obraId, comando.lancamentoId);
     if (linha === null) return erro(ERRO_NAO_ENCONTRADO);
     const dia = await repositorio.dia.obtem(comando.obraId, linha.data);
-    // R17: dia fechado não aceita alteração, por ninguém. Só retificação.
-    if (eDiaFechado(dia)) return erro(ERRO_DIA_FECHADO);
+    const eEngenheiro = acesso.valor.perfil === 'engenheiro';
+
+    if (eDiaFechado(dia)) {
+      // O encarregado não muda dia fechado, nem o lançamento que é dele (22.1).
+      if (!eEngenheiro) return erro(ERRO_DIA_FECHADO);
+      const retificada = await retificaLancamento(comando, ator);
+      return retificada.ok ? ok(undefined) : retificada;
+    }
+
+    // Dia aberto: corrige-se no lugar, porque não há exigência de
+    // imutabilidade. A obra tem vários encarregados (14.0) e um não edita o
+    // lançamento do outro. Relançar a pluviometria do dia é outro caminho e
+    // continua aberto aos dois: existe UMA cadeia por dia, e o turno da tarde
+    // costuma chegar de outro aparelho.
+    if (!eEngenheiro && linha.autorId !== acesso.valor.usuarioId) {
+      return erro(ERRO_LANCAMENTO_DE_OUTRO_AUTOR);
+    }
 
     const atualizada = await aplicaConteudo(comando.obraId, linha, comando.conteudo);
     if (!atualizada.ok) return atualizada;
@@ -570,6 +596,19 @@ export function criaCasosDeLancamento(deps: DependenciasDeLancamento) {
     return ok(undefined);
   }
 
+  /**
+   * Exclusão em dia **aberto**, que é a metade de 30.1 que o esquema de hoje
+   * comporta: o engenheiro exclui o lançamento de qualquer autor, o encarregado
+   * só o dele.
+   *
+   * A outra metade — excluir em dia fechado, marcando como excluído com quem,
+   * quando e por quê, em vez de apagar a linha — **não está implementada**, e é
+   * por isso que o dia fechado continua recusado aqui. Ela exige três colunas
+   * novas nas quatro tabelas de lançamento e uma migration, que são de
+   * `src/db/` (ver a pendência P8 de `docs/arquitetura/v1.md` e o relatório da
+   * tarefa). Recusar é a saída segura: apagar a linha de um dia entregue ao
+   * fiscal seria mudança sem rastro, que é exatamente o que 30.1 proíbe.
+   */
   async function excluiLancamento(comando: ComandoExcluir, ator: Ator): Escrita<void> {
     const acesso = await autoriza(ator, comando.obraId, 'corrigir_lancamento');
     if (!acesso.ok) return acesso;
@@ -578,6 +617,12 @@ export function criaCasosDeLancamento(deps: DependenciasDeLancamento) {
     if (linha === null) return erro(ERRO_NAO_ENCONTRADO);
     const dia = await repositorio.dia.obtem(comando.obraId, linha.data);
     if (eDiaFechado(dia)) return erro(ERRO_DIA_FECHADO);
+    if (
+      acesso.valor.perfil !== 'engenheiro' &&
+      linha.autorId !== acesso.valor.usuarioId
+    ) {
+      return erro(ERRO_LANCAMENTO_DE_OUTRO_AUTOR);
+    }
     await colecao.exclui(comando.obraId, comando.lancamentoId);
     return ok(undefined);
   }

@@ -60,6 +60,14 @@ export const CODIGO_ERRO = {
    * exibida contradizia o código gravado no log.
    */
   INTERVALO_SOBREPOSTO: 'INTERVALO_SOBREPOSTO',
+  /**
+   * Consulta pediu período maior que o teto de 366 dias (decisão 35.1).
+   *
+   * Não é `NUMERO_INVALIDO`: o número está certo, o pedido é que é grande
+   * demais. A distinção importa porque este é o caminho mais barato de derrubar
+   * o servidor de dentro, e quem lê o log precisa reconhecê-lo de longe.
+   */
+  PERIODO_LONGO_DEMAIS: 'PERIODO_LONGO_DEMAIS',
 } as const;
 
 export type CodigoErro = (typeof CODIGO_ERRO)[keyof typeof CODIGO_ERRO];

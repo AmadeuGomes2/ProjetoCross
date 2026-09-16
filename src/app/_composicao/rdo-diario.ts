@@ -53,7 +53,7 @@ import {
 import type { CabecalhoDaObra as CabecalhoDoCadastro } from '../../modules/obra';
 import { listaMobilizacao as listaPessoalMobilizado } from '../../modules/pessoal';
 import { exigeAcessoNaObra, type Ator, type Perfil } from '../../modules/acesso';
-import { consultaRdoDiario } from '../../modules/rdo/borda/consulta-rdo';
+import { consultaRdoDiario, eDiaInexistente } from '../../modules/rdo/borda/consulta-rdo';
 import type { ErroDeConsultaDoRdo } from '../../modules/rdo/borda/consulta-rdo';
 import type { CabecalhoDaObra, PortasDoRdo } from '../../modules/rdo/portas';
 import type { RdoDiario } from '../../modules/rdo/tipos';
@@ -251,6 +251,13 @@ export async function consultaRdoProtegida(
 
   return consultaRdoDiario(bruto, criaPortasDoRdo(ambiente));
 }
+
+/**
+ * Reexportado para que a página não precise conhecer o caminho de dentro do
+ * módulo: a decisão 36.1 é de código HTTP, e quem responde HTTP é a borda do
+ * App Router. A regra de "este erro é dia inexistente" continua no `rdo`.
+ */
+export { eDiaInexistente };
 
 /**
  * O perfil de quem está olhando a obra, para a tela decidir o que **oferecer**.
