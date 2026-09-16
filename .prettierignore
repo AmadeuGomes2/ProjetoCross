@@ -11,3 +11,6 @@ package-lock.json
 
 # Gerado pelo drizzle-kit; reformatar quebra o hash do journal.
 src/db/migrations/meta/
+
+# Rascunho e banco de desenvolvimento.
+tmp/

@@ -13,6 +13,10 @@ const config = [
       'coverage/**',
       'referencia/**',
       'next-env.d.ts',
+      // Rascunho e banco de desenvolvimento. O .gitignore já bloqueia a pasta;
+      // sem esta linha o lint reprova por script de uso único que ninguém vai
+      // revisar, e lint cronicamente vermelho ensina todo mundo a ignorá-lo.
+      'tmp/**',
     ],
   },
 
