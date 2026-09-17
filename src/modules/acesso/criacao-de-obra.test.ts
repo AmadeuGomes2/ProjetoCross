@@ -26,10 +26,16 @@
  * cria obra.
  */
 
+import { and, eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { criaObraProtegida, geraConviteProtegido } from '../../app/_composicao/cadastro';
 import { paraAcesso } from '../../app/_composicao/ambiente-de-cadastro';
+import {
+  acesso as tabelaDeAcesso,
+  obra as tabelaDeObra,
+  usuario as tabelaDeUsuario,
+} from '../../db/schema';
 import { geraId } from '../../shared/id';
 import { CODIGO_ERRO } from '../../shared/result';
 import {
@@ -47,19 +53,19 @@ const SENHA = 'ponte-cavalo-bateria-grampo';
 
 let cenario: Cenario;
 
-beforeEach(() => {
-  cenario = montaCenario();
+beforeEach(async () => {
+  cenario = await montaCenario();
 });
 
-afterEach(() => {
-  cenario.fecha();
+afterEach(async () => {
+  await cenario.fecha();
 });
 
-function totalDeObras(): number {
-  const linha = cenario.conexao.sqlite
-    .prepare('SELECT count(*) AS total FROM obra')
-    .get() as { total: number };
-  return linha.total;
+async function totalDeObras(): Promise<number> {
+  const linhas = await cenario.conexao.db
+    .select({ id: tabelaDeObra.id })
+    .from(tabelaDeObra);
+  return linhas.length;
 }
 
 /** A conta que `npm run criar-engenheiro` fabrica, pelo caso de uso de verdade. */
@@ -79,8 +85,8 @@ async function contaDaInstalacao(email: string): Promise<Ator> {
 
 /** Conta nascida na web pelo aceite de convite, que é o único caminho público. */
 async function contaVindaDeConvite(email: string, engenheiroDaObra: Ator) {
-  const obraId = criaObraDoPrd(engenheiroDaObra, cenario.amb);
-  const convite = geraConviteProtegido(
+  const obraId = await criaObraDoPrd(engenheiroDaObra, cenario.amb);
+  const convite = await geraConviteProtegido(
     engenheiroDaObra,
     obraId,
     'encarregado',
@@ -94,7 +100,7 @@ async function contaVindaDeConvite(email: string, engenheiroDaObra: Ator) {
   );
   if (!criado.ok) throw new Error(criado.erro.mensagem);
 
-  const aceite = aceitaConvite(
+  const aceite = await aceitaConvite(
     convite.valor.token,
     criado.valor,
     paraAcesso(cenario.amb),
@@ -108,95 +114,100 @@ describe('quem cria obra (decisão 25.1)', () => {
   it('a conta do comando de instalação cria a primeira obra do sistema', async () => {
     const fundador = await contaDaInstalacao('e1@exemplo.invalido');
 
-    const obra = criaObraProtegida(fundador, DADOS_DA_OBRA, cenario.amb);
+    const obra = await criaObraProtegida(fundador, DADOS_DA_OBRA, cenario.amb);
 
     expect(obra.ok).toBe(true);
-    expect(totalDeObras()).toBe(1);
+    expect(await totalDeObras()).toBe(1);
   });
 
   it('a conta do comando de instalação cria também a segunda obra', async () => {
     const fundador = await contaDaInstalacao('e1@exemplo.invalido');
-    criaObraDoPrd(fundador, cenario.amb);
+    await criaObraDoPrd(fundador, cenario.amb);
 
-    const segunda = criaObraProtegida(
+    const segunda = await criaObraProtegida(
       fundador,
       { ...DADOS_DA_OBRA, contrato: 'P0999/01-25 - OUTRA' },
       cenario.amb,
     );
 
     expect(segunda.ok).toBe(true);
-    expect(totalDeObras()).toBe(2);
+    expect(await totalDeObras()).toBe(2);
   });
 
-  it('conta comum não cria obra nem no sistema vazio: a janela da instalação não existe mais', () => {
+  it('conta comum não cria obra nem no sistema vazio: a janela da instalação não existe mais', async () => {
     // O comportamento que saiu. Antes, sem nenhum engenheiro no sistema,
     // qualquer conta criava a primeira obra.
-    const qualquer = cenario.novoAtor('qualquer@exemplo.invalido');
+    const qualquer = await cenario.novoAtor('qualquer@exemplo.invalido');
 
-    const resultado = criaObraProtegida(qualquer, DADOS_DA_OBRA, cenario.amb);
+    const resultado = await criaObraProtegida(qualquer, DADOS_DA_OBRA, cenario.amb);
 
     expect(resultado.ok).toBe(false);
     if (resultado.ok) return;
     expect(resultado.erro.codigo).toBe(CODIGO_ERRO.SEM_PERMISSAO);
-    expect(totalDeObras()).toBe(0);
+    expect(await totalDeObras()).toBe(0);
   });
 
-  it('conta comum não cria obra depois que já existe engenheiro', () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    criaObraDoPrd(e1, cenario.amb);
-    const qualquer = cenario.novoAtor('qualquer@exemplo.invalido');
-    const antes = totalDeObras();
+  it('conta comum não cria obra depois que já existe engenheiro', async () => {
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    await criaObraDoPrd(e1, cenario.amb);
+    const qualquer = await cenario.novoAtor('qualquer@exemplo.invalido');
+    const antes = await totalDeObras();
 
-    const resultado = criaObraProtegida(qualquer, DADOS_DA_OBRA, cenario.amb);
+    const resultado = await criaObraProtegida(qualquer, DADOS_DA_OBRA, cenario.amb);
 
     expect(resultado.ok).toBe(false);
     if (resultado.ok) return;
     expect(resultado.erro.codigo).toBe(CODIGO_ERRO.SEM_PERMISSAO);
-    expect(totalDeObras()).toBe(antes);
+    expect(await totalDeObras()).toBe(antes);
   });
 
   it('conta vinda de convite não cria obra', async () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
     const { ator: c1 } = await contaVindaDeConvite('c1@exemplo.invalido', e1);
-    const antes = totalDeObras();
+    const antes = await totalDeObras();
 
-    const resultado = criaObraProtegida(c1, DADOS_DA_OBRA, cenario.amb);
+    const resultado = await criaObraProtegida(c1, DADOS_DA_OBRA, cenario.amb);
 
     expect(resultado.ok).toBe(false);
     if (resultado.ok) return;
     expect(resultado.erro.codigo).toBe(CODIGO_ERRO.SEM_PERMISSAO);
-    expect(totalDeObras()).toBe(antes);
+    expect(await totalDeObras()).toBe(antes);
   });
 
   it('conta vinda de convite não cria obra nem virando engenheiro de uma obra por outro caminho', async () => {
     // Perfil de engenheiro NUMA OBRA não é o mesmo que ser engenheiro: o
     // perfil diz o que a pessoa faz naquela obra; a coluna da conta diz quem
     // ela é. Só o comando de instalação liga a coluna.
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
     const { ator: c1, obraId } = await contaVindaDeConvite('c1@exemplo.invalido', e1);
-    cenario.conexao.sqlite
-      .prepare(
-        `UPDATE acesso SET perfil = 'engenheiro' WHERE usuario_id = ? AND obra_id = ?`,
-      )
-      .run(c1.usuarioId, obraId);
-    const antes = totalDeObras();
+    await cenario.conexao.db
+      .update(tabelaDeAcesso)
+      .set({ perfil: 'engenheiro' })
+      .where(
+        and(
+          eq(tabelaDeAcesso.usuarioId, c1.usuarioId),
+          eq(tabelaDeAcesso.obraId, obraId),
+        ),
+      );
+    const antes = await totalDeObras();
 
-    const resultado = criaObraProtegida(c1, DADOS_DA_OBRA, cenario.amb);
+    const resultado = await criaObraProtegida(c1, DADOS_DA_OBRA, cenario.amb);
 
     expect(resultado.ok).toBe(false);
     if (resultado.ok) return;
     expect(resultado.erro.codigo).toBe(CODIGO_ERRO.SEM_PERMISSAO);
-    expect(totalDeObras()).toBe(antes);
+    expect(await totalDeObras()).toBe(antes);
   });
 
   it('a conta nascida na web fica com a coluna de engenheiro desligada', async () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
     const { ator: c1 } = await contaVindaDeConvite('c1@exemplo.invalido', e1);
 
-    const linha = cenario.conexao.sqlite
-      .prepare('SELECT e_engenheiro FROM usuario WHERE id = ?')
-      .get(c1.usuarioId) as { e_engenheiro: number };
+    const linhas = await cenario.conexao.db
+      .select({ eEngenheiro: tabelaDeUsuario.eEngenheiro })
+      .from(tabelaDeUsuario)
+      .where(eq(tabelaDeUsuario.id, c1.usuarioId));
 
-    expect(linha.e_engenheiro).toBe(0);
+    expect(linhas.map((l) => l.eEngenheiro)).toEqual([0]);
   });
 });

@@ -98,7 +98,7 @@ export async function criaContaDeEngenheiroDeInstalacao(
     );
   }
 
-  const existente = repositorio.buscaUsuarioPorEmail(amb.db, email);
+  const existente = await repositorio.buscaUsuarioPorEmail(amb.db, email);
   if (existente !== null) {
     // Idempotente no sentido seguro: nada é criado e nada é resetado.
     registra('info', geraId<'correlacao'>(), 'acesso.instalacao_conta_ja_existia', {
@@ -107,7 +107,7 @@ export async function criaContaDeEngenheiroDeInstalacao(
     return ok({ situacao: 'conta_ja_existia', usuarioId: existente.id });
   }
 
-  if (!cmd.mesmoComEngenheiroExistente && jaTemContaDeEngenheiro(amb)) {
+  if (!cmd.mesmoComEngenheiroExistente && (await jaTemContaDeEngenheiro(amb))) {
     return erro(
       erroDeDominio(
         CODIGO_ERRO.JA_EXISTE,
@@ -152,9 +152,12 @@ export async function criaContaDeEngenheiroDeInstalacao(
  * conta com senha cadastrada. A segunda é propositalmente larga — recusar
  * demais custa uma opção a mais na linha de comando; recusar de menos custa uma
  * conta de administrador criada sem atrito.
+ *
+ * As duas consultas continuam em curto-circuito: a segunda só vai ao banco se a
+ * primeira disser que não. `await a() || await b()` teria a mesma ordem, mas o
+ * `if` explícito não depende de o leitor lembrar disso.
  */
-function jaTemContaDeEngenheiro(amb: Ambiente): boolean {
-  return (
-    repositorio.existeContaDeEngenheiro(amb.db) || repositorio.existeContaComSenha(amb.db)
-  );
+async function jaTemContaDeEngenheiro(amb: Ambiente): Promise<boolean> {
+  if (await repositorio.existeContaDeEngenheiro(amb.db)) return true;
+  return repositorio.existeContaComSenha(amb.db);
 }

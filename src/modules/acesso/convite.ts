@@ -88,13 +88,13 @@ export function perfilDeConvite(bruto: unknown): Result<Perfil, ErroDeDominio> {
  * encarregado, como já era —, e a verificação é a mesma linha de sempre, lida
  * da tabela `acesso` no servidor.
  */
-export function geraConvite(
+export async function geraConvite(
   obraId: ObraId,
   perfil: Perfil,
   ator: Ator,
   amb: Ambiente,
-): Result<ConviteGerado, ErroDeDominio> {
-  const naObra = exigeAcessoNaObra(ator, obraId, 'engenheiro', amb);
+): Promise<Result<ConviteGerado, ErroDeDominio>> {
+  const naObra = await exigeAcessoNaObra(ator, obraId, 'engenheiro', amb);
   if (!naObra.ok) {
     return erro(erroDeDominio(CODIGO_ERRO.SEM_PERMISSAO, naObra.erro.mensagem));
   }
@@ -104,7 +104,7 @@ export function geraConvite(
   const id = geraId<'convite'>();
   const expiraEm = expiraEmApos(agora, DIAS_DE_VALIDADE_DO_CONVITE);
 
-  repositorio.insereConvite(amb.db, {
+  await repositorio.insereConvite(amb.db, {
     id,
     obraId,
     tokenHash: hashDeToken(token),
@@ -142,11 +142,11 @@ export function geraConvite(
  * não revela nada que o portador não saiba. Token desconhecido cai na frase
  * genérica.
  */
-export function aceitaConvite(
+export async function aceitaConvite(
   token: string,
   usuarioId: UsuarioId,
   amb: Ambiente,
-): Result<ObraId, ErroDeDominio> {
+): Promise<Result<ObraId, ErroDeDominio>> {
   const correlacao = geraId<'correlacao'>();
   const recusaGenerica = erroDeDominio(
     CODIGO_ERRO.SEM_PERMISSAO,
@@ -155,7 +155,7 @@ export function aceitaConvite(
 
   if (token.trim() === '') return erro(recusaGenerica);
 
-  const linha = repositorio.buscaConvitePorHash(amb.db, hashDeToken(token));
+  const linha = await repositorio.buscaConvitePorHash(amb.db, hashDeToken(token));
   if (linha === null) {
     // Nem o token nem parte dele vão para o log. Só o código do erro.
     registra('aviso', correlacao, 'acesso.convite_desconhecido', {
@@ -185,7 +185,7 @@ export function aceitaConvite(
     );
   }
 
-  if (!repositorio.existeUsuario(amb.db, usuarioId)) {
+  if (!(await repositorio.existeUsuario(amb.db, usuarioId))) {
     return erro(recusaGenerica);
   }
 
@@ -193,20 +193,19 @@ export function aceitaConvite(
   // duplicado, e o UNIQUE parcial do banco recusaria de qualquer forma. Vale
   // para os dois perfis — trocar de perfil é revogar e liberar de novo, não
   // empilhar um acesso em cima do outro.
-  if (repositorio.buscaAcessoAtivo(amb.db, usuarioId, linha.obraId) !== null) {
+  if ((await repositorio.buscaAcessoAtivo(amb.db, usuarioId, linha.obraId)) !== null) {
     return erro(
       erroDeDominio(CODIGO_ERRO.SEM_PERMISSAO, 'Esta conta já tem acesso a esta obra.'),
     );
   }
 
-  let aceito = false;
-  amb.db.transaction((tx) => {
-    const afetadas = repositorio.marcaConviteUsado(tx, linha.id, usuarioId, agora);
+  const aceito = await amb.db.transaction(async (tx) => {
+    const afetadas = await repositorio.marcaConviteUsado(tx, linha.id, usuarioId, agora);
     // Zero linhas afetadas quer dizer que outro aceite chegou antes. Nada foi
     // escrito nesta transação, então não há o que desfazer: basta não gravar o
     // acesso. É o que faz o uso único valer sem depender do SELECT anterior.
-    if (afetadas !== 1) return;
-    repositorio.insereAcesso(tx, {
+    if (afetadas !== 1) return false;
+    await repositorio.insereAcesso(tx, {
       id: geraId<'acesso'>(),
       obraId: linha.obraId,
       usuarioId,
@@ -219,9 +218,9 @@ export function aceitaConvite(
     // é `npm run criar-engenheiro` (`instalacao.ts`). Convite de encarregado
     // não passa por aqui, e a conta dele continua sem o atributo.
     if (linha.perfil === 'engenheiro') {
-      repositorio.marcaContaComoEngenheiro(tx, usuarioId);
+      await repositorio.marcaContaComoEngenheiro(tx, usuarioId);
     }
-    aceito = true;
+    return true;
   });
 
   if (!aceito) return erro(recusaGenerica);
@@ -235,14 +234,14 @@ export function aceitaConvite(
 }
 
 /** Aceita o convite **e** abre a sessão do convidado, num passo só. */
-export function aceitaConviteEEntra(
+export async function aceitaConviteEEntra(
   token: string,
   usuarioId: UsuarioId,
   amb: Ambiente,
-): Result<{ obraId: ObraId; sessao: SessaoAberta }, ErroDeDominio> {
-  const aceite = aceitaConvite(token, usuarioId, amb);
+): Promise<Result<{ obraId: ObraId; sessao: SessaoAberta }, ErroDeDominio>> {
+  const aceite = await aceitaConvite(token, usuarioId, amb);
   if (!aceite.ok) return aceite;
-  return ok({ obraId: aceite.valor, sessao: abreSessao(usuarioId, amb) });
+  return ok({ obraId: aceite.valor, sessao: await abreSessao(usuarioId, amb) });
 }
 
 /**
@@ -252,24 +251,24 @@ export function aceitaConviteEEntra(
  * existindo, com a autoria preservada (CT-082). Revogar acesso não é apagar
  * histórico; o RDO entregue ao fiscal não muda porque alguém saiu da obra.
  */
-export function revogaAcesso(
+export async function revogaAcesso(
   acessoId: AcessoId,
   ator: Ator,
   amb: Ambiente,
-): Result<void, ErroDeDominio> {
-  const alvo = repositorio.buscaAcessoPorId(amb.db, acessoId);
+): Promise<Result<void, ErroDeDominio>> {
+  const alvo = await repositorio.buscaAcessoPorId(amb.db, acessoId);
   const recusa = erroDeDominio(
     CODIGO_ERRO.SEM_PERMISSAO,
     'Você não tem acesso a esta obra ou a esta ação.',
   );
   if (alvo === null) return erro(recusa);
 
-  const naObra = exigeAcessoNaObra(ator, alvo.obraId, 'engenheiro', amb);
+  const naObra = await exigeAcessoNaObra(ator, alvo.obraId, 'engenheiro', amb);
   if (!naObra.ok) return erro(recusa);
 
   if (
     alvo.perfil === 'engenheiro' &&
-    repositorio.contaEngenheirosAtivos(amb.db, alvo.obraId) <= 1
+    (await repositorio.contaEngenheirosAtivos(amb.db, alvo.obraId)) <= 1
   ) {
     return erro(
       erroDeDominio(
@@ -279,7 +278,7 @@ export function revogaAcesso(
     );
   }
 
-  repositorio.marcaAcessoRevogado(
+  await repositorio.marcaAcessoRevogado(
     amb.db,
     acessoId,
     ator.usuarioId,
@@ -293,22 +292,22 @@ export function revogaAcesso(
 }
 
 /** Quem tem acesso ativo à obra. Só o engenheiro daquela obra consulta. */
-export function listaAcessosDaObra(
+export async function listaAcessosDaObra(
   obraId: ObraId,
   ator: Ator,
   amb: Ambiente,
-): Result<repositorio.LinhaDeAcessoDaObra[], ErroDeDominio> {
-  const naObra = exigeAcessoNaObra(ator, obraId, 'engenheiro', amb);
+): Promise<Result<repositorio.LinhaDeAcessoDaObra[], ErroDeDominio>> {
+  const naObra = await exigeAcessoNaObra(ator, obraId, 'engenheiro', amb);
   if (!naObra.ok) {
     return erro(erroDeDominio(CODIGO_ERRO.SEM_PERMISSAO, naObra.erro.mensagem));
   }
-  return ok(repositorio.listaAcessosDaObra(amb.db, obraId));
+  return ok(await repositorio.listaAcessosDaObra(amb.db, obraId));
 }
 
 /** As obras que o usuário pode ver. Nada além delas (CT-074). */
-export function listaObrasDoUsuario(
+export async function listaObrasDoUsuario(
   usuarioId: UsuarioId,
   amb: Ambiente,
-): Result<ObraResumo[], ErroDeDominio> {
-  return ok(repositorio.listaObrasComAcesso(amb.db, usuarioId));
+): Promise<Result<ObraResumo[], ErroDeDominio>> {
+  return ok(await repositorio.listaObrasComAcesso(amb.db, usuarioId));
 }

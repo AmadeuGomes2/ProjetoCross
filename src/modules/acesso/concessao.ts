@@ -17,13 +17,13 @@ import type { Instante } from '../../shared/date/fuso';
 import { geraId, type ObraId, type UsuarioId } from '../../shared/id';
 import { insereAcesso } from './repositorio';
 
-export function concedeAcessoDeEngenheiro(
+export async function concedeAcessoDeEngenheiro(
   db: BancoRdo,
   obraId: ObraId,
   usuarioId: UsuarioId,
   em: Instante,
-): void {
-  insereAcesso(db, {
+): Promise<void> {
+  await insereAcesso(db, {
     id: geraId<'acesso'>(),
     obraId,
     usuarioId,

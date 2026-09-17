@@ -6,9 +6,26 @@
  * fora dessa lista é `obra.contrato`, em `listaObrasDoUsuario`, e ela existe
  * porque a resposta da tela de escolha de obra precisa de um rótulo; está
  * marcada abaixo.
+ *
+ * ## Assíncrono desde 17/09/2026
+ *
+ * O banco deixou de ser SQLite em arquivo e passou a ser Postgres, no Neon
+ * (ver `src/db/index.ts`). O driver antigo era **síncrono**; o de Postgres
+ * devolve `Promise`, e por isso toda função daqui virou `async`. Nenhuma regra
+ * mudou junto — é conversão de forma.
+ *
+ * Duas consequências de forma que valem registro, porque o dialeto novo não
+ * tem os atalhos do antigo:
+ *
+ * - **não existe `.get()`** no `drizzle-orm/pg-core`. Leitura de uma linha só
+ *   é `.limit(1)` mais o primeiro elemento, que com `noUncheckedIndexedAccess`
+ *   já nasce `T | undefined` e obriga a tratar o vazio;
+ * - **não existe `.run()` nem `resultado.changes`**. A quantidade de linhas
+ *   afetadas por um `UPDATE` condicional vem de `RETURNING`, que é o que
+ *   `marcaConviteUsado` usa para manter o uso único do convite.
  */
 
-import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, count, eq, isNotNull, isNull } from 'drizzle-orm';
 
 import type { BancoRdo } from '../../db';
 import { acesso, convite, obra, sessao, usuario } from '../../db/schema';
@@ -35,13 +52,16 @@ export interface LinhaDeUsuario {
  * tem CREA e assina o RDO. É o que autoriza criar obra (decisão 25.1). O perfil
  * por obra continua em `buscaAcessoAtivo`, e uma coisa não implica a outra.
  */
-export function eContaDeEngenheiro(db: BancoRdo, usuarioId: UsuarioId): boolean {
-  const linha = db
+export async function eContaDeEngenheiro(
+  db: BancoRdo,
+  usuarioId: UsuarioId,
+): Promise<boolean> {
+  const linhas = await db
     .select({ eEngenheiro: usuario.eEngenheiro })
     .from(usuario)
     .where(eq(usuario.id, usuarioId))
-    .get();
-  return linha?.eEngenheiro === 1;
+    .limit(1);
+  return linhas[0]?.eEngenheiro === 1;
 }
 
 /** E-mail é guardado normalizado em caixa baixa, para o UNIQUE valer de fato. */
@@ -49,23 +69,31 @@ export function normalizaEmail(bruto: string): string {
   return bruto.trim().toLocaleLowerCase('pt-BR');
 }
 
-export function buscaUsuarioPorEmail(db: BancoRdo, email: string): LinhaDeUsuario | null {
-  const linha = db
+export async function buscaUsuarioPorEmail(
+  db: BancoRdo,
+  email: string,
+): Promise<LinhaDeUsuario | null> {
+  const linhas = await db
     .select({ id: usuario.id, hashDeSenha: usuario.hashDeSenha })
     .from(usuario)
     .where(eq(usuario.email, normalizaEmail(email)))
-    .get();
-  return linha ?? null;
+    .limit(1);
+  return linhas[0] ?? null;
 }
 
-export function existeUsuario(db: BancoRdo, usuarioId: UsuarioId): boolean {
-  return (
-    db.select({ id: usuario.id }).from(usuario).where(eq(usuario.id, usuarioId)).get() !==
-    undefined
-  );
+export async function existeUsuario(
+  db: BancoRdo,
+  usuarioId: UsuarioId,
+): Promise<boolean> {
+  const linhas = await db
+    .select({ id: usuario.id })
+    .from(usuario)
+    .where(eq(usuario.id, usuarioId))
+    .limit(1);
+  return linhas.length > 0;
 }
 
-export function insereUsuario(
+export async function insereUsuario(
   db: BancoRdo,
   dados: {
     readonly id: UsuarioId;
@@ -82,17 +110,15 @@ export function insereUsuario(
     readonly eEngenheiro: boolean;
     readonly criadoEm: Instante;
   },
-): void {
-  db.insert(usuario)
-    .values({
-      id: dados.id,
-      nome: dados.nome,
-      email: normalizaEmail(dados.email),
-      hashDeSenha: dados.hashDeSenha,
-      eEngenheiro: dados.eEngenheiro ? 1 : 0,
-      criadoEm: dados.criadoEm,
-    })
-    .run();
+): Promise<void> {
+  await db.insert(usuario).values({
+    id: dados.id,
+    nome: dados.nome,
+    email: normalizaEmail(dados.email),
+    hashDeSenha: dados.hashDeSenha,
+    eEngenheiro: dados.eEngenheiro ? 1 : 0,
+    criadoEm: dados.criadoEm,
+  });
 }
 
 /**
@@ -107,8 +133,11 @@ export function insereUsuario(
  * desligar — tirar o acesso de alguém é revogar o acesso da obra, e desligar a
  * coluna de quem já assina RDO não tem decisão que a autorize.
  */
-export function marcaContaComoEngenheiro(db: BancoRdo, usuarioId: UsuarioId): void {
-  db.update(usuario).set({ eEngenheiro: 1 }).where(eq(usuario.id, usuarioId)).run();
+export async function marcaContaComoEngenheiro(
+  db: BancoRdo,
+  usuarioId: UsuarioId,
+): Promise<void> {
+  await db.update(usuario).set({ eEngenheiro: 1 }).where(eq(usuario.id, usuarioId));
 }
 
 export interface LinhaDeSessao {
@@ -118,7 +147,7 @@ export interface LinhaDeSessao {
   readonly revogadaEm: Instante | null;
 }
 
-export function insereSessao(
+export async function insereSessao(
   db: BancoRdo,
   dados: {
     readonly id: SessaoId;
@@ -127,17 +156,15 @@ export function insereSessao(
     readonly criadoEm: Instante;
     readonly expiraEm: Instante;
   },
-): void {
-  db.insert(sessao)
-    .values({ ...dados, revogadaEm: null })
-    .run();
+): Promise<void> {
+  await db.insert(sessao).values({ ...dados, revogadaEm: null });
 }
 
-export function buscaSessaoPorHash(
+export async function buscaSessaoPorHash(
   db: BancoRdo,
   tokenHash: string,
-): LinhaDeSessao | null {
-  const linha = db
+): Promise<LinhaDeSessao | null> {
+  const linhas = await db
     .select({
       id: sessao.id,
       usuarioId: sessao.usuarioId,
@@ -146,15 +173,19 @@ export function buscaSessaoPorHash(
     })
     .from(sessao)
     .where(eq(sessao.tokenHash, tokenHash))
-    .get();
-  return linha ?? null;
+    .limit(1);
+  return linhas[0] ?? null;
 }
 
-export function revogaSessaoPorHash(db: BancoRdo, tokenHash: string, em: Instante): void {
-  db.update(sessao)
+export async function revogaSessaoPorHash(
+  db: BancoRdo,
+  tokenHash: string,
+  em: Instante,
+): Promise<void> {
+  await db
+    .update(sessao)
     .set({ revogadaEm: em })
-    .where(and(eq(sessao.tokenHash, tokenHash), isNull(sessao.revogadaEm)))
-    .run();
+    .where(and(eq(sessao.tokenHash, tokenHash), isNull(sessao.revogadaEm)));
 }
 
 export interface LinhaDeAcesso {
@@ -171,12 +202,12 @@ export interface LinhaDeAcesso {
  * toda requisição protegida, sem cache: revogar precisa valer já na próxima
  * requisição, e não no próximo login (CT-081).
  */
-export function buscaAcessoAtivo(
+export async function buscaAcessoAtivo(
   db: BancoRdo,
   usuarioId: UsuarioId,
   obraId: ObraId,
-): LinhaDeAcesso | null {
-  const linha = db
+): Promise<LinhaDeAcesso | null> {
+  const linhas = await db
     .select({
       id: acesso.id,
       obraId: acesso.obraId,
@@ -191,8 +222,8 @@ export function buscaAcessoAtivo(
         isNull(acesso.revogadoEm),
       ),
     )
-    .get();
-  return linha ?? null;
+    .limit(1);
+  return linhas[0] ?? null;
 }
 
 export interface LinhaDeAcessoDaObra {
@@ -210,7 +241,10 @@ export interface LinhaDeAcessoDaObra {
  * revogar, e o que não sai não vaza (CLAUDE.md, Segurança). Ver relatório de
  * entrega: exibir o nome aqui precisa de decisão de quem responde pelo produto.
  */
-export function listaAcessosDaObra(db: BancoRdo, obraId: ObraId): LinhaDeAcessoDaObra[] {
+export async function listaAcessosDaObra(
+  db: BancoRdo,
+  obraId: ObraId,
+): Promise<LinhaDeAcessoDaObra[]> {
   return db
     .select({
       id: acesso.id,
@@ -220,12 +254,14 @@ export function listaAcessosDaObra(db: BancoRdo, obraId: ObraId): LinhaDeAcessoD
     })
     .from(acesso)
     .where(and(eq(acesso.obraId, obraId), isNull(acesso.revogadoEm)))
-    .orderBy(acesso.liberadoEm)
-    .all();
+    .orderBy(acesso.liberadoEm);
 }
 
-export function buscaAcessoPorId(db: BancoRdo, acessoId: AcessoId): LinhaDeAcesso | null {
-  const linha = db
+export async function buscaAcessoPorId(
+  db: BancoRdo,
+  acessoId: AcessoId,
+): Promise<LinhaDeAcesso | null> {
+  const linhas = await db
     .select({
       id: acesso.id,
       obraId: acesso.obraId,
@@ -234,11 +270,11 @@ export function buscaAcessoPorId(db: BancoRdo, acessoId: AcessoId): LinhaDeAcess
     })
     .from(acesso)
     .where(and(eq(acesso.id, acessoId), isNull(acesso.revogadoEm)))
-    .get();
-  return linha ?? null;
+    .limit(1);
+  return linhas[0] ?? null;
 }
 
-export function insereAcesso(
+export async function insereAcesso(
   db: BancoRdo,
   dados: {
     readonly id: AcessoId;
@@ -248,23 +284,21 @@ export function insereAcesso(
     readonly liberadoPor: UsuarioId;
     readonly liberadoEm: Instante;
   },
-): void {
-  db.insert(acesso)
-    .values({ ...dados, revogadoPor: null, revogadoEm: null })
-    .run();
+): Promise<void> {
+  await db.insert(acesso).values({ ...dados, revogadoPor: null, revogadoEm: null });
 }
 
 /** Revogação **não apaga a linha** (2.4): o histórico de quem teve acesso fica. */
-export function marcaAcessoRevogado(
+export async function marcaAcessoRevogado(
   db: BancoRdo,
   acessoId: AcessoId,
   por: UsuarioId,
   em: Instante,
-): void {
-  db.update(acesso)
+): Promise<void> {
+  await db
+    .update(acesso)
     .set({ revogadoPor: por, revogadoEm: em })
-    .where(and(eq(acesso.id, acessoId), isNull(acesso.revogadoEm)))
-    .run();
+    .where(and(eq(acesso.id, acessoId), isNull(acesso.revogadoEm)));
 }
 
 export interface LinhaDeConvite {
@@ -282,7 +316,7 @@ export interface LinhaDeConvite {
   readonly usadoEm: Instante | null;
 }
 
-export function insereConvite(
+export async function insereConvite(
   db: BancoRdo,
   dados: {
     readonly id: ConviteId;
@@ -293,17 +327,15 @@ export function insereConvite(
     readonly criadoEm: Instante;
     readonly expiraEm: Instante;
   },
-): void {
-  db.insert(convite)
-    .values({ ...dados, usadoPor: null, usadoEm: null })
-    .run();
+): Promise<void> {
+  await db.insert(convite).values({ ...dados, usadoPor: null, usadoEm: null });
 }
 
-export function buscaConvitePorHash(
+export async function buscaConvitePorHash(
   db: BancoRdo,
   tokenHash: string,
-): LinhaDeConvite | null {
-  const linha = db
+): Promise<LinhaDeConvite | null> {
+  const linhas = await db
     .select({
       id: convite.id,
       obraId: convite.obraId,
@@ -314,8 +346,8 @@ export function buscaConvitePorHash(
     })
     .from(convite)
     .where(eq(convite.tokenHash, tokenHash))
-    .get();
-  return linha ?? null;
+    .limit(1);
+  return linhas[0] ?? null;
 }
 
 /**
@@ -324,19 +356,24 @@ export function buscaConvitePorHash(
  * O `WHERE usado_em IS NULL` é o que faz o uso único valer mesmo com dois
  * aceites simultâneos: o segundo `UPDATE` afeta zero linhas, e quem chama
  * desfaz a transação. Conferir com um `SELECT` antes não bastaria.
+ *
+ * O `RETURNING` está aqui porque o Postgres não tem o `changes` do driver
+ * antigo: são as linhas que o `UPDATE` de fato alcançou, contadas pelo próprio
+ * banco, no mesmo comando. Contá-las depois, com outra consulta, reabriria a
+ * janela que este `WHERE` fecha.
  */
-export function marcaConviteUsado(
+export async function marcaConviteUsado(
   db: BancoRdo,
   conviteId: ConviteId,
   por: UsuarioId,
   em: Instante,
-): number {
-  const resultado = db
+): Promise<number> {
+  const afetadas = await db
     .update(convite)
     .set({ usadoPor: por, usadoEm: em })
     .where(and(eq(convite.id, conviteId), isNull(convite.usadoEm)))
-    .run();
-  return resultado.changes;
+    .returning({ id: convite.id });
+  return afetadas.length;
 }
 
 /**
@@ -345,14 +382,16 @@ export function marcaConviteUsado(
  * Junta `obra` só para trazer o contrato, que é o rótulo da tela de escolha.
  * Nenhum outro campo de obra sai daqui, e nome de pessoa nenhum.
  */
-export function listaObrasComAcesso(db: BancoRdo, usuarioId: UsuarioId): ObraResumo[] {
+export async function listaObrasComAcesso(
+  db: BancoRdo,
+  usuarioId: UsuarioId,
+): Promise<ObraResumo[]> {
   return db
     .select({ obraId: obra.id, contrato: obra.contrato, perfil: acesso.perfil })
     .from(acesso)
     .innerJoin(obra, eq(obra.id, acesso.obraId))
     .where(and(eq(acesso.usuarioId, usuarioId), isNull(acesso.revogadoEm)))
-    .orderBy(obra.contrato)
-    .all();
+    .orderBy(obra.contrato);
 }
 
 /**
@@ -363,15 +402,13 @@ export function listaObrasComAcesso(db: BancoRdo, usuarioId: UsuarioId): ObraRes
  * sobre uma conta, nunca sobre o estado global do sistema. Uma regra que lê
  * "ainda não existe nenhum" reabre sozinha quando alguém apaga o último.
  */
-export function existeContaDeEngenheiro(db: BancoRdo): boolean {
-  return (
-    db
-      .select({ id: usuario.id })
-      .from(usuario)
-      .where(eq(usuario.eEngenheiro, 1))
-      .limit(1)
-      .get() !== undefined
-  );
+export async function existeContaDeEngenheiro(db: BancoRdo): Promise<boolean> {
+  const linhas = await db
+    .select({ id: usuario.id })
+    .from(usuario)
+    .where(eq(usuario.eEngenheiro, 1))
+    .limit(1);
+  return linhas.length > 0;
 }
 
 /**
@@ -383,20 +420,28 @@ export function existeContaDeEngenheiro(db: BancoRdo): boolean {
  * (`existeContaDeEngenheiro` e esta) fecha a janela em que duas contas de
  * instalação nasceriam sem que ninguém percebesse.
  */
-export function existeContaComSenha(db: BancoRdo): boolean {
-  return (
-    db
-      .select({ id: usuario.id })
-      .from(usuario)
-      .where(isNotNull(usuario.hashDeSenha))
-      .limit(1)
-      .get() !== undefined
-  );
+export async function existeContaComSenha(db: BancoRdo): Promise<boolean> {
+  const linhas = await db
+    .select({ id: usuario.id })
+    .from(usuario)
+    .where(isNotNull(usuario.hashDeSenha))
+    .limit(1);
+  return linhas.length > 0;
 }
 
-export function contaEngenheirosAtivos(db: BancoRdo, obraId: ObraId): number {
-  const linha = db
-    .select({ total: sql<number>`count(*)` })
+/**
+ * Quantos engenheiros ativos a obra tem.
+ *
+ * `count()` do Drizzle, e não `sql<number>`count(*)``: no Postgres o `count(*)`
+ * cru é `bigint`, que o driver entrega como **texto**, e a contagem entraria
+ * numa comparação numérica valendo `"2"`. O ajudante já pede `::int`.
+ */
+export async function contaEngenheirosAtivos(
+  db: BancoRdo,
+  obraId: ObraId,
+): Promise<number> {
+  const linhas = await db
+    .select({ total: count() })
     .from(acesso)
     .where(
       and(
@@ -404,9 +449,8 @@ export function contaEngenheirosAtivos(db: BancoRdo, obraId: ObraId): number {
         eq(acesso.perfil, 'engenheiro'),
         isNull(acesso.revogadoEm),
       ),
-    )
-    .get();
-  return linha?.total ?? 0;
+    );
+  return linhas[0]?.total ?? 0;
 }
 
 export function idDeAcesso(valor: string): AcessoId {
