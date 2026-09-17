@@ -53,7 +53,7 @@ export default async function Acesso({
     );
   }
 
-  const ehEngenheiro = perfilNaObraProtegido(ator, obraId) === 'engenheiro';
+  const ehEngenheiro = (await perfilNaObraProtegido(ator, obraId)) === 'engenheiro';
 
   return (
     <main className="pagina pagina--painel">

@@ -21,9 +21,18 @@ import type {
 } from '../../shared/id';
 
 /** Porta para `taxonomia`. Devolve `null` se o tipo não existe; não cria nada. */
+/**
+ * Resolve o termo contra a taxonomia cadastrada.
+ *
+ * Assíncrona desde 17/09/2026: a taxonomia passou a ler do Postgres, e quem
+ * declara a porta acompanha o que a implementação consegue cumprir. Manter a
+ * assinatura síncrona obrigaria a raiz de composição a inventar um adaptador
+ * que não existe — não há como esperar uma promessa dentro de uma função
+ * síncrona sem bloquear o processo.
+ */
 export type ResolveTipoEquipamento = (
   termo: string,
-) => { id: TipoEquipamentoId; termo: string } | null;
+) => Promise<{ id: TipoEquipamentoId; termo: string } | null>;
 
 export type Ambiente = ComPortas<{ resolveTipoEquipamento: ResolveTipoEquipamento }>;
 

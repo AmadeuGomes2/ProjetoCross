@@ -118,7 +118,7 @@ export async function cadastraEquipamento(
     );
   }
 
-  const tipo = amb.resolveTipoEquipamento(cmd.tipoTermo);
+  const tipo = await amb.resolveTipoEquipamento(cmd.tipoTermo);
   if (tipo === null) {
     return erro(
       erroDeDominio(

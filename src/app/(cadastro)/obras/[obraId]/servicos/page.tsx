@@ -59,7 +59,25 @@ export default async function Servicos({
     );
   }
 
-  const ehEngenheiro = perfilNaObraProtegido(ator, obraId) === 'engenheiro';
+  const ehEngenheiro = (await perfilNaObraProtegido(ator, obraId)) === 'engenheiro';
+
+  /*
+   * O histórico de cada serviço, lido ANTES do JSX.
+   *
+   * Dentro do `.map()` não cabe `await`: o corpo é síncrono. E lê-los em
+   * série faria uma ida à rede por linha da tabela — são independentes, então
+   * `Promise.all`.
+   */
+  const comHistorico = await Promise.all(
+    (servicos.ok ? servicos.valor : []).map(async (servico) => ({
+      servico,
+      historico: await listaHistoricoDeQuantidadeProtegido(
+        ator,
+        obraId,
+        servico.servicoId,
+      ),
+    })),
+  );
 
   return (
     <main className="pagina pagina--painel">
@@ -87,13 +105,7 @@ export default async function Servicos({
         </Vazio>
       ) : null}
 
-      {servicos.valor.map((servico) => {
-        const historico = listaHistoricoDeQuantidadeProtegido(
-          ator,
-          obraId,
-          servico.servicoId,
-        );
-
+      {comHistorico.map(({ servico, historico }) => {
         return (
           <Bloco key={servico.servicoId} titulo={servico.nome}>
             {servico.quantidadeDeProjeto === null ? (

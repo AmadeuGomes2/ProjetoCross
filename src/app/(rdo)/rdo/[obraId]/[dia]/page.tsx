@@ -101,14 +101,14 @@ export default async function PaginaDoRdoDiario({
           ]}
         />
         <ControleDeExportacao
-          perfil={perfilNaObraProtegido(ator, obraId)}
+          perfil={await perfilNaObraProtegido(ator, obraId)}
           obraId={idConfiavel<'obra'>(obraId)}
           dia={dia}
         />
         <FechamentoDoDia
           obraId={obraId}
           dia={dia}
-          ehEngenheiro={perfilNaObraProtegido(ator, obraId) === 'engenheiro'}
+          ehEngenheiro={(await perfilNaObraProtegido(ator, obraId)) === 'engenheiro'}
           jaFechado={estadoDoDia?.fechado ?? false}
         />
       </nav>

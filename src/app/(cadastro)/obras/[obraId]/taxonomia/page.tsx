@@ -60,7 +60,19 @@ export default async function Taxonomias({
     );
   }
 
-  const ehEngenheiro = perfilNaObraProtegido(ator, obraId) === 'engenheiro';
+  const ehEngenheiro = (await perfilNaObraProtegido(ator, obraId)) === 'engenheiro';
+
+  /*
+   * As quatro listas, lidas ANTES do JSX: dentro do `.map()` não cabe `await`.
+   * São independentes entre si, então em paralelo — em série seriam quatro
+   * idas à rede em fila só para desenhar a página.
+   */
+  const listasPorTipo = await Promise.all(
+    TIPOS_DE_TAXONOMIA.map(async (tipo) => {
+      const lista = await listaTermosProtegida(ator, obraId, tipo);
+      return { tipo, termos: lista.ok ? lista.valor : [] };
+    }),
+  );
 
   return (
     <main className="pagina pagina--painel">
@@ -85,10 +97,7 @@ export default async function Taxonomias({
         Um termo acrescentado aqui passa a valer para todas as obras do sistema.
       </Aviso>
 
-      {TIPOS_DE_TAXONOMIA.map((tipo) => {
-        const lista = listaTermosProtegida(ator, obraId, tipo);
-        const termos = (await lista.ok) ? lista.valor : [];
-
+      {listasPorTipo.map(({ tipo, termos }) => {
         return (
           <Bloco key={tipo} titulo={ROTULO[tipo]}>
             {termos.length === 0 ? (

@@ -129,11 +129,11 @@ function validaSobreposicaoDePassagens(
  * **Não cria termo por efeito colateral** (CT-037): foi assim que a planilha
  * ganhou `Servente ` e `Servente` como duas funções diferentes.
  */
-function resolveFuncaoOuErro(
+async function resolveFuncaoOuErro(
   termo: string,
   amb: Ambiente,
-): Result<{ id: FuncaoId }, ErroDeDominio> {
-  const funcao = amb.resolveFuncao(termo);
+): Promise<Result<{ id: FuncaoId }, ErroDeDominio>> {
+  const funcao = await amb.resolveFuncao(termo);
   if (funcao === null) {
     return erro(
       erroDeDominio(
@@ -157,7 +157,7 @@ export async function cadastraPessoa(
 
   // A função vai para a PASSAGEM que este cadastro abre, não para a pessoa
   // (decisão 29.1).
-  const funcao = resolveFuncaoOuErro(cmd.funcaoTermo, amb);
+  const funcao = await resolveFuncaoOuErro(cmd.funcaoTermo, amb);
   if (!funcao.ok) return funcao;
 
   const intervalo = validaOrdemDasDatas(cmd.entrada, cmd.saida);
@@ -215,7 +215,7 @@ export async function registraPassagem(
     );
   }
 
-  const funcao = resolveFuncaoOuErro(cmd.funcaoTermo, amb);
+  const funcao = await resolveFuncaoOuErro(cmd.funcaoTermo, amb);
   if (!funcao.ok) return funcao;
 
   const intervalo = validaOrdemDasDatas(cmd.entrada, cmd.saida);
@@ -269,7 +269,7 @@ export async function trocaFuncao(
     );
   }
 
-  const funcao = resolveFuncaoOuErro(cmd.funcaoTermo, amb);
+  const funcao = await resolveFuncaoOuErro(cmd.funcaoTermo, amb);
   if (!funcao.ok) return funcao;
 
   const passagens = await repositorio.listaPassagensDaPessoa(

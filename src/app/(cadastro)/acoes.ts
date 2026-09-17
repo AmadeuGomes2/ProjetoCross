@@ -255,7 +255,7 @@ export async function gerarConviteAction(
   const perfil = perfilDeConvite(texto(dados, 'perfil'));
   if (!perfil.ok) return { link: null, perfil: null, erro: perfil.erro.mensagem };
 
-  const gerado = geraConviteProtegido(ator, obraId, perfil.valor);
+  const gerado = await geraConviteProtegido(ator, obraId, perfil.valor);
   if (!gerado.ok) return { link: null, perfil: null, erro: gerado.erro.mensagem };
 
   return { link: `/convite/${gerado.valor.token}`, perfil: perfil.valor, erro: null };

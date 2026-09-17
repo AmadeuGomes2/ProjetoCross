@@ -12,14 +12,7 @@
  * Ver a migration `0002_funcao_na_passagem.sql`.
  */
 
-import {
-  foreignKey,
-  index,
-  pgTable,
-  text,
-  unique,
-  uniqueIndex,
-} from 'drizzle-orm/pg-core';
+import { foreignKey, index, pgTable, text, unique } from 'drizzle-orm/pg-core';
 
 import type { FuncaoId, ObraId, PassagemPessoaId, PessoaId } from '../../shared/id';
 import {

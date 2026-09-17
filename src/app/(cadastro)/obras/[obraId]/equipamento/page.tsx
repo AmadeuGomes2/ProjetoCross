@@ -53,10 +53,10 @@ export default async function Equipamentos({
     );
   }
 
-  const tipos = listaTermosProtegida(ator, obraId, 'tipo_equipamento');
-  const opcoes = (await tipos.ok) ? tipos.valor.map((t) => t.termo) : [];
+  const tipos = await listaTermosProtegida(ator, obraId, 'tipo_equipamento');
+  const opcoes = tipos.ok ? tipos.valor.map((t) => t.termo) : [];
 
-  const ehEngenheiro = perfilNaObraProtegido(ator, obraId) === 'engenheiro';
+  const ehEngenheiro = (await perfilNaObraProtegido(ator, obraId)) === 'engenheiro';
 
   return (
     <main className="pagina pagina--painel">

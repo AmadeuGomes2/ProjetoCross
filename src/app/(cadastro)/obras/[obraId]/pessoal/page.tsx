@@ -68,10 +68,10 @@ export default async function Pessoal({
    * formulário desta página depende do perfil. O que ainda depende é a barra de
    * abas: a aba Acesso continua só do engenheiro.
    */
-  const ehEngenheiro = perfilNaObraProtegido(ator, obraId) === 'engenheiro';
+  const ehEngenheiro = (await perfilNaObraProtegido(ator, obraId)) === 'engenheiro';
 
-  const funcoes = listaTermosProtegida(ator, obraId, 'funcao');
-  const opcoes = (await funcoes.ok) ? funcoes.valor.map((t) => t.termo) : [];
+  const funcoes = await listaTermosProtegida(ator, obraId, 'funcao');
+  const opcoes = funcoes.ok ? funcoes.valor.map((t) => t.termo) : [];
 
   return (
     <main className="pagina pagina--painel">

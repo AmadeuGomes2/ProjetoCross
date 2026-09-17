@@ -76,8 +76,8 @@ export default async function Obra({
     );
   }
 
-  const obra = await cabecalho.valor;
-  const periodos = listaPeriodosBmsProtegida(ator, obraId);
+  const obra = cabecalho.valor;
+  const periodos = await listaPeriodosBmsProtegida(ator, obraId);
 
   /**
    * O que a tela OFERECE, não o que ela protege.
@@ -87,7 +87,7 @@ export default async function Obra({
    * responsável técnico, que são do engenheiro (25.1 e 32.1). O servidor
    * continua recusando de qualquer forma; isto tira o beco sem saída.
    */
-  const perfil = perfilNaObraProtegido(ator, obraId);
+  const perfil = await perfilNaObraProtegido(ator, obraId);
   const ehEngenheiro = perfil === 'engenheiro';
 
   // O dia sai do fuso da obra, no servidor. Nunca do relógio do navegador.
@@ -98,7 +98,22 @@ export default async function Obra({
   const ultimosDias = await painelDosUltimosDiasProtegido(ator, obraId, hoje, 14);
 
   // O cabeçalho sai em TODO RDO: o impacto de mexer nele é a obra inteira.
-  const impactoDoTopo = impactoDoCabecalho(ator, obraId);
+  const impactoDoTopo = await impactoDoCabecalho(ator, obraId);
+
+  /*
+   * O impacto de cada período, lido ANTES do JSX — dentro do `.map()` não cabe
+   * `await`.
+   *
+   * É por período, e não uma vez para a obra: a janela de cada um alcança dias
+   * diferentes, e um número médio não ajudaria ninguém a decidir sobre este
+   * aqui. São independentes, então em paralelo.
+   */
+  const periodosComImpacto = await Promise.all(
+    (periodos.ok ? periodos.valor : []).map(async (periodo) => ({
+      periodo,
+      impacto: await impactoDoPeriodoBms(ator, obraId, periodo.id),
+    })),
+  );
 
   return (
     <main className="pagina pagina--painel">
@@ -232,13 +247,7 @@ export default async function Obra({
           </Vazio>
         ) : (
           <ul className="listaLimpa">
-            {periodos.valor.map((periodo) => {
-              /*
-               * O impacto é lido por período, e não uma vez para a obra: a
-               * janela de cada um alcança dias diferentes, e um número médio
-               * não ajudaria ninguém a decidir sobre este aqui.
-               */
-              const impacto = impactoDoPeriodoBms(ator, obraId, periodo.id);
+            {periodosComImpacto.map(({ periodo, impacto }) => {
               return (
                 <li className="itemDeLista" key={periodo.id}>
                   <span>
