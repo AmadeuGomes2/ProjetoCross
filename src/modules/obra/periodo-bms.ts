@@ -223,3 +223,65 @@ export function resolveBmsDoDia(
     .find((p) => diaEstaNoIntervalo(dia, p.dataInicial, p.dataFinal));
   return ok(periodo?.numero ?? null);
 }
+
+/**
+ * Editar um período (17/09/2026).
+ *
+ * A conferência de conjunto roda **sem o próprio período na lista de
+ * existentes**. Sem isso, salvar o BM'S 7 sem mudar nada devolveria "já existe
+ * o período de BMS 7 nesta obra": ele colidiria consigo mesmo.
+ *
+ * Alterar as datas **não toca em lançamento nenhum**. O que muda é qual número
+ * de BM'S sai no cabeçalho dos RDOs daqueles dias, porque `resolveBmsDoDia`
+ * resolve por data a cada consulta. Quem chama avisa o tamanho disso antes
+ * (`_composicao/impacto.ts`).
+ */
+export function atualizaPeriodoBms(
+  cmd: ComandoPeriodoBms & { readonly periodoId: PeriodoBmsId },
+  amb: Ambiente,
+): Result<void, ErroDeDominio> {
+  if (repositorio.buscaObra(amb.db, cmd.obraId) === null) {
+    return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Obra não encontrada.'));
+  }
+
+  const existentes = repositorio.listaPeriodos(amb.db, cmd.obraId);
+  if (!existentes.some((p) => p.id === cmd.periodoId)) {
+    return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Período não encontrado.'));
+  }
+
+  const outros = existentes.filter((p) => p.id !== cmd.periodoId);
+  const conferencia = validaConjuntoDePeriodos([cmd], outros);
+  if (!conferencia.ok) return conferencia;
+
+  repositorio.atualizaPeriodo(amb.db, cmd.obraId, cmd.periodoId, {
+    numero: cmd.numero,
+    dataInicial: cmd.dataInicial,
+    dataFinal: cmd.dataFinal,
+  });
+  return ok(undefined);
+}
+
+/**
+ * Excluir um período (17/09/2026).
+ *
+ * **Não bloqueia por haver dia lançado dentro dele.** O dia continua lançado, o
+ * RDO continua sendo gerado, e o campo `BM'S` passa a sair vazio com aviso —
+ * exatamente o que a decisão 21.1 já definiu para dia fora de qualquer período.
+ * Bloquear seria inventar uma trava que a regra não pede, e deixaria o
+ * engenheiro preso a um período digitado errado.
+ *
+ * Quem chama mostra o tamanho do impacto antes (`_composicao/impacto.ts`).
+ */
+export function excluiPeriodoBms(
+  obraId: ObraId,
+  periodoId: PeriodoBmsId,
+  amb: Ambiente,
+): Result<void, ErroDeDominio> {
+  const existentes = repositorio.listaPeriodos(amb.db, obraId);
+  if (!existentes.some((p) => p.id === periodoId)) {
+    return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Período não encontrado.'));
+  }
+
+  repositorio.excluiPeriodo(amb.db, obraId, periodoId);
+  return ok(undefined);
+}

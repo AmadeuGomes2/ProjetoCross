@@ -130,6 +130,51 @@ export function inserePeriodo(
   db.insert(periodoBms).values(dados).run();
 }
 
+/**
+ * Troca as datas e o número de um período (17/09/2026).
+ *
+ * Não mexe em `criado_por` nem em `criado_em`: quem cadastrou continua sendo
+ * quem cadastrou. Alteração de período não reescreve autoria.
+ */
+export function atualizaPeriodo(
+  db: BancoRdo,
+  obraId: ObraId,
+  periodoId: PeriodoBmsId,
+  dados: {
+    readonly numero: number;
+    readonly dataInicial: DiaPuro;
+    readonly dataFinal: DiaPuro;
+  },
+): void {
+  db.update(periodoBms)
+    .set(dados)
+    .where(and(eq(periodoBms.obraId, obraId), eq(periodoBms.id, periodoId)))
+    .run();
+}
+
+/**
+ * Apaga o período.
+ *
+ * **É a única exclusão física do sistema, e é segura por natureza**: período de
+ * BM'S não é lançamento. Nada aponta para ele — o número do BM'S que sai no RDO
+ * é resolvido por data, a cada consulta (`resolveBmsDoDia`), e não guardado na
+ * linha do dia. Apagar o período faz os RDOs daqueles dias passarem a sair com
+ * o campo vazio e aviso, que é o comportamento já definido pela decisão 21.1
+ * para dia fora de período. **Nenhum lançamento se perde.**
+ *
+ * O `numero_rdo_congelado` do dia fechado continua onde estava: ele congela o
+ * número do RDO, não o do BM'S.
+ */
+export function excluiPeriodo(
+  db: BancoRdo,
+  obraId: ObraId,
+  periodoId: PeriodoBmsId,
+): void {
+  db.delete(periodoBms)
+    .where(and(eq(periodoBms.obraId, obraId), eq(periodoBms.id, periodoId)))
+    .run();
+}
+
 export interface LinhaDeServico {
   readonly id: ServicoControladoId;
   readonly nome: string;

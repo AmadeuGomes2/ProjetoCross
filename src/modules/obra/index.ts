@@ -8,7 +8,9 @@ export {
 } from './cria-obra';
 
 export {
+  atualizaPeriodoBms,
   cadastraPeriodoBms,
+  excluiPeriodoBms,
   diasDoPeriodo,
   listaPeriodosBms,
   resolveBmsDoDia,
@@ -28,6 +30,7 @@ export {
 
 export {
   analisaCriarObra,
+  analisaEditarObra,
   analisaPeriodoBms,
   analisaQuantidadeDeProjeto,
   analisaResponsavelTecnico,

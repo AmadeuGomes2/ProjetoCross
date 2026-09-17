@@ -23,7 +23,12 @@ import {
   type ErroDeEntrada,
   type Result,
 } from '../../../shared/result';
-import type { ComandoCriarObra, PeriodoBmsNovo, ResponsavelTecnico } from '../tipos';
+import type {
+  ComandoCriarObra,
+  ComandoEditarObra,
+  PeriodoBmsNovo,
+  ResponsavelTecnico,
+} from '../tipos';
 import type { ComandoPeriodoBms } from '../periodo-bms';
 import type { ComandoQuantidadeProjeto } from '../servico-controlado';
 import { exigeDia, exigeInteiroNaoNegativo, exigeTexto } from './campos';
@@ -95,6 +100,19 @@ function analisaPeriodo(
     dataFinal: dataFinal.valor,
   });
 }
+
+/** Os nove campos do cabeçalho, sem BM'S e sem responsável técnico. */
+const formaDoCabecalho = z.object({
+  contrato: z.unknown(),
+  contratante: z.unknown(),
+  contratada: z.unknown(),
+  dataInicio: z.unknown(),
+  dataTermino: z.unknown(),
+  escopo: z.unknown(),
+  nomeProjeto: z.unknown(),
+  area: z.unknown(),
+  local: z.unknown(),
+});
 
 export function analisaCriarObra(
   bruto: unknown,
@@ -229,4 +247,44 @@ export function analisaQuantidadeDeProjeto(
     forma.data.servicoId,
   );
   return ok({ obraId, servicoId, quantidade: quantidade.valor });
+}
+
+/**
+ * Editar o cabeçalho (17/09/2026).
+ *
+ * Os mesmos nove campos de `analisaCriarObra`, **sem** período de BM'S e sem
+ * responsável técnico: os dois têm caminho próprio, e exigi-los aqui obrigaria
+ * a reenviar o que não se está mexendo — que é como um formulário de edição
+ * apaga dado sem querer.
+ */
+export function analisaEditarObra(
+  bruto: unknown,
+): Result<Omit<ComandoEditarObra, 'obraId'>, ErroDeEntrada> {
+  const forma = formaDoCabecalho.safeParse(bruto);
+  if (!forma.success) return erro(formaInvalida());
+  const dados = forma.data;
+
+  const textos: Partial<Record<ChaveDeTexto, string>> = {};
+  for (const [campo, rotulo] of CAMPOS_DO_CABECALHO) {
+    const valor = exigeTexto(dados[campo], campo, rotulo);
+    if (!valor.ok) return valor;
+    textos[campo] = valor.valor;
+  }
+
+  const dataInicio = exigeDia(dados.dataInicio, 'dataInicio');
+  if (!dataInicio.ok) return dataInicio;
+  const dataTermino = exigeDia(dados.dataTermino, 'dataTermino');
+  if (!dataTermino.ok) return dataTermino;
+
+  return ok({
+    contrato: textos.contrato ?? '',
+    contratante: textos.contratante ?? '',
+    contratada: textos.contratada ?? '',
+    dataInicio: dataInicio.valor,
+    dataTermino: dataTermino.valor,
+    escopo: textos.escopo ?? '',
+    nomeProjeto: textos.nomeProjeto ?? '',
+    area: textos.area ?? '',
+    local: textos.local ?? '',
+  });
 }

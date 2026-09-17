@@ -41,10 +41,14 @@ import {
 } from '../../modules/equipamento';
 import {
   analisaCriarObra,
+  analisaEditarObra,
   analisaPeriodoBms,
   analisaQuantidadeDeProjeto,
   analisaResponsavelTecnico,
+  atualizaPeriodoBms,
   cadastraPeriodoBms,
+  editaCadastroDaObra,
+  excluiPeriodoBms,
   criaObra,
   defineQuantidadeDeProjeto,
   defineResponsavelTecnico,
@@ -544,4 +548,78 @@ export function listaObrasDoUsuarioProtegida(
   const lista = listaObrasDoUsuario(usuarioId, paraAcesso(amb));
   if (!lista.ok) return erro(lista.erro);
   return ok(lista.valor);
+}
+
+/**
+ * Editar as informações gerais da obra (17/09/2026).
+ *
+ * **A correção vale para todos os RDOs, inclusive os já emitidos** — decisão do
+ * dono do produto. O cabeçalho não é versionado: existe um texto só, e ele é o
+ * atual. A consequência, aceita conscientemente, é que reimprimir um RDO antigo
+ * depois de uma correção dá um documento diferente do que o fiscal recebeu.
+ *
+ * Por isso a tela mostra o tamanho disso antes de salvar
+ * (`_composicao/impacto.ts`), e `registro_exportacao` guarda o que já saiu.
+ */
+export function editaCadastroDaObraProtegida(
+  ator: Ator,
+  obraId: ObraId,
+  bruto: Record<string, unknown>,
+  amb: Amb = ambienteDeCadastroPadrao(),
+): Resposta<void> {
+  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+  if (!permitido.ok) return permitido;
+
+  const cmd = analisaEditarObra(bruto);
+  if (!cmd.ok) return erro(cmd.erro);
+
+  const editada = editaCadastroDaObra({ ...cmd.valor, obraId }, paraObra(amb));
+  if (!editada.ok) return erro(editada.erro);
+  return ok(undefined);
+}
+
+export function atualizaPeriodoBmsProtegido(
+  ator: Ator,
+  obraId: ObraId,
+  periodoId: string,
+  bruto: Record<string, unknown>,
+  amb: Amb = ambienteDeCadastroPadrao(),
+): Resposta<void> {
+  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+  if (!permitido.ok) return permitido;
+
+  const cmd = analisaPeriodoBms({ ...bruto, obraId });
+  if (!cmd.ok) return erro(cmd.erro);
+
+  const atualizado = atualizaPeriodoBms(
+    { ...cmd.valor, periodoId: idConfiavel<'periodo_bms'>(periodoId) },
+    paraObra(amb),
+  );
+  if (!atualizado.ok) return erro(atualizado.erro);
+  return ok(undefined);
+}
+
+/**
+ * Excluir período de BM'S.
+ *
+ * Não bloqueia por haver dia lançado dentro: o dia continua lançado e o campo
+ * `BM'S` do RDO passa a sair vazio com aviso (decisão 21.1). A tela mostra
+ * quantos dias isso alcança antes de confirmar.
+ */
+export function excluiPeriodoBmsProtegido(
+  ator: Ator,
+  obraId: ObraId,
+  periodoId: string,
+  amb: Amb = ambienteDeCadastroPadrao(),
+): Resposta<void> {
+  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+  if (!permitido.ok) return permitido;
+
+  const excluido = excluiPeriodoBms(
+    obraId,
+    idConfiavel<'periodo_bms'>(periodoId),
+    paraObra(amb),
+  );
+  if (!excluido.ok) return erro(excluido.erro);
+  return ok(undefined);
 }

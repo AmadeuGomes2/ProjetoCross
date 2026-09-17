@@ -25,9 +25,20 @@ import { BotaoDeEnvio } from '../../../_componentes/botao-de-envio';
 import { formataBr } from '../../../../shared/date/dia';
 import { hojeNaObra } from '../../../../shared/date/fuso';
 import { idConfiavel } from '../../../../shared/id';
-import { cadastrarPeriodoAction, definirResponsavelAction } from '../../acoes';
+import {
+  cadastrarPeriodoAction,
+  definirResponsavelAction,
+  editarObraAction,
+  editarPeriodoAction,
+  excluirPeriodoAction,
+} from '../../acoes';
 import { Aviso, Bloco, Campo, Erro, Vazio } from '../../componentes';
 import { PortasDoDia, Trilha } from '../../../_componentes/casca';
+import {
+  AvisoDeImpacto,
+  NAO_MEXE_NO_QUE_JA_FOI_LANCADO,
+} from '../../../_componentes/aviso-de-impacto';
+import { impactoDoCabecalho, impactoDoPeriodoBms } from '../../../_composicao/impacto';
 import { painelDosUltimosDiasProtegido } from '../../../_composicao/lancamento';
 import { perfilNaObraProtegido } from '../../../_composicao/rdo-diario';
 import { atorDaRequisicao } from '../../sessao';
@@ -85,6 +96,9 @@ export default async function Obra({
   // lançamento antes que a medição feche.
   const ultimosDias = await painelDosUltimosDiasProtegido(ator, obraId, hoje, 14);
 
+  // O cabeçalho sai em TODO RDO: o impacto de mexer nele é a obra inteira.
+  const impactoDoTopo = impactoDoCabecalho(ator, obraId);
+
   return (
     <main className="pagina pagina--painel">
       <Trilha degraus={[{ texto: 'Obras', href: '/obras' }, { texto: obra.contrato }]} />
@@ -127,6 +141,83 @@ export default async function Obra({
           <dt>Local</dt>
           <dd>{obra.local}</dd>
         </dl>
+
+        {ehEngenheiro && (
+          <details className="gaveta">
+            <summary>Alterar informações gerais</summary>
+            <AvisoDeImpacto
+              impacto={impactoDoTopo}
+              oQueMuda="A correção vale para todos os RDOs, inclusive os já emitidos:
+                reimprimir um RDO antigo passa a dar o texto novo."
+              oQueNaoMuda={NAO_MEXE_NO_QUE_JA_FOI_LANCADO}
+            />
+            <form action={editarObraAction}>
+              <input type="hidden" name="obraId" value={obraId} />
+              <Campo
+                nome="contrato"
+                rotulo="Contrato"
+                obrigatorio
+                valorInicial={obra.contrato}
+              />
+              <div className="grade grade--dupla">
+                <Campo
+                  nome="contratante"
+                  rotulo="Contratante"
+                  obrigatorio
+                  valorInicial={obra.contratante}
+                />
+                <Campo
+                  nome="contratada"
+                  rotulo="Contratada"
+                  obrigatorio
+                  valorInicial={obra.contratada}
+                />
+              </div>
+              <div className="grade grade--dupla">
+                <Campo
+                  nome="dataInicio"
+                  rotulo="Data de início"
+                  tipo="date"
+                  obrigatorio
+                  valorInicial={obra.dataInicio}
+                />
+                <Campo
+                  nome="dataTermino"
+                  rotulo="Data final"
+                  tipo="date"
+                  obrigatorio
+                  valorInicial={obra.dataTermino}
+                />
+              </div>
+              <Campo
+                nome="escopo"
+                rotulo="Escopo"
+                obrigatorio
+                valorInicial={obra.escopo}
+              />
+              <Campo
+                nome="nomeProjeto"
+                rotulo="Nome"
+                obrigatorio
+                valorInicial={obra.nomeProjeto}
+              />
+              <div className="grade grade--dupla">
+                <Campo nome="area" rotulo="Área" obrigatorio valorInicial={obra.area} />
+                <Campo
+                  nome="local"
+                  rotulo="Local"
+                  obrigatorio
+                  valorInicial={obra.local}
+                />
+              </div>
+              <div className="linhaDeAcoes">
+                <BotaoDeEnvio enviando="Salvando…">
+                  Salvar informações gerais
+                </BotaoDeEnvio>
+              </div>
+            </form>
+          </details>
+        )}
       </Bloco>
 
       <Bloco titulo="Períodos de BM'S">
@@ -137,15 +228,81 @@ export default async function Obra({
           </Vazio>
         ) : (
           <ul className="listaLimpa">
-            {periodos.valor.map((periodo) => (
-              <li className="itemDeLista" key={periodo.id}>
-                <span>
-                  <span className="rotulo">BM&apos;S {periodo.numero}</span>
-                  {formataBr(periodo.dataInicial)} a {formataBr(periodo.dataFinal)}
-                </span>
-                <span className="etiqueta etiqueta--neutra">{periodo.dias} dias</span>
-              </li>
-            ))}
+            {periodos.valor.map((periodo) => {
+              /*
+               * O impacto é lido por período, e não uma vez para a obra: a
+               * janela de cada um alcança dias diferentes, e um número médio
+               * não ajudaria ninguém a decidir sobre este aqui.
+               */
+              const impacto = impactoDoPeriodoBms(ator, obraId, periodo.id);
+              return (
+                <li className="itemDeLista" key={periodo.id}>
+                  <span>
+                    <span className="rotulo">BM&apos;S {periodo.numero}</span>
+                    {formataBr(periodo.dataInicial)} a {formataBr(periodo.dataFinal)}
+                  </span>
+                  <span className="linhaDeAcoes linhaDeAcoes--compacta">
+                    <span className="etiqueta etiqueta--neutra">{periodo.dias} dias</span>
+                    {ehEngenheiro && (
+                      <details className="gaveta gaveta--solta">
+                        <summary>Alterar</summary>
+                        <AvisoDeImpacto
+                          impacto={impacto}
+                          oQueMuda="Mudar as datas muda qual número de BM'S sai no
+                            cabeçalho dos RDOs desses dias."
+                          oQueNaoMuda={NAO_MEXE_NO_QUE_JA_FOI_LANCADO}
+                        />
+                        <form action={editarPeriodoAction}>
+                          <input type="hidden" name="obraId" value={obraId} />
+                          <input type="hidden" name="periodoId" value={periodo.id} />
+                          <div className="grade grade--tripla">
+                            <Campo
+                              nome="numero"
+                              rotulo="Número"
+                              tipo="number"
+                              obrigatorio
+                              valorInicial={String(periodo.numero)}
+                            />
+                            <Campo
+                              nome="dataInicial"
+                              rotulo="Data inicial"
+                              tipo="date"
+                              obrigatorio
+                              valorInicial={periodo.dataInicial}
+                            />
+                            <Campo
+                              nome="dataFinal"
+                              rotulo="Data final"
+                              tipo="date"
+                              obrigatorio
+                              valorInicial={periodo.dataFinal}
+                            />
+                          </div>
+                          <div className="linhaDeAcoes">
+                            <BotaoDeEnvio enviando="Salvando…">
+                              Salvar período
+                            </BotaoDeEnvio>
+                          </div>
+                        </form>
+
+                        {/*
+                          Excluir não bloqueia por haver dia lançado dentro: o
+                          dia continua lançado e o campo BM'S do RDO passa a
+                          sair vazio com aviso (decisão 21.1).
+                        */}
+                        <form action={excluirPeriodoAction} className="afastado">
+                          <input type="hidden" name="obraId" value={obraId} />
+                          <input type="hidden" name="periodoId" value={periodo.id} />
+                          <BotaoDeEnvio variante="perigo" enviando="Excluindo…">
+                            Excluir este período
+                          </BotaoDeEnvio>
+                        </form>
+                      </details>
+                    )}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
 

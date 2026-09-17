@@ -1337,3 +1337,22 @@ tbody tr:last-child td {
   background: transparent;
   border-style: dashed;
 }
+
+/* Acoes compactas dentro de um item de lista. */
+.linhaDeAcoes--compacta {
+  margin-top: 0;
+  align-items: center;
+  gap: var(--e3);
+}
+
+/* Gaveta dentro de uma linha: sem a regua de cima, que ali separaria nada. */
+.gaveta--solta {
+  margin-top: 0;
+  border-top: 0;
+  padding-top: 0;
+}
+
+.gaveta--solta > summary {
+  min-height: var(--toque-minimo);
+  font-size: 0.9rem;
+}

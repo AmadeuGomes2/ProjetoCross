@@ -24,7 +24,10 @@ import {
 import {
   acrescentaTermoProtegido,
   cadastraEquipamentoProtegido,
+  atualizaPeriodoBmsProtegido,
   cadastraPeriodoBmsProtegido,
+  editaCadastroDaObraProtegida,
+  excluiPeriodoBmsProtegido,
   cadastraPessoaProtegida,
   criaObraProtegida,
   defineQuantidadeDeProjetoProtegida,
@@ -306,4 +309,63 @@ export async function aceitarConviteAction(dados: FormData): Promise<void> {
   if (!aceite.ok) voltaCom(destino, aceite.erro.mensagem);
 
   redirect(`/obras/${aceite.valor.obraId}`);
+}
+
+/**
+ * Editar as informações gerais da obra (17/09/2026).
+ *
+ * A correção vale para todos os RDOs, inclusive os já emitidos — decisão do
+ * dono do produto. A tela avisa o tamanho disso antes, com `AvisoDeImpacto`.
+ */
+export async function editarObraAction(dados: FormData): Promise<void> {
+  const obraId = obraDaForma(dados);
+  const { ator } = await exigeAtor();
+
+  const editada = editaCadastroDaObraProtegida(ator, obraId, {
+    contrato: texto(dados, 'contrato'),
+    contratante: texto(dados, 'contratante'),
+    contratada: texto(dados, 'contratada'),
+    dataInicio: texto(dados, 'dataInicio'),
+    dataTermino: texto(dados, 'dataTermino'),
+    escopo: texto(dados, 'escopo'),
+    nomeProjeto: texto(dados, 'nomeProjeto'),
+    area: texto(dados, 'area'),
+    local: texto(dados, 'local'),
+  });
+  if (!editada.ok) voltaCom(`/obras/${obraId}`, editada.erro.mensagem);
+  redirect(`/obras/${obraId}`);
+}
+
+export async function editarPeriodoAction(dados: FormData): Promise<void> {
+  const obraId = obraDaForma(dados);
+  const { ator } = await exigeAtor();
+
+  const atualizado = atualizaPeriodoBmsProtegido(
+    ator,
+    obraId,
+    texto(dados, 'periodoId'),
+    {
+      numero: texto(dados, 'numero'),
+      dataInicial: texto(dados, 'dataInicial'),
+      dataFinal: texto(dados, 'dataFinal'),
+    },
+  );
+  if (!atualizado.ok) voltaCom(`/obras/${obraId}`, atualizado.erro.mensagem);
+  redirect(`/obras/${obraId}`);
+}
+
+/**
+ * Excluir período de BM'S.
+ *
+ * Não bloqueia por haver dia lançado dentro: o dia continua lançado e o campo
+ * `BM'S` do RDO passa a sair vazio com aviso (decisão 21.1). Nenhum lançamento
+ * se perde — é o que o aviso da tela diz antes de confirmar.
+ */
+export async function excluirPeriodoAction(dados: FormData): Promise<void> {
+  const obraId = obraDaForma(dados);
+  const { ator } = await exigeAtor();
+
+  const excluido = excluiPeriodoBmsProtegido(ator, obraId, texto(dados, 'periodoId'));
+  if (!excluido.ok) voltaCom(`/obras/${obraId}`, excluido.erro.mensagem);
+  redirect(`/obras/${obraId}`);
 }
