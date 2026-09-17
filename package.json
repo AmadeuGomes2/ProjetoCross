@@ -21,7 +21,8 @@
     "criar-engenheiro": "tsx src/db/criar-engenheiro.ts",
     "db:preparar": "npm run db:migrate && npm run db:seed",
     "telas": "node scripts/telas.mjs",
-    "console": "node scripts/console.mjs"
+    "console": "node scripts/console.mjs",
+    "demonstracao": "tsx scripts/demonstracao.ts"
   },
   "overrides": {
     "uuid": "^11.1.1",
