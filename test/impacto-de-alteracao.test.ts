@@ -64,17 +64,17 @@ async function lancaODia(data: string): Promise<void> {
   if (!r.ok) throw new Error(`não lancei ${data}: ${r.erro.mensagem}`);
 }
 
-beforeEach(() => {
-  cenario = montaCenario();
+beforeEach(async () => {
+  cenario = await montaCenario();
   defineAmbienteParaTeste(criaAmbienteDaComposicao(cenario.conexao, relogioFixo(AGORA)));
-  engenheira = cenario.novoEngenheiro('eng@exemplo.invalido');
-  obraId = criaObraDoPrd(engenheira, cenario.amb);
-  estranho = cenario.novoAtor('estranho@exemplo.invalido');
+  engenheira = await cenario.novoEngenheiro('eng@exemplo.invalido');
+  obraId = await criaObraDoPrd(engenheira, cenario.amb);
+  estranho = await cenario.novoAtor('estranho@exemplo.invalido');
 });
 
-afterEach(() => {
+afterEach(async () => {
   restauraAmbientePadrao();
-  cenario.fecha();
+  await cenario.fecha();
 });
 
 describe('impacto de mexer numa pessoa', () => {
@@ -92,7 +92,7 @@ describe('impacto de mexer numa pessoa', () => {
     await lancaODia('2026-09-05'); // depois da saída
 
     const pessoas = listaPessoalProtegida(engenheira, obraId, cenario.amb);
-    const pessoaId = pessoas.ok ? (pessoas.valor[0]?.pessoaId ?? '') : '';
+    const pessoaId = (await pessoas.ok) ? (pessoas.valor[0]?.pessoaId ?? '') : '';
 
     const impacto = impactoDaPessoa(engenheira, obraId, pessoaId);
 
@@ -110,7 +110,7 @@ describe('impacto de mexer numa pessoa', () => {
     // 03, 04 e 05 ficam sem lançamento, embora a passagem os cubra.
 
     const pessoas = listaPessoalProtegida(engenheira, obraId, cenario.amb);
-    const pessoaId = pessoas.ok ? (pessoas.valor[0]?.pessoaId ?? '') : '';
+    const pessoaId = (await pessoas.ok) ? (pessoas.valor[0]?.pessoaId ?? '') : '';
 
     const impacto = impactoDaPessoa(engenheira, obraId, pessoaId);
 
@@ -119,7 +119,7 @@ describe('impacto de mexer numa pessoa', () => {
     expect(impacto.exportacoes).toBe(0);
   });
 
-  it('pessoa sem nenhum dia lançado não dispara aviso', () => {
+  it('pessoa sem nenhum dia lançado não dispara aviso', async () => {
     cadastraPessoaProtegida(
       engenheira,
       obraId,
@@ -127,7 +127,7 @@ describe('impacto de mexer numa pessoa', () => {
       cenario.amb,
     );
     const pessoas = listaPessoalProtegida(engenheira, obraId, cenario.amb);
-    const pessoaId = pessoas.ok ? (pessoas.valor[0]?.pessoaId ?? '') : '';
+    const pessoaId = (await pessoas.ok) ? (pessoas.valor[0]?.pessoaId ?? '') : '';
 
     const impacto = impactoDaPessoa(engenheira, obraId, pessoaId);
 
@@ -146,7 +146,7 @@ describe('impacto de mexer no cabeçalho da obra', () => {
     expect(impacto.diasLancados).toBe(3);
   });
 
-  it('obra sem dia lançado não dispara aviso', () => {
+  it('obra sem dia lançado não dispara aviso', async () => {
     expect(houveImpacto(impactoDoCabecalho(engenheira, obraId))).toBe(false);
   });
 });
@@ -168,7 +168,7 @@ describe('impacto de mexer num período de BM,S', () => {
     // um período é obrigatório). Pegar o índice 0 pegaria aquele, e o teste
     // mediria a janela errada — foi o que aconteceu na primeira escrita.
     const periodos = listaPeriodosBmsProtegida(engenheira, obraId, cenario.amb);
-    const periodoId = periodos.ok
+    const periodoId = (await periodos.ok)
       ? (periodos.valor.find((periodo) => periodo.numero === 7)?.id ?? '')
       : '';
     expect(periodoId).not.toBe('');
@@ -226,7 +226,7 @@ describe('os números que o aviso mostra, quando não são zero', () => {
     await lancaODia('2026-09-04'); // depois
 
     const frota = listaEquipamentosProtegida(engenheira, obraId, cenario.amb);
-    const equipamentoId = frota.ok ? (frota.valor[0]?.equipamentoId ?? '') : '';
+    const equipamentoId = (await frota.ok) ? (frota.valor[0]?.equipamentoId ?? '') : '';
     expect(equipamentoId).not.toBe('');
 
     const impacto = impactoDoEquipamento(engenheira, obraId, equipamentoId);
@@ -234,7 +234,7 @@ describe('os números que o aviso mostra, quando não são zero', () => {
     expect(impacto.diasLancados).toBe(2);
   });
 
-  it('não consegue nem criar passagem com saída anterior à entrada', () => {
+  it('não consegue nem criar passagem com saída anterior à entrada', async () => {
     /*
      * O BM'S 4 da planilha real tem **-716 dias**: fim antes do início, e
      * ninguém viu porque nada validava. A tentativa de reproduzir esse dado

@@ -28,7 +28,7 @@ export default async function Obras() {
   if (ator === null) redirect('/entrar');
 
   const obras = listaObrasDoUsuarioProtegida(ator.usuarioId);
-  const lista = obras.ok ? obras.valor : [];
+  const lista = (await obras.ok) ? obras.valor : [];
 
   /*
    * Cada obra vem com o estado da quinzena. Sem isso o cartão era só um nome

@@ -41,7 +41,7 @@ export default async function Servicos({
   const obraId = idConfiavel<'obra'>(bruto);
   const { erro } = await searchParams;
 
-  const servicos = listaServicosProtegida(ator, obraId);
+  const servicos = await listaServicosProtegida(ator, obraId);
   if (!servicos.ok) {
     return (
       <main className="pagina pagina--estreita">

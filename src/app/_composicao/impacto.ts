@@ -111,7 +111,12 @@ function contaNaJanela(
 
 /** Sem acesso à obra, nenhum número. Contagem também é informação. */
 function autorizado(ator: Ator, obraId: ObraId, ambiente: AmbienteDaComposicao): boolean {
-  return exigeAcessoNaObra(ator, obraId, 'encarregado', paraAcesso(ambiente.cadastro)).ok;
+  return await exigeAcessoNaObra(
+    ator,
+    obraId,
+    'encarregado',
+    paraAcesso(ambiente.cadastro),
+  ).ok;
 }
 
 /**

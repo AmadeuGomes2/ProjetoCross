@@ -40,7 +40,7 @@ export default async function Acesso({
   const obraId = idConfiavel<'obra'>(bruto);
   const { erro } = await searchParams;
 
-  const acessos = listaAcessosDaObraProtegida(ator, obraId);
+  const acessos = await listaAcessosDaObraProtegida(ator, obraId);
   if (!acessos.ok) {
     return (
       <main className="pagina pagina--estreita">

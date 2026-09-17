@@ -138,7 +138,7 @@ export function criaPortasDoRdo(
       listaEquipamentosMobilizados(obraId, paraEquipamento(amb)),
     servicos: async (obraId) => {
       const lista = listaServicosControlados(obraId, paraObra(amb));
-      if (!lista.ok) return lista;
+      if (!lista.ok) return await lista;
       return ok(
         lista.valor.map((s) => ({
           servicoId: s.servicoId,
@@ -246,14 +246,14 @@ export async function consultaRdoProtegida(
    * Vale para a tela e para a rota do PDF, porque as duas passam por aqui.
    * Esconder o botão não seria controle de acesso (CLAUDE.md, Segurança).
    */
-  const permitido = exigeAcessoNaObra(
+  const permitido = await exigeAcessoNaObra(
     ator,
     obraId,
     'engenheiro',
     paraAcesso(ambiente.cadastro),
   );
   if (!permitido.ok) {
-    return erro({
+    return await erro({
       tipo: 'dominio',
       codigo: permitido.erro.codigo,
       mensagem: permitido.erro.mensagem,
@@ -295,5 +295,5 @@ export function perfilNaObraProtegido(
     'encarregado',
     paraAcesso(ambiente.cadastro),
   );
-  return permitido.ok ? permitido.valor.perfil : null;
+  return (await permitido.ok) ? permitido.valor.perfil : null;
 }

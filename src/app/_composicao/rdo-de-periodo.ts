@@ -233,7 +233,7 @@ function portasSobreOInstantaneo(
 
     periodosBms: presaAObra(async (obraId) => {
       const lista = listaPeriodosBms(obraId, paraObra(ambiente.cadastro));
-      if (!lista.ok) return lista;
+      if (!lista.ok) return await lista;
       return ok(
         lista.valor.map((p) => ({
           numero: p.numero,
@@ -349,14 +349,14 @@ export async function portasDoRdoDePeriodoProtegidas(
 ): Promise<Result<PortasDoRdoDePeriodo, ErroDeDominio>> {
   const obraId: ObraId = idConfiavel<'obra'>(obraIdBruto);
 
-  const permitido = exigeAcessoNaObra(
+  const permitido = await exigeAcessoNaObra(
     ator,
     obraId,
     'engenheiro',
     paraAcesso(ambiente.cadastro),
   );
   if (!permitido.ok) {
-    return erro(erroDeDominio(permitido.erro.codigo, permitido.erro.mensagem));
+    return await erro(erroDeDominio(permitido.erro.codigo, permitido.erro.mensagem));
   }
 
   const leitura = criaLeituraDePeriodo({

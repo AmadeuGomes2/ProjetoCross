@@ -37,16 +37,16 @@ let cenario: Cenario;
 let obraId: ObraId;
 let engenheira: Ator;
 
-beforeEach(() => {
-  cenario = montaCenario();
+beforeEach(async () => {
+  cenario = await montaCenario();
   defineAmbienteParaTeste(criaAmbienteDaComposicao(cenario.conexao, relogioFixo(AGORA)));
-  engenheira = cenario.novoEngenheiro('eng@exemplo.invalido');
-  obraId = criaObraDoPrd(engenheira, cenario.amb);
+  engenheira = await cenario.novoEngenheiro('eng@exemplo.invalido');
+  obraId = await criaObraDoPrd(engenheira, cenario.amb);
 });
 
-afterEach(() => {
+afterEach(async () => {
   restauraAmbientePadrao();
-  cenario.fecha();
+  await cenario.fecha();
 });
 
 function pede(dias: readonly string[]) {

@@ -62,7 +62,7 @@ export default async function Obra({
   const obraId = idConfiavel<'obra'>(bruto);
   const { erro } = await searchParams;
 
-  const cabecalho = obtemCabecalhoProtegido(ator, obraId);
+  const cabecalho = await obtemCabecalhoProtegido(ator, obraId);
   // Obra inexistente e obra sem acesso dão a mesma resposta, de propósito.
   if (!cabecalho.ok) {
     return (
@@ -76,7 +76,7 @@ export default async function Obra({
     );
   }
 
-  const obra = cabecalho.valor;
+  const obra = await cabecalho.valor;
   const periodos = listaPeriodosBmsProtegida(ator, obraId);
 
   /**

@@ -180,9 +180,9 @@ async function atorDe(credenciais: readonly [string, string]): Promise<Ator> {
   const amb = ambienteDaComposicao().cadastro;
   const sessao = await iniciaSessaoComSenha(credenciais[0], credenciais[1], amb);
   if (!sessao.ok) throw new Error(`não entrei como ${credenciais[0]}`);
-  const ator = autenticaRequisicao(sessao.valor.token, paraAcesso(amb));
+  const ator = await autenticaRequisicao(sessao.valor.token, paraAcesso(amb));
   if (!ator.ok) throw new Error('sessão criada mas não autenticou');
-  return ator.valor;
+  return await ator.valor;
 }
 
 async function main(): Promise<void> {

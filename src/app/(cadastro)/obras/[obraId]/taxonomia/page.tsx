@@ -47,7 +47,7 @@ export default async function Taxonomias({
   const obraId = idConfiavel<'obra'>(bruto);
   const { erro } = await searchParams;
 
-  const primeira = listaTermosProtegida(ator, obraId, 'funcao');
+  const primeira = await listaTermosProtegida(ator, obraId, 'funcao');
   if (!primeira.ok) {
     return (
       <main className="pagina pagina--estreita">
@@ -87,7 +87,7 @@ export default async function Taxonomias({
 
       {TIPOS_DE_TAXONOMIA.map((tipo) => {
         const lista = listaTermosProtegida(ator, obraId, tipo);
-        const termos = lista.ok ? lista.valor : [];
+        const termos = (await lista.ok) ? lista.valor : [];
 
         return (
           <Bloco key={tipo} titulo={ROTULO[tipo]}>

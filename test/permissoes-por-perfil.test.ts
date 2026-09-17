@@ -86,37 +86,37 @@ function daAcessoDeEncarregado(ator: Ator, acessoId: string): Ator {
   return ator;
 }
 
-beforeEach(() => {
-  cenario = montaCenario();
+beforeEach(async () => {
+  cenario = await montaCenario();
   defineAmbienteParaTeste(criaAmbienteDaComposicao(cenario.conexao, relogioFixo(AGORA)));
 
   // `novoEngenheiro`, e não `novoAtor`: só conta com `e_engenheiro` cria obra
   // (decisão 25.1).
-  engenheira = cenario.novoEngenheiro('eng@exemplo.invalido');
-  obraId = criaObraDoPrd(engenheira, cenario.amb);
-  encarregado = daAcessoDeEncarregado(
-    cenario.novoAtor('enc@exemplo.invalido'),
+  engenheira = await cenario.novoEngenheiro('eng@exemplo.invalido');
+  obraId = await criaObraDoPrd(engenheira, cenario.amb);
+  encarregado = await daAcessoDeEncarregado(
+    await cenario.novoAtor('enc@exemplo.invalido'),
     '99999999-9999-4999-8999-999999999999',
   );
-  estranho = cenario.novoAtor('estranho@exemplo.invalido');
+  estranho = await cenario.novoAtor('estranho@exemplo.invalido');
 });
 
-afterEach(() => {
+afterEach(async () => {
   restauraAmbientePadrao();
-  cenario.fecha();
+  await cenario.fecha();
 });
 
 describe('o que o encarregado PODE, depois de 17/09/2026', () => {
-  it('lê a lista de pessoal da obra dele', () => {
+  it('lê a lista de pessoal da obra dele', async () => {
     expect(listaPessoalProtegida(encarregado, obraId, cenario.amb).ok).toBe(true);
   });
 
-  it('lê a frota da obra dele', () => {
+  it('lê a frota da obra dele', async () => {
     expect(listaEquipamentosProtegida(encarregado, obraId, cenario.amb).ok).toBe(true);
   });
 
-  it('cadastra equipamento, porque é ele que vê a máquina chegar', () => {
-    const r = cadastraEquipamentoProtegido(
+  it('cadastra equipamento, porque é ele que vê a máquina chegar', async () => {
+    const r = await cadastraEquipamentoProtegido(
       encarregado,
       obraId,
       { identificador: 'TR-77', tipo: 'TRATOR', entrada: '2026-02-05' },
@@ -125,12 +125,12 @@ describe('o que o encarregado PODE, depois de 17/09/2026', () => {
     expect(r.ok).toBe(true);
   });
 
-  it('lê os serviços controlados, que ele precisa para lançar produção', () => {
+  it('lê os serviços controlados, que ele precisa para lançar produção', async () => {
     expect(listaServicosProtegida(encarregado, obraId, cenario.amb).ok).toBe(true);
   });
 
-  it('cadastra pessoa, porque é ele que vê quem chega ao canteiro', () => {
-    const r = cadastraPessoaProtegida(
+  it('cadastra pessoa, porque é ele que vê quem chega ao canteiro', async () => {
+    const r = await cadastraPessoaProtegida(
       encarregado,
       obraId,
       { nome: 'P9', funcao: 'Motorista', entrada: '2026-02-10' },
@@ -139,8 +139,8 @@ describe('o que o encarregado PODE, depois de 17/09/2026', () => {
     expect(r.ok).toBe(true);
   });
 
-  it('troca a função de quem já está na obra', () => {
-    const criada = cadastraPessoaProtegida(
+  it('troca a função de quem já está na obra', async () => {
+    const criada = await cadastraPessoaProtegida(
       encarregado,
       obraId,
       { nome: 'P8', funcao: 'Motorista', entrada: '2026-02-10' },
@@ -149,7 +149,7 @@ describe('o que o encarregado PODE, depois de 17/09/2026', () => {
     expect(criada.ok).toBe(true);
     if (!criada.ok) return;
 
-    const r = trocaFuncaoProtegida(
+    const r = await trocaFuncaoProtegida(
       encarregado,
       obraId,
       { pessoaId: criada.valor, funcao: 'Servente', aPartirDe: '2026-03-01' },
@@ -165,8 +165,8 @@ describe('o que o encarregado NÃO pode', () => {
     expect(r.ok).toBe(false);
   });
 
-  it('não encerra passagem de equipamento: desmobilizar não é ato de campo', () => {
-    const r = encerraPassagemDeEquipamentoProtegida(
+  it('não encerra passagem de equipamento: desmobilizar não é ato de campo', async () => {
+    const r = await encerraPassagemDeEquipamentoProtegida(
       encarregado,
       obraId,
       '11111111-1111-4111-8111-111111111111',
@@ -176,11 +176,11 @@ describe('o que o encarregado NÃO pode', () => {
     expect(r.ok).toBe(false);
   });
 
-  it('não define quantidade de projeto: é a base da medição', () => {
+  it('não define quantidade de projeto: é a base da medição', async () => {
     const servicos = listaServicosProtegida(engenheira, obraId, cenario.amb);
-    const primeiro = servicos.ok ? servicos.valor[0] : undefined;
+    const primeiro = (await servicos.ok) ? servicos.valor[0] : undefined;
     expect(primeiro).toBeDefined();
-    const r = defineQuantidadeDeProjetoProtegida(
+    const r = await defineQuantidadeDeProjetoProtegida(
       encarregado,
       obraId,
       (primeiro?.servicoId ?? '') as ServicoControladoId,
@@ -190,8 +190,8 @@ describe('o que o encarregado NÃO pode', () => {
     expect(r.ok).toBe(false);
   });
 
-  it('não acrescenta termo à taxonomia', () => {
-    const r = acrescentaTermoProtegido(
+  it('não acrescenta termo à taxonomia', async () => {
+    const r = await acrescentaTermoProtegido(
       encarregado,
       obraId,
       'funcao',
@@ -201,7 +201,7 @@ describe('o que o encarregado NÃO pode', () => {
     expect(r.ok).toBe(false);
   });
 
-  it('não vê a lista de acessos da obra', () => {
+  it('não vê a lista de acessos da obra', async () => {
     expect(listaAcessosDaObraProtegida(encarregado, obraId, cenario.amb).ok).toBe(false);
   });
 });
@@ -216,13 +216,13 @@ describe('a fronteira da obra, que nenhuma decisão de perfil move', () => {
     expect(rdo.ok).toBe(false);
   });
 
-  it('recusa o encarregado da obra A quando ele pede a obra B', () => {
+  it('recusa o encarregado da obra A quando ele pede a obra B', async () => {
     /*
      * O cenário tinha uma obra só, e por isso pinava apenas "ator sem acesso
      * nenhum". A fronteira que importa é outra: alguém COM acesso legítimo a
      * uma obra pedindo dado de outra — que é o formato de um vazamento real.
      */
-    const outraObra = criaObraDoPrd(engenheira, cenario.amb, {
+    const outraObra = await criaObraDoPrd(engenheira, cenario.amb, {
       contrato: 'P0999/99-99 - BLOCO 09',
     });
 
@@ -232,7 +232,7 @@ describe('a fronteira da obra, que nenhuma decisão de perfil move', () => {
     );
     expect(listaServicosProtegida(encarregado, outraObra, cenario.amb).ok).toBe(false);
 
-    const r = cadastraEquipamentoProtegido(
+    const r = await cadastraEquipamentoProtegido(
       encarregado,
       outraObra,
       { identificador: 'XX-00', tipo: 'TRATOR', entrada: '2026-02-05' },
@@ -241,7 +241,7 @@ describe('a fronteira da obra, que nenhuma decisão de perfil move', () => {
     expect(r.ok).toBe(false);
   });
 
-  it('recusa o CADASTRO de pessoa do encarregado da obra A na obra B, sem devolver o nome', () => {
+  it('recusa o CADASTRO de pessoa do encarregado da obra A na obra B, sem devolver o nome', async () => {
     /*
      * Escrever pessoal virou ato de encarregado em 17/09/2026; a fronteira da
      * obra não se moveu junto. Quem tem acesso legítimo a uma obra pedindo
@@ -249,11 +249,11 @@ describe('a fronteira da obra, que nenhuma decisão de perfil move', () => {
      * devolver o nome que veio no comando: é dado pessoal sob a LGPD, e ele
      * acabaria em log e em tela de erro.
      */
-    const outraObra = criaObraDoPrd(engenheira, cenario.amb, {
+    const outraObra = await criaObraDoPrd(engenheira, cenario.amb, {
       contrato: 'P0888/88-88 - BLOCO 08',
     });
 
-    const r = cadastraPessoaProtegida(
+    const r = await cadastraPessoaProtegida(
       encarregado,
       outraObra,
       { nome: 'P9', funcao: 'Motorista', entrada: '2026-02-10' },
@@ -265,9 +265,9 @@ describe('a fronteira da obra, que nenhuma decisão de perfil move', () => {
     expect(JSON.stringify(r.erro)).not.toContain('P9');
   });
 
-  it('recusa o ENGENHEIRO da obra A quando ele pede a obra B', () => {
-    const outroEngenheiro = cenario.novoEngenheiro('outro@exemplo.invalido');
-    const outraObra = criaObraDoPrd(outroEngenheiro, cenario.amb, {
+  it('recusa o ENGENHEIRO da obra A quando ele pede a obra B', async () => {
+    const outroEngenheiro = await cenario.novoEngenheiro('outro@exemplo.invalido');
+    const outraObra = await criaObraDoPrd(outroEngenheiro, cenario.amb, {
       contrato: 'P0777/77-77 - BLOCO 07',
     });
 
@@ -277,14 +277,14 @@ describe('a fronteira da obra, que nenhuma decisão de perfil move', () => {
     );
   });
 
-  it('não vaza nome de pessoa na recusa', () => {
+  it('não vaza nome de pessoa na recusa', async () => {
     cadastraPessoaProtegida(
       engenheira,
       obraId,
       { nome: 'P1', funcao: 'Motorista', entrada: '2026-02-10' },
       cenario.amb,
     );
-    const r = listaPessoalProtegida(estranho, obraId, cenario.amb);
+    const r = await listaPessoalProtegida(estranho, obraId, cenario.amb);
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(JSON.stringify(r.erro)).not.toContain('P1');

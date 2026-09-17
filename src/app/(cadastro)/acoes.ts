@@ -92,7 +92,7 @@ async function exigeAtor() {
 export async function criarObraAction(dados: FormData): Promise<void> {
   const { ator } = await exigeAtor();
 
-  const criada = criaObraProtegida(ator, {
+  const criada = await criaObraProtegida(ator, {
     contrato: texto(dados, 'contrato'),
     contratante: texto(dados, 'contratante'),
     contratada: texto(dados, 'contratada'),
@@ -127,7 +127,7 @@ export async function cadastrarPeriodoAction(dados: FormData): Promise<void> {
   const obraId = obraDaForma(dados);
   const { ator } = await exigeAtor();
 
-  const criado = cadastraPeriodoBmsProtegido(ator, obraId, {
+  const criado = await cadastraPeriodoBmsProtegido(ator, obraId, {
     numero: texto(dados, 'numero'),
     dataInicial: texto(dados, 'dataInicial'),
     dataFinal: texto(dados, 'dataFinal'),
@@ -140,7 +140,7 @@ export async function definirResponsavelAction(dados: FormData): Promise<void> {
   const obraId = obraDaForma(dados);
   const { ator } = await exigeAtor();
 
-  const definido = defineResponsavelTecnicoProtegido(ator, obraId, {
+  const definido = await defineResponsavelTecnicoProtegido(ator, obraId, {
     respTecnicoNome: texto(dados, 'respTecnicoNome'),
     respTecnicoTitulo: texto(dados, 'respTecnicoTitulo'),
     respTecnicoCrea: texto(dados, 'respTecnicoCrea'),
@@ -153,7 +153,7 @@ export async function cadastrarPessoaAction(dados: FormData): Promise<void> {
   const obraId = obraDaForma(dados);
   const { ator } = await exigeAtor();
 
-  const criada = cadastraPessoaProtegida(ator, obraId, {
+  const criada = await cadastraPessoaProtegida(ator, obraId, {
     nome: texto(dados, 'nome'),
     funcao: texto(dados, 'funcao'),
     entrada: texto(dados, 'entrada'),
@@ -171,7 +171,7 @@ export async function trocarFuncaoAction(dados: FormData): Promise<void> {
   const obraId = obraDaForma(dados);
   const { ator } = await exigeAtor();
 
-  const trocada = trocaFuncaoProtegida(ator, obraId, {
+  const trocada = await trocaFuncaoProtegida(ator, obraId, {
     pessoaId: texto(dados, 'pessoaId'),
     funcao: texto(dados, 'funcao'),
     aPartirDe: texto(dados, 'aPartirDe'),
@@ -184,7 +184,7 @@ export async function cadastrarEquipamentoAction(dados: FormData): Promise<void>
   const obraId = obraDaForma(dados);
   const { ator } = await exigeAtor();
 
-  const criado = cadastraEquipamentoProtegido(ator, obraId, {
+  const criado = await cadastraEquipamentoProtegido(ator, obraId, {
     identificador: texto(dados, 'identificador'),
     tipo: texto(dados, 'tipo'),
     entrada: texto(dados, 'entrada'),
@@ -198,7 +198,7 @@ export async function definirQuantidadeAction(dados: FormData): Promise<void> {
   const obraId = obraDaForma(dados);
   const { ator } = await exigeAtor();
 
-  const definida = defineQuantidadeDeProjetoProtegida(
+  const definida = await defineQuantidadeDeProjetoProtegida(
     ator,
     obraId,
     idConfiavel<'servico_controlado'>(texto(dados, 'servicoId')),
@@ -217,7 +217,12 @@ export async function acrescentarTermoAction(dados: FormData): Promise<void> {
     voltaCom(`/obras/${obraId}/taxonomia`, 'Escolha uma lista válida.');
   }
 
-  const criado = acrescentaTermoProtegido(ator, obraId, tipo, texto(dados, 'termo'));
+  const criado = await acrescentaTermoProtegido(
+    ator,
+    obraId,
+    tipo,
+    texto(dados, 'termo'),
+  );
   if (!criado.ok) voltaCom(`/obras/${obraId}/taxonomia`, criado.erro.mensagem);
   redirect(`/obras/${obraId}/taxonomia`);
 }
@@ -260,7 +265,7 @@ export async function revogarAcessoAction(dados: FormData): Promise<void> {
   const obraId = obraDaForma(dados);
   const { ator } = await exigeAtor();
 
-  const revogado = revogaAcessoProtegido(
+  const revogado = await revogaAcessoProtegido(
     ator,
     idConfiavel<'acesso'>(texto(dados, 'acessoId')),
   );
@@ -305,7 +310,7 @@ export async function aceitarConviteAction(dados: FormData): Promise<void> {
     ator = entrada.valor.ator;
   }
 
-  const aceite = aceitaConviteEEntra(token, ator.usuarioId, paraAcesso(amb));
+  const aceite = await aceitaConviteEEntra(token, ator.usuarioId, paraAcesso(amb));
   if (!aceite.ok) voltaCom(destino, aceite.erro.mensagem);
 
   redirect(`/obras/${aceite.valor.obraId}`);
@@ -321,7 +326,7 @@ export async function editarObraAction(dados: FormData): Promise<void> {
   const obraId = obraDaForma(dados);
   const { ator } = await exigeAtor();
 
-  const editada = editaCadastroDaObraProtegida(ator, obraId, {
+  const editada = await editaCadastroDaObraProtegida(ator, obraId, {
     contrato: texto(dados, 'contrato'),
     contratante: texto(dados, 'contratante'),
     contratada: texto(dados, 'contratada'),
@@ -340,7 +345,7 @@ export async function editarPeriodoAction(dados: FormData): Promise<void> {
   const obraId = obraDaForma(dados);
   const { ator } = await exigeAtor();
 
-  const atualizado = atualizaPeriodoBmsProtegido(
+  const atualizado = await atualizaPeriodoBmsProtegido(
     ator,
     obraId,
     texto(dados, 'periodoId'),
@@ -365,7 +370,11 @@ export async function excluirPeriodoAction(dados: FormData): Promise<void> {
   const obraId = obraDaForma(dados);
   const { ator } = await exigeAtor();
 
-  const excluido = excluiPeriodoBmsProtegido(ator, obraId, texto(dados, 'periodoId'));
+  const excluido = await excluiPeriodoBmsProtegido(
+    ator,
+    obraId,
+    texto(dados, 'periodoId'),
+  );
   if (!excluido.ok) voltaCom(`/obras/${obraId}`, excluido.erro.mensagem);
   redirect(`/obras/${obraId}`);
 }

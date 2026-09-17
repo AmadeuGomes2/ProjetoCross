@@ -97,16 +97,16 @@ async function portasDe(
 }
 
 beforeEach(async () => {
-  cenario = montaCenario();
+  cenario = await montaCenario();
   defineAmbienteParaTeste(criaAmbienteDaComposicao(cenario.conexao, relogioFixo(AGORA)));
 
-  engenheira = cenario.novoEngenheiro('eng@exemplo.invalido');
-  obraId = criaObraDoPrd(engenheira, cenario.amb);
-  encarregado = daAcessoDeEncarregado(
-    cenario.novoAtor('enc@exemplo.invalido'),
+  engenheira = await cenario.novoEngenheiro('eng@exemplo.invalido');
+  obraId = await criaObraDoPrd(engenheira, cenario.amb);
+  encarregado = await daAcessoDeEncarregado(
+    await cenario.novoAtor('enc@exemplo.invalido'),
     '99999999-9999-4999-8999-999999999999',
   );
-  estranho = cenario.novoAtor(EMAIL_DO_ESTRANHO);
+  estranho = await cenario.novoAtor(EMAIL_DO_ESTRANHO);
 
   exige(
     cadastraPeriodoBmsProtegido(
@@ -171,9 +171,9 @@ beforeEach(async () => {
   );
 });
 
-afterEach(() => {
+afterEach(async () => {
   restauraAmbientePadrao();
-  cenario.fecha();
+  await cenario.fecha();
 });
 
 describe('a leitura do período é do engenheiro', () => {
@@ -219,7 +219,7 @@ describe('a leitura do período é do engenheiro', () => {
   });
 
   it('recusa a porta de lançamento usada com uma obra diferente da autorizada', async () => {
-    const outraObra = criaObraDoPrd(engenheira, cenario.amb, {
+    const outraObra = await criaObraDoPrd(engenheira, cenario.amb, {
       contrato: 'P0999/99-99 - BLOCO 09',
     });
     const portas = await portasDe(engenheira);
@@ -230,7 +230,7 @@ describe('a leitura do período é do engenheiro', () => {
   });
 
   it('recusa a porta de cadastro usada com uma obra diferente da autorizada', async () => {
-    const outraObra = criaObraDoPrd(engenheira, cenario.amb, {
+    const outraObra = await criaObraDoPrd(engenheira, cenario.amb, {
       contrato: 'P0888/88-88 - BLOCO 08',
     });
     const portas = await portasDe(engenheira);

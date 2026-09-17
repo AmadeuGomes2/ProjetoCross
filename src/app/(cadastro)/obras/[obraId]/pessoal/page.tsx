@@ -50,7 +50,7 @@ export default async function Pessoal({
   const obraId = idConfiavel<'obra'>(bruto);
   const { erro } = await searchParams;
 
-  const pessoal = listaPessoalProtegida(ator, obraId);
+  const pessoal = await listaPessoalProtegida(ator, obraId);
   if (!pessoal.ok) {
     return (
       <main className="pagina pagina--estreita">
@@ -71,7 +71,7 @@ export default async function Pessoal({
   const ehEngenheiro = perfilNaObraProtegido(ator, obraId) === 'engenheiro';
 
   const funcoes = listaTermosProtegida(ator, obraId, 'funcao');
-  const opcoes = funcoes.ok ? funcoes.valor.map((t) => t.termo) : [];
+  const opcoes = (await funcoes.ok) ? funcoes.valor.map((t) => t.termo) : [];
 
   return (
     <main className="pagina pagina--painel">

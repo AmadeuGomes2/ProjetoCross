@@ -135,8 +135,8 @@ export async function criaObraProtegida(
   if (!cmd.ok) return erro(cmd.erro);
 
   const criada = criaObra(cmd.valor, ator, paraObra(amb));
-  if (!criada.ok) return erro(criada.erro);
-  return ok(criada.valor);
+  if (!criada.ok) return await erro(criada.erro);
+  return await ok(criada.valor);
 }
 
 export async function obtemCabecalhoProtegido(
@@ -148,8 +148,8 @@ export async function obtemCabecalhoProtegido(
   if (!permitido.ok) return permitido;
 
   const cabecalho = obtemCabecalhoDaObra(obraId, paraObra(amb));
-  if (!cabecalho.ok) return erro(cabecalho.erro);
-  return ok(cabecalho.valor);
+  if (!cabecalho.ok) return await erro(cabecalho.erro);
+  return await ok(cabecalho.valor);
 }
 
 export async function defineResponsavelTecnicoProtegido(
@@ -169,7 +169,7 @@ export async function defineResponsavelTecnicoProtegido(
   if (!resp.ok) return erro(resp.erro);
 
   const definido = defineResponsavelTecnico(obraId, resp.valor, paraObra(amb));
-  if (!definido.ok) return erro(definido.erro);
+  if (!definido.ok) return await erro(definido.erro);
   return ok(undefined);
 }
 
@@ -186,8 +186,8 @@ export async function cadastraPeriodoBmsProtegido(
   if (!cmd.ok) return erro(cmd.erro);
 
   const criado = cadastraPeriodoBms(cmd.valor, ator, paraObra(amb));
-  if (!criado.ok) return erro(criado.erro);
-  return ok(criado.valor);
+  if (!criado.ok) return await erro(criado.erro);
+  return await ok(criado.valor);
 }
 
 export async function listaPeriodosBmsProtegida(
@@ -199,8 +199,8 @@ export async function listaPeriodosBmsProtegida(
   if (!permitido.ok) return permitido;
 
   const lista = listaPeriodosBms(obraId, paraObra(amb));
-  if (!lista.ok) return erro(lista.erro);
-  return ok(lista.valor);
+  if (!lista.ok) return await erro(lista.erro);
+  return await ok(lista.valor);
 }
 
 export async function resolveBmsDoDiaProtegido(
@@ -213,8 +213,8 @@ export async function resolveBmsDoDiaProtegido(
   if (!permitido.ok) return permitido;
 
   const bms = resolveBmsDoDia(obraId, dia, paraObra(amb));
-  if (!bms.ok) return erro(bms.erro);
-  return ok(bms.valor);
+  if (!bms.ok) return await erro(bms.erro);
+  return await ok(bms.valor);
 }
 
 // ---------------------------------------------------------------- passo 2
@@ -420,7 +420,7 @@ export async function defineQuantidadeDeProjetoProtegida(
   if (!cmd.ok) return erro(cmd.erro);
 
   const definida = defineQuantidadeDeProjeto(cmd.valor, ator, paraObra(amb));
-  if (!definida.ok) return erro(definida.erro);
+  if (!definida.ok) return await erro(definida.erro);
   return ok(undefined);
 }
 
@@ -433,8 +433,8 @@ export async function listaServicosProtegida(
   if (!permitido.ok) return permitido;
 
   const lista = listaServicosControlados(obraId, paraObra(amb));
-  if (!lista.ok) return erro(lista.erro);
-  return ok(lista.valor);
+  if (!lista.ok) return await erro(lista.erro);
+  return await ok(lista.valor);
 }
 
 export async function listaHistoricoDeQuantidadeProtegido(
@@ -447,8 +447,8 @@ export async function listaHistoricoDeQuantidadeProtegido(
   if (!permitido.ok) return permitido;
 
   const historico = listaHistoricoDeQuantidade(obraId, servicoId, paraObra(amb));
-  if (!historico.ok) return erro(historico.erro);
-  return ok(historico.valor);
+  if (!historico.ok) return await erro(historico.erro);
+  return await ok(historico.valor);
 }
 
 // ---------------------------------------------------------------- taxonomia
@@ -469,8 +469,8 @@ export async function acrescentaTermoProtegido(
   if (!permitido.ok) return permitido;
 
   const criado = acrescentaTermo(tipo, termo, paraTaxonomia(amb));
-  if (!criado.ok) return erro(criado.erro);
-  return ok(criado.valor);
+  if (!criado.ok) return await erro(criado.erro);
+  return await ok(criado.valor);
 }
 
 /** Leitura é dos dois perfis: o encarregado precisa da lista para lançar. */
@@ -484,8 +484,8 @@ export async function listaTermosProtegida(
   if (!permitido.ok) return permitido;
 
   const lista = listaTermosAtivos(tipo, paraTaxonomia(amb));
-  if (!lista.ok) return erro(lista.erro);
-  return ok(lista.valor);
+  if (!lista.ok) return await erro(lista.erro);
+  return await ok(lista.valor);
 }
 
 export async function listaSugestoesDeMotivoProtegida(
@@ -497,8 +497,8 @@ export async function listaSugestoesDeMotivoProtegida(
   if (!permitido.ok) return permitido;
 
   const lista = listaSugestoesDeMotivo(paraTaxonomia(amb));
-  if (!lista.ok) return erro(lista.erro);
-  return ok(lista.valor);
+  if (!lista.ok) return await erro(lista.erro);
+  return await ok(lista.valor);
 }
 
 // ---------------------------------------------------------------- passo 3
@@ -586,7 +586,7 @@ export async function editaCadastroDaObraProtegida(
   if (!cmd.ok) return erro(cmd.erro);
 
   const editada = editaCadastroDaObra({ ...cmd.valor, obraId }, paraObra(amb));
-  if (!editada.ok) return erro(editada.erro);
+  if (!editada.ok) return await erro(editada.erro);
   return ok(undefined);
 }
 
@@ -607,7 +607,7 @@ export async function atualizaPeriodoBmsProtegido(
     { ...cmd.valor, periodoId: idConfiavel<'periodo_bms'>(periodoId) },
     paraObra(amb),
   );
-  if (!atualizado.ok) return erro(atualizado.erro);
+  if (!atualizado.ok) return await erro(atualizado.erro);
   return ok(undefined);
 }
 
@@ -632,6 +632,6 @@ export async function excluiPeriodoBmsProtegido(
     idConfiavel<'periodo_bms'>(periodoId),
     paraObra(amb),
   );
-  if (!excluido.ok) return erro(excluido.erro);
+  if (!excluido.ok) return await erro(excluido.erro);
   return ok(undefined);
 }

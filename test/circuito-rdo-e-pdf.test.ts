@@ -89,7 +89,7 @@ function daAcessoDeEncarregado(ator: Ator, obra: ObraId, acessoId: string): Ator
 
 function requisicaoDoPdf(ator: Ator, obra: ObraId, dia: string): Request {
   const sessao = abreSessao(ator.usuarioId, paraAcesso(cenario.amb));
-  return new Request(`https://exemplo.invalido/rdo/${obra}/${dia}/pdf`, {
+  return await new Request(`https://exemplo.invalido/rdo/${obra}/${dia}/pdf`, {
     headers: { cookie: `${NOME_DO_COOKIE_DE_SESSAO}=${sessao.token}` },
   });
 }
@@ -101,11 +101,11 @@ function chamaRotaDoPdf(ator: Ator, obra: ObraId, dia: string): Promise<Response
 }
 
 beforeEach(async () => {
-  cenario = montaCenario();
+  cenario = await montaCenario();
   defineAmbienteParaTeste(criaAmbienteDaComposicao(cenario.conexao, relogioFixo(AGORA)));
 
-  e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-  obraId = criaObraDoPrd(e1, cenario.amb);
+  e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+  obraId = await criaObraDoPrd(e1, cenario.amb);
 
   // 1. cadastro: período de BMS que cobre o dia, pessoal, equipamento, serviço.
   exige(
@@ -239,9 +239,9 @@ beforeEach(async () => {
   );
 });
 
-afterEach(() => {
+afterEach(async () => {
   restauraAmbientePadrao();
-  cenario.fecha();
+  await cenario.fecha();
 });
 
 describe('o RDO diário sai pelo caminho real da composição', () => {
@@ -361,15 +361,15 @@ describe('o PDF sai pela rota, e a exportação fica registrada', () => {
 describe('a fronteira de confiança recusa quem não é da obra', () => {
   let c1DeOutraObra: Ator;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // A obra B nasce pelas mãos de E1, que já é engenheiro da obra A: desde a
     // decisão 25.1 é assim que uma segunda obra existe. O que está sob teste
     // aqui é o encarregado da obra B diante da obra A, e isso não muda.
-    const obraB = criaObraDoPrd(e1, cenario.amb, {
+    const obraB = await criaObraDoPrd(e1, cenario.amb, {
       contrato: 'P9999/01-25 - BLOCO 09',
     });
-    c1DeOutraObra = daAcessoDeEncarregado(
-      cenario.novoAtor('c1@exemplo.invalido'),
+    c1DeOutraObra = await daAcessoDeEncarregado(
+      await cenario.novoAtor('c1@exemplo.invalido'),
       obraB,
       'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
     );
@@ -396,8 +396,8 @@ describe('a fronteira de confiança recusa quem não é da obra', () => {
   });
 
   it('recusa o PDF ao encarregado da própria obra: só o engenheiro exporta', async () => {
-    const c2 = daAcessoDeEncarregado(
-      cenario.novoAtor('c2@exemplo.invalido'),
+    const c2 = await daAcessoDeEncarregado(
+      await cenario.novoAtor('c2@exemplo.invalido'),
       obraId,
       'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
     );

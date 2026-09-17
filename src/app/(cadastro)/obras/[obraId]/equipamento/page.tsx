@@ -38,7 +38,7 @@ export default async function Equipamentos({
   const obraId = idConfiavel<'obra'>(bruto);
   const { erro } = await searchParams;
 
-  const equipamentos = listaEquipamentosProtegida(ator, obraId);
+  const equipamentos = await listaEquipamentosProtegida(ator, obraId);
   if (!equipamentos.ok) {
     return (
       <main className="pagina pagina--estreita">
@@ -54,7 +54,7 @@ export default async function Equipamentos({
   }
 
   const tipos = listaTermosProtegida(ator, obraId, 'tipo_equipamento');
-  const opcoes = tipos.ok ? tipos.valor.map((t) => t.termo) : [];
+  const opcoes = (await tipos.ok) ? tipos.valor.map((t) => t.termo) : [];
 
   const ehEngenheiro = perfilNaObraProtegido(ator, obraId) === 'engenheiro';
 

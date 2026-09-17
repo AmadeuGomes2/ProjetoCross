@@ -68,7 +68,7 @@ export function paraPessoal(amb: AmbienteDeCadastro): AmbienteDePessoal {
     // e `"motorista"` encontram o mesmo termo (CT-029, CT-030).
     resolveFuncao: (termo) => {
       const achado = resolveTermo('funcao', termo, taxonomia);
-      if (achado === null || !achado.ativo) return null;
+      if (achado === null || !achado.ativo) return await null;
       return { id: idDeFuncao(achado.id), termo: achado.termo };
     },
   };
@@ -81,7 +81,7 @@ export function paraEquipamento(amb: AmbienteDeCadastro): AmbienteDeEquipamento 
     relogio: amb.relogio,
     resolveTipoEquipamento: (termo) => {
       const achado = resolveTermo('tipo_equipamento', termo, taxonomia);
-      if (achado === null || !achado.ativo) return null;
+      if (achado === null || !achado.ativo) return await null;
       return { id: idDeTipoEquipamento(achado.id), termo: achado.termo };
     },
   };
