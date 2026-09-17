@@ -25,13 +25,23 @@
 
 import { fileURLToPath } from 'node:url';
 
-import { autenticaRequisicao } from '../src/modules/acesso';
-import { iniciaSessaoComSenha } from '../src/modules/acesso/autenticacao';
+import {
+  aceitaConvite,
+  autenticaRequisicao,
+  criaContaDeEngenheiroDeInstalacao,
+} from '../src/modules/acesso';
+import {
+  iniciaSessaoComSenha,
+  registraUsuario,
+} from '../src/modules/acesso/autenticacao';
 import type { Ator } from '../src/modules/acesso';
 import { ambienteDaComposicao } from '../src/app/_composicao/ambiente';
+import { ligaBancoLocalSeConfigurado } from '../src/db/pglite-local';
 import { paraAcesso } from '../src/app/_composicao/ambiente-de-cadastro';
 import {
   cadastraEquipamentoProtegido,
+  criaObraProtegida,
+  geraConviteProtegido,
   cadastraPeriodoBmsProtegido,
   cadastraPessoaProtegida,
   defineQuantidadeDeProjetoProtegida,
@@ -47,6 +57,34 @@ import { idConfiavel, type ObraId } from '../src/shared/id';
 
 const ENGENHEIRA = ['engenheira@obra.local', 'Engenheira#2026'] as const;
 const ENCARREGADO = ['encarregado@obra.local', 'Encarregado#2026'] as const;
+
+/** Nomes das duas contas de demonstração. Inventados, como todo o resto. */
+const NOME_DA_ENGENHEIRA = 'Ana Demonstração';
+const NOME_DO_ENCARREGADO = 'Beto Demonstração';
+
+/**
+ * A obra do PRD, com a grafia exata do contrato — inclusive os espaços duplos
+ * do original, que a decisão 17.1 preserva porque só normaliza as pontas.
+ *
+ * `R1` não é nome de pessoa: é o rótulo que o próprio PRD usa para o
+ * responsável técnico, e o CREA é zerado. A regra é dura — nenhum dado de
+ * pessoa real entra aqui (CLAUDE.md, Segurança).
+ */
+const DADOS_DA_OBRA = {
+  contrato: 'P0476/01-25 - BLOCO 02',
+  contratante: 'PREFEITURA MUNICIPAL DE MONTES CLAROS - MG',
+  contratada: 'CROS CONSTRUÇÕES S.A.',
+  dataInicio: '2026-02-05',
+  dataTermino: '2027-02-05',
+  escopo: 'EXEC. DE SERVIÇOS DE PAVIMENTAÇÃO',
+  nomeProjeto: 'SERVIÇOS DE PAVIMENTAÇÃO  - BLOCO 02',
+  area: 'MONTES CLAROS - MG',
+  local: 'VIAS URBANAS  DA CIDADE MONTES CLAROS - MG',
+  respTecnicoNome: 'R1',
+  respTecnicoTitulo: 'Engenheiro Civil',
+  respTecnicoCrea: 'CREA - MG 000000/D',
+  periodosBms: [{ numero: 1, dataInicial: '2026-02-05', dataFinal: '2026-02-28' }],
+} as const;
 
 /** Quantos dias para trás a demonstração cobre. Um mês conta uma história. */
 const DIAS_DE_HISTORIA = 31;
@@ -185,25 +223,83 @@ async function atorDe(credenciais: readonly [string, string]): Promise<Ator> {
   return ator.valor;
 }
 
-async function main(): Promise<void> {
-  const conexao = ambienteDaComposicao().conexao;
-  const obras = await conexao.consulta<{ id: string }>(
+/**
+ * Cria a obra, as duas contas e o acesso do encarregado, se ainda não existirem.
+ *
+ * Antes este script exigia que tudo isso já estivesse no banco e desistia com
+ * "rode `npm run db:preparar`" — mas `db:preparar` só semeia taxonomia, então o
+ * conselho levava a lugar nenhum. Num banco recém-criado não havia caminho até
+ * a demonstração sem passar pela interface, clique a clique.
+ *
+ * Tudo aqui passa **pelos casos de uso**, como o resto do script: a conta de
+ * instalação pela regra da decisão 25.1, a obra pela borda que valida o
+ * contrato, e o encarregado por convite de verdade, gerado e aceito. O que
+ * prova que funciona é o caminho ser o mesmo que uma pessoa percorreria.
+ *
+ * Idempotente: já existindo, cada passo é pulado.
+ */
+async function preparaOBasico(): Promise<{ eng: Ator; enc: Ator; obraId: ObraId }> {
+  const amb = ambienteDaComposicao();
+  const acesso = paraAcesso(amb.cadastro);
+
+  // 1. A engenheira. É a conta de instalação: não há cadastro público (25.1).
+  const criada = await criaContaDeEngenheiroDeInstalacao(
+    {
+      nome: NOME_DA_ENGENHEIRA,
+      email: ENGENHEIRA[0],
+      mesmoComEngenheiroExistente: true,
+      pedeSenha: async () => ENGENHEIRA[1],
+    },
+    { db: amb.conexao.db, relogio: () => new Date() },
+  );
+  if (!criada.ok) throw new Error(`conta da engenheira: ${criada.erro.mensagem}`);
+  const eng = await atorDe(ENGENHEIRA);
+
+  // 2. A obra. A primeira que existir serve; senão, cria a do PRD.
+  const obras = await amb.conexao.consulta<{ id: string }>(
     'SELECT id FROM obra ORDER BY criado_em LIMIT 1',
   );
-  const obra = obras[0];
-  if (obra === undefined) {
-    console.warn('Não há obra no banco. Rode `npm run db:preparar` antes.');
-    process.exit(1);
+  let obraId: ObraId;
+  const existente = obras[0];
+  if (existente === undefined) {
+    const nova = await criaObraProtegida(eng, DADOS_DA_OBRA, amb.cadastro);
+    if (!nova.ok) throw new Error(`criar obra: ${nova.erro.mensagem}`);
+    obraId = nova.valor;
+    console.warn('obra           criada');
+  } else {
+    obraId = idConfiavel<'obra'>(existente.id) as ObraId;
+    console.warn('obra           já existia');
   }
-  const obraId = idConfiavel<'obra'>(obra.id) as ObraId;
 
-  const eng = await atorDe(ENGENHEIRA);
-  const enc = await atorDe(ENCARREGADO);
+  // 3. O encarregado: conta, convite e aceite. `registraUsuario` recusa e-mail
+  // repetido, e nesse caso a conta já está lá — é o caminho de reexecução.
+  const registrado = await registraUsuario(
+    { nome: NOME_DO_ENCARREGADO, email: ENCARREGADO[0], senha: ENCARREGADO[1] },
+    acesso,
+  );
+  if (registrado.ok) {
+    const convite = await geraConviteProtegido(eng, obraId, 'encarregado', amb.cadastro);
+    if (!convite.ok) throw new Error(`convite: ${convite.erro.mensagem}`);
+    const aceite = await aceitaConvite(convite.valor.token, registrado.valor, acesso);
+    if (!aceite.ok) throw new Error(`aceitar convite: ${aceite.erro.mensagem}`);
+    console.warn('encarregado    criado e convidado');
+  }
+
+  return { eng, enc: await atorDe(ENCARREGADO), obraId };
+}
+
+async function main(): Promise<void> {
+  // Antes de qualquer leitura do ambiente: `ambienteDaComposicao()` abre a
+  // conexão na primeira chamada, e depois disso trocá-la não adianta.
+  await ligaBancoLocalSeConfigurado();
+
+  const { eng, enc, obraId } = await preparaOBasico();
+  const conexao = ambienteDaComposicao().conexao;
   const casos = casosDeLancamento();
 
   const hoje = hojeNaObra();
   const primeiro = somaDias(hoje, -(DIAS_DE_HISTORIA - 1));
-  console.warn(`Obra ${obra.id}`);
+  console.warn(`Obra ${obraId}`);
   console.warn(`Período ${primeiro} a ${hoje}\n`);
 
   // ---------------------------------------------------------------- cadastro

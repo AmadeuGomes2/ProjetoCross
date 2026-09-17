@@ -104,7 +104,27 @@ export function criaBanco(url: string = urlDoBanco()): ConexaoRdo {
   };
 }
 
-let conexaoDoProcesso: ConexaoRdo | null = null;
+/**
+ * A conexão vive em `globalThis`, e não numa variável de módulo.
+ *
+ * O motivo é concreto e custou uma tarde: o empacotador do Next **carrega o
+ * mesmo arquivo em mais de uma instância**. `instrumentation.ts` roda no seu
+ * próprio grafo de módulos, e a conexão que ele registrava ficava numa cópia de
+ * `src/db/index.ts` que rota nenhuma enxergava — as rotas caíam em
+ * `criaBanco()` e morriam com `DATABASE_URL não está definida`, apesar de o
+ * banco local ter subido.
+ *
+ * O `Symbol.for` resolve porque o registro de símbolos é do processo, e não do
+ * módulo. Também sobrevive à reavaliação de módulo do hot reload, que antes
+ * abria uma conexão nova a cada arquivo salvo.
+ */
+const CHAVE_DA_CONEXAO = Symbol.for('rdo.conexao');
+
+type PortadorDaConexao = { [CHAVE_DA_CONEXAO]?: ConexaoRdo | null };
+
+function portador(): PortadorDaConexao {
+  return globalThis as unknown as PortadorDaConexao;
+}
 
 /**
  * Conexão única do processo, aberta na primeira chamada.
@@ -113,8 +133,11 @@ let conexaoDoProcesso: ConexaoRdo | null = null;
  * efeito colateral, e teste que só quer o esquema abriria conexão de rede.
  */
 export function obtemConexao(): ConexaoRdo {
-  conexaoDoProcesso ??= criaBanco();
-  return conexaoDoProcesso;
+  const atual = portador()[CHAVE_DA_CONEXAO];
+  if (atual != null) return atual;
+  const nova = criaBanco();
+  portador()[CHAVE_DA_CONEXAO] = nova;
+  return nova;
 }
 
 export function obtemBanco(): BancoRdo {
@@ -122,7 +145,7 @@ export function obtemBanco(): BancoRdo {
 }
 
 export function defineConexaoDoProcesso(conexao: ConexaoRdo | null): void {
-  conexaoDoProcesso = conexao;
+  portador()[CHAVE_DA_CONEXAO] = conexao;
 }
 
 export { schema };

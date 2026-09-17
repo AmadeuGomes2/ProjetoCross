@@ -230,63 +230,88 @@ Duas coisas que nenhuma decisão de perfil move:
 
 ## 5. Operação
 
-Precisa de Node 20.9 ou mais novo. O banco é SQLite local, configurado por
-`RDO_BANCO_CAMINHO` (ver `.env.example`; o padrão é `tmp/rdo.sqlite`, que o
-`.gitignore` bloqueia).
+Precisa de Node 20.9 ou mais novo. **O banco é Postgres** desde 17/09/2026 —
+antes era SQLite em arquivo, e serverless não tem disco persistente.
 
-| Comando                    | Quando se usa                                                              |
-| -------------------------- | -------------------------------------------------------------------------- |
-| `npm run dev`              | desenvolver; sobe em `http://localhost:3000`                               |
-| `npm run build`            | conferir que a produção compila                                            |
-| `npm start`                | rodar o build de produção                                                  |
-| `npm run lint`             | antes de commitar: `eslint` mais `prettier --check`                        |
-| `npm run format`           | quando o `lint` reclamar de formatação                                     |
-| `npm run typecheck`        | `tsc --noEmit`; pega o que o teste não pega                                |
-| `npm run test`             | a suíte inteira, uma vez; é o que fecha uma tarefa                         |
-| `npm run test:watch`       | enquanto se escreve o teste                                                |
-| `npm run db:migrate`       | aplicar as migrations num banco novo ou atrasado; idempotente              |
-| `npm run db:seed`          | carregar as taxonomias herdadas; idempotente                               |
-| `npm run db:preparar`      | os dois acima, em ordem: é o que se roda na primeira vez                   |
-| `npm run db:generate`      | gerar migration nova depois de mexer no esquema Drizzle                    |
-| `npm run criar-engenheiro` | criar a **primeira** conta de engenheiro, que não tem caminho pela web     |
-| `npm run demonstracao`     | semear um mês de obra fictícia no banco local, para demonstrar ou capturar |
-| `npm run telas`            | capturar as telas com Playwright; a saída vai para `tmp/telas/`            |
-| `npm run console`          | varrer as rotas e reportar o que o console do navegador reclamar           |
-| `npm run perfis`           | entrar como cada perfil e conferir, no navegador, o que foi combinado      |
+Há dois jeitos de rodar na sua máquina, e o primeiro não exige conta em lugar
+nenhum:
+
+| Jeito           | Como                                        | Quando                             |
+| --------------- | ------------------------------------------- | ---------------------------------- |
+| **banco local** | `RDO_BANCO_LOCAL=1`, ou `npm run dev:local` | desenvolver e demonstrar           |
+| **Neon**        | `DATABASE_URL` no `.env.local`              | conferir contra o banco de verdade |
+
+O banco local é **PGlite**, o Postgres compilado para WebAssembly, rodando
+dentro do processo e gravando em `tmp/banco-local`. É o mesmo motor que a suíte
+de testes usa: mesmo dialeto, mesmas migrations, mesmas restrições. Não é um
+segundo dialeto, e por isso não recria o problema que a migração resolveu.
+
+Duas coisas para saber sobre ele:
+
+- **um processo por vez.** A pasta abre com exclusividade, então pare o
+  `npm run dev:local` antes de rodar `npm run demonstracao`;
+- **encerrar à força corrompe a pasta.** Se o banco não abrir mais, apague
+  `tmp/banco-local` e rode a demonstração de novo — ela repovoa tudo.
+
+| Comando                    | Quando se usa                                                             |
+| -------------------------- | ------------------------------------------------------------------------- |
+| `npm run dev`              | desenvolver contra o `DATABASE_URL` do `.env.local`                       |
+| `npm run dev:local`        | desenvolver com o banco local, sem nuvem; sobe em `http://localhost:3000` |
+| `npm run build`            | conferir que a produção compila                                           |
+| `npm start`                | rodar o build de produção                                                 |
+| `npm run lint`             | antes de commitar: `eslint` mais `prettier --check`                       |
+| `npm run format`           | quando o `lint` reclamar de formatação                                    |
+| `npm run typecheck`        | `tsc --noEmit`; pega o que o teste não pega                               |
+| `npm run test`             | a suíte inteira, uma vez; é o que fecha uma tarefa                        |
+| `npm run test:watch`       | enquanto se escreve o teste                                               |
+| `npm run db:migrate`       | aplicar as migrations num banco novo ou atrasado; idempotente             |
+| `npm run db:seed`          | carregar as taxonomias herdadas; idempotente                              |
+| `npm run db:preparar`      | os dois acima, em ordem: é o que se roda na primeira vez                  |
+| `npm run db:generate`      | gerar migration nova depois de mexer no esquema Drizzle                   |
+| `npm run criar-engenheiro` | criar a **primeira** conta de engenheiro, que não tem caminho pela web    |
+| `npm run demonstracao`     | criar contas, obra e um mês de obra fictícia; é o que prepara o ambiente  |
+| `npm run telas`            | capturar as telas com Playwright; a saída vai para `tmp/telas/`           |
+| `npm run console`          | varrer as rotas e reportar o que o console do navegador reclamar          |
+| `npm run perfis`           | entrar como cada perfil e conferir, no navegador, o que foi combinado     |
 
 ### Do zero a um ambiente com dado
 
+Três comandos, sem nuvem e sem passo manual no navegador:
+
 ```bash
 npm install
-npm run db:preparar
-npm run criar-engenheiro -- --email engenheira@obra.local --nome "Engenheira"
-npm run dev
+RDO_BANCO_LOCAL=1 npm run demonstracao
+npm run dev:local
 ```
 
-O comando `criar-engenheiro` pede a senha por prompt; para o roteiro abaixo, use
-`Engenheira#2026`. Ele recusa se já houver engenheiro no sistema — `--forcar` é a
-opção explícita para insistir.
+Entre em `http://localhost:3000/entrar` com uma das duas contas:
 
-Depois, no navegador: entrar, criar a obra com pelo menos um período de BM'S e
-gerar o convite do encarregado. Aceite o convite com `encarregado@obra.local` e
-senha `Encarregado#2026`.
+| Perfil      | E-mail                   | Senha              |
+| ----------- | ------------------------ | ------------------ |
+| engenheira  | `engenheira@obra.local`  | `Engenheira#2026`  |
+| encarregado | `encarregado@obra.local` | `Encarregado#2026` |
 
-```bash
-npm run demonstracao
-```
-
-**Essas duas contas são de banco local descartável** e já estão escritas em
+**Essas duas contas são de banco descartável** e estão escritas em
 `scripts/demonstracao.ts`. Não existem fora da sua máquina.
 
-O seed de demonstração **não cria conta nem obra**: ele entra com as duas contas
-acima e escreve pelos casos de uso, nunca por `INSERT`, então ele quebra se
-alguma regra for violada. Se não houver obra no banco, ele avisa e sai. Todo nome
-que ele carrega é inventado — dado de trabalhador é dado pessoal sob a LGPD, e
-captura de tela circula.
+O que a demonstração faz, e por que vale confiar nela: ela **cria o que falta**
+— a conta de instalação da engenheira (decisão 25.1), a obra do contrato, a
+conta do encarregado por convite de verdade, gerado e aceito — e depois lança um
+mês de obra. Tudo **pelos casos de uso, nunca por `INSERT`**, então ela quebra
+aqui se alguma regra for violada, em vez de quebrar na frente do cliente. É
+idempotente: rodar de novo dá o mesmo banco.
 
-`telas`, `console` e `perfis` exigem o servidor no ar (`npm run dev`) e o banco
-já semeado: os três descobrem a obra e o dia sozinhos por
-`scripts/contexto-de-telas.ts`, que entra com as mesmas duas contas.
+Todo nome que ela carrega é inventado — dado de trabalhador é dado pessoal sob a
+LGPD, e captura de tela circula.
+
+Contra o Neon em vez do banco local, o caminho continua sendo
+`npm run db:preparar` mais `npm run criar-engenheiro`, com `DATABASE_URL`
+apontando para a string **direta** (ver `docs/deploy.md`).
+
+`telas`, `console` e `perfis` exigem o servidor no ar: os três descobrem a obra,
+o dia e as sessões sozinhos por `scripts/contexto-de-telas.ts`, que **entra pelo
+navegador**, como uma pessoa entraria. Ele não abre o banco — com o banco local
+não conseguiria, porque o servidor já o está segurando.
 
 ---
 
