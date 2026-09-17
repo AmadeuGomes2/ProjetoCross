@@ -67,6 +67,38 @@ export const ROTULO = {
 } as const;
 
 /**
+ * Os rótulos que **só o consolidado de período** usa.
+ *
+ * Aprovados por quem responde pelo produto em 17/09/2026, respondendo os pontos
+ * A1 a A5 de `docs/arquitetura/periodo.md`, seção 6. Ficam num objeto separado
+ * de propósito: nada aqui altera o gabarito do diário, e a conferência de
+ * fidelidade do RDO diário continua olhando só para `ROTULO`.
+ *
+ * Duas coisas que a aprovação deixou explícitas:
+ *
+ * - o rótulo herdado do efetivo continua **inteiro e na frente**; o complemento
+ *   se acrescenta, não substitui. Por isso os dois são compostos a partir de
+ *   `ROTULO`, e não redigitados — assim uma mudança no herdado não deixa as
+ *   duas grafias divergirem;
+ * - `INDICE` continua sem acento, no `ROTULO` de sempre. Os quatro contadores
+ *   de dias é que são novos, com `IMPRATIC.` abreviado assim, com ponto.
+ */
+const MEDIA_POR_DIA = 'MÉDIA POR DIA';
+
+export const ROTULO_DE_PERIODO = {
+  /** Campo herdado do dia da semana, que num conjunto vira a contagem de dias. */
+  DIA: 'DIA',
+
+  EFETIVO_PESSOAL_MEDIA: `${ROTULO.EFETIVO_PESSOAL} · ${MEDIA_POR_DIA}`,
+  EFETIVO_EQUIPAMENTOS_MEDIA: `${ROTULO.EFETIVO_EQUIPAMENTOS} · ${MEDIA_POR_DIA}`,
+
+  DIAS_BONS: 'DIAS BONS',
+  DIAS_CHUVOSOS: 'DIAS CHUVOSOS',
+  DIAS_IMPRATICAVEIS: 'DIAS IMPRATIC.',
+  DIAS_PARADOS: 'DIAS PARADOS',
+} as const;
+
+/**
  * Metadados do PDF.
  *
  * `docs/arquitetura/v1.md`, 5.3: nenhum deles aceita nome de pessoa. Metadado é
