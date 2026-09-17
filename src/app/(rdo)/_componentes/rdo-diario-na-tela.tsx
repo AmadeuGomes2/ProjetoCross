@@ -42,7 +42,20 @@ function BlocoDeEfetivoNaTela({
       <div className={estilos.corpoDoBloco}>
         <ul className={estilos.colunas}>
           {bloco.colunas.map((coluna) => (
-            <li className={estilos.coluna} key={coluna.chave}>
+            /*
+              A função SEM gente continua aparecendo — o gabarito tem a grade
+              inteira e omiti-la mudaria o documento —, mas recua visualmente.
+              Na captura de 16/09 as nove funções vazias pesavam o mesmo que as
+              seis preenchidas, e o olho não achava o que importava.
+            */
+            <li
+              className={
+                coluna.texto === ''
+                  ? `${estilos.coluna} ${estilos.colunaVazia}`
+                  : estilos.coluna
+              }
+              key={coluna.chave}
+            >
               <span className={estilos.rotuloDaColuna}>{coluna.rotulo}</span>
               {/* Zero sai em branco, como no gabarito. */}
               <span className={estilos.quantidade}>{coluna.texto}</span>
@@ -139,12 +152,36 @@ export function RdoDiarioNaTela({ rdo }: { rdo: RdoDiario }): ReactElement {
           {rdo.producao.map((linha) => (
             <article className={estilos.servico} key={linha.servicoId}>
               <p className={estilos.nomeDoServico}>{linha.nome}</p>
-              <p className={estilos.numeros}>
-                <span>EXEC. {linha.executadoTexto}</span>
-                <span>ACUM. {linha.acumuladoTexto}</span>
-                <span>PROJETO {linha.projetoTexto}</span>
-                <span>{linha.percentualTexto}</span>
-              </p>
+              {/*
+                Rótulo ACIMA do valor, em quatro colunas fixas.
+                Antes os quatro saíam numa linha corrida — `EXEC. - ACUM. -
+                PROJETO 0,00 -` — com o rótulo colado no número e o traço de
+                valor ausente indistinguível do separador. É o número que
+                sustenta a medição, e era o bloco menos legível da tela.
+
+                As grafias `EXEC.`, `ACUM.` e `PROJETO` são as herdadas da
+                planilha e não mudam: é o vocabulário que o fiscal reconhece
+                (CLAUDE.md, Fidelidade do documento). O que muda é só onde
+                cada uma fica.
+              */}
+              <dl className={estilos.numeros}>
+                <div>
+                  <dt>EXEC.</dt>
+                  <dd>{linha.executadoTexto}</dd>
+                </div>
+                <div>
+                  <dt>ACUM.</dt>
+                  <dd>{linha.acumuladoTexto}</dd>
+                </div>
+                <div>
+                  <dt>PROJETO</dt>
+                  <dd>{linha.projetoTexto}</dd>
+                </div>
+                <div>
+                  <dt>%</dt>
+                  <dd>{linha.percentualTexto}</dd>
+                </div>
+              </dl>
               <div className={estilos.trilho}>
                 <div
                   className={estilos.barra}
