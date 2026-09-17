@@ -13,7 +13,7 @@
  * `Decimal`, o banco guarda `INTEGER` em milésimos.
  */
 
-import { and, eq, lte } from 'drizzle-orm';
+import { and, desc, eq, gte, lte } from 'drizzle-orm';
 
 import { diaPuroConfiavel, type DiaPuro } from '../../shared/date/dia';
 import { deMilesimos, paraMilesimos } from '../../shared/decimal';
@@ -482,6 +482,32 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
           fechadoEm: primeiro.fechadoEm,
           numeroRdoCongelado: primeiro.numeroRdoCongelado,
         };
+      },
+      naJanela: async (obraId, de, ate) => {
+        const achados = await db
+          .select()
+          .from(tabelaDia)
+          .where(
+            and(
+              eq(tabelaDia.obraId, obraId),
+              gte(tabelaDia.data, de),
+              lte(tabelaDia.data, ate),
+            ),
+          )
+          .orderBy(desc(tabelaDia.data));
+        return achados.map((linha) => ({
+          obraId: linha.obraId,
+          data: diaPuroConfiavel(linha.data),
+          estado: linha.estado,
+          motivoParada: linha.motivoParada,
+          registradoPor: linha.registradoPor,
+          registradoEm: linha.registradoEm,
+          atualizadoPor: linha.atualizadoPor,
+          atualizadoEm: linha.atualizadoEm,
+          fechadoPor: linha.fechadoPor,
+          fechadoEm: linha.fechadoEm,
+          numeroRdoCongelado: linha.numeroRdoCongelado,
+        }));
       },
       salva: async (dia: DiaDeObra) => {
         // PK natural `(obra_id, data)`: o mesmo dia nunca vira duas linhas.

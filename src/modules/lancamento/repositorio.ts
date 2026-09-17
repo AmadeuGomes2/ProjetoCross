@@ -58,6 +58,15 @@ export interface RepositorioDeLancamento {
   readonly dia: {
     /** Devolve `null` quando o dia é `não lançado` — que é ausência de linha. */
     obtem(obraId: ObraId, data: DiaPuro): Promise<DiaDeObra | null>;
+    /**
+     * Os dias declarados dentro de um intervalo fechado, para o painel da obra.
+     *
+     * Devolve **só o que existe**: dia sem linha não vem, e quem monta o painel
+     * o marca como `nao_lancado` (`painel.ts`, decisão 4.2). Preencher a
+     * ausência aqui apagaria a diferença entre ninguém ter lançado e alguém ter
+     * lançado que não houve trabalho.
+     */
+    naJanela(obraId: ObraId, de: DiaPuro, ate: DiaPuro): Promise<DiaDeObra[]>;
     salva(dia: DiaDeObra): Promise<void>;
   };
   readonly atividades: Colecao<LinhaDeAtividade>;

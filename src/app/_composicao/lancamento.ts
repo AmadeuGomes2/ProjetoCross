@@ -26,8 +26,11 @@
 import { exigeAcessoNaObra, type Perfil } from '../../modules/acesso';
 import {
   criaCasosDeLancamento,
+  janelaDeDias,
+  montaPainelDosDias,
   type AcaoProtegida,
   type CasosDeLancamento,
+  type DiaNoPainel,
   type PortasDoLancamento,
   type ServicoControlado,
 } from '../../modules/lancamento';
@@ -38,7 +41,8 @@ import {
   listaTermosAtivos,
   resolveTermo,
 } from '../../modules/taxonomia';
-import { idConfiavel, type ObraId } from '../../shared/id';
+import type { DiaPuro } from '../../shared/date/dia';
+import { idConfiavel, type ObraId, type UsuarioId } from '../../shared/id';
 import { ambienteDaComposicao, type AmbienteDaComposicao } from './ambiente';
 import { paraAcesso, paraObra, paraTaxonomia } from './ambiente-de-cadastro';
 
@@ -142,4 +146,36 @@ export function casosDeLancamento(
     // Relógio injetado: o teste de integração não depende do relógio real.
     relogio: ambiente.cadastro.relogio,
   });
+}
+
+/**
+ * O estado dos últimos dias da obra, para o painel que abre a obra.
+ *
+ * **Autoriza antes de ler.** Usa a mesma porta que as escritas usam — foi a
+ * falta disso que deixou o encarregado da obra A ler dado da obra B com o id na
+ * URL (laudo de segurança de 16/09/2026, CRÍTICO 2). A ação pedida é `lancar`,
+ * a de menor perfil: quem pode lançar na obra pode ver o quadro dela.
+ *
+ * Devolve lista vazia na recusa, e não um erro: quem chama é uma tela, e a tela
+ * não deve distinguir "não tem acesso" de "não tem dia" — isso responderia se a
+ * obra existe a quem não deveria saber.
+ */
+export async function painelDosUltimosDiasProtegido(
+  ator: { readonly usuarioId: UsuarioId },
+  obraId: ObraId,
+  ate: DiaPuro,
+  quantidade: number,
+  ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
+  portas: PortasDoLancamento = portasDeLancamento(ambiente),
+): Promise<DiaNoPainel[]> {
+  const autorizado = await portas.exigeAcessoNaObra(ator, obraId, 'lancar');
+  if (!autorizado.ok) return [];
+
+  const janela = janelaDeDias(ate, quantidade);
+  const maisAntigo = janela.at(-1);
+  if (maisAntigo === undefined) return [];
+
+  const repositorio = criaRepositorioDrizzle(ambiente.conexao);
+  const linhas = await repositorio.dia.naJanela(obraId, maisAntigo, ate);
+  return montaPainelDosDias(janela, linhas);
 }

@@ -27,9 +27,11 @@ import { idConfiavel } from '../../../../shared/id';
 import { cadastrarPeriodoAction, definirResponsavelAction } from '../../acoes';
 import { Aviso, Bloco, Campo, Erro, Vazio } from '../../componentes';
 import { PortasDoDia, Trilha } from '../../../_componentes/casca';
+import { painelDosUltimosDiasProtegido } from '../../../_composicao/lancamento';
 import { perfilNaObraProtegido } from '../../../_composicao/rdo-diario';
 import { atorDaRequisicao } from '../../sessao';
 import { AbasDaObra } from './abas';
+import { PainelDeDias } from './painel-de-dias';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,6 +80,10 @@ export default async function Obra({
   // O dia sai do fuso da obra, no servidor. Nunca do relógio do navegador.
   const hoje = hojeNaObra();
 
+  // Duas semanas: é o quanto se olha para trás para perceber buraco de
+  // lançamento antes que a medição feche.
+  const ultimosDias = await painelDosUltimosDiasProtegido(ator, obraId, hoje, 14);
+
   return (
     <main className="pagina pagina--painel">
       <Trilha degraus={[{ texto: 'Obras', href: '/obras' }, { texto: obra.contrato }]} />
@@ -98,6 +104,8 @@ export default async function Obra({
       />
 
       <AbasDaObra obraId={obraId} atual="visao" />
+
+      <PainelDeDias obraId={obraId} dias={ultimosDias} />
 
       <Bloco titulo="Informações gerais">
         <dl className="fichaTecnica">

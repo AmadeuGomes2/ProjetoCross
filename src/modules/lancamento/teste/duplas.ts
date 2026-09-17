@@ -147,6 +147,12 @@ export function criaRepositorioEmMemoria(): RepositorioEmMemoria {
     dias,
     dia: {
       obtem: (obraId, data) => Promise.resolve(dias.get(`${obraId}|${data}`) ?? null),
+      naJanela: (obraId, de, ate) =>
+        Promise.resolve(
+          [...dias.values()]
+            .filter((d) => d.obraId === obraId && d.data >= de && d.data <= ate)
+            .sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : 0)),
+        ),
       salva: (d) => {
         dias.set(`${d.obraId}|${d.data}`, d);
         return Promise.resolve();

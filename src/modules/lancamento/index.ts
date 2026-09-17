@@ -98,3 +98,5 @@ export type {
   VersaoDeLancamento,
 } from './tipos';
 export { SUGESTOES_MOTIVO_PARADA } from '../../shared/taxonomia';
+export { janelaDeDias, montaPainelDosDias } from './painel';
+export type { DiaNoPainel } from './painel';

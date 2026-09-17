@@ -1150,3 +1150,133 @@ tbody tr:last-child td {
     grid-template-columns: 1fr 1fr 1fr;
   }
 }
+
+/* =================================================================
+ * Estado do dia, em cor e em palavra
+ *
+ * Frente C do plano: o dominio tem estados que pediam cor e nao a
+ * tinham. Aqui eles ganham a sua, e nunca so ela: todo quadro traz o
+ * rotulo escrito para o leitor de tela e no `title`.
+ * ================================================================= */
+
+.cabecalhoDoBloco {
+  margin-bottom: var(--e4);
+}
+
+.cabecalhoDoBloco h2 {
+  margin-bottom: var(--e1);
+}
+
+.cabecalhoDoBloco .subtitulo {
+  margin: 0;
+}
+
+.fitaDeDias {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.2rem, 1fr));
+  gap: var(--e2);
+  margin: 0 0 var(--e4);
+  padding: 0;
+  list-style: none;
+}
+
+.quadroDoDia {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: var(--toque-minimo);
+  padding: var(--e2) var(--e1);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-pequeno);
+  text-decoration: none;
+  color: var(--tinta);
+}
+
+.quadroDoDia:hover {
+  border-color: var(--realce);
+  color: var(--tinta);
+}
+
+.quadroDoDiaSemana {
+  font-size: 0.72rem;
+  color: var(--tinta-tenue);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.quadroDoDiaNumero {
+  font-size: 1.05rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.quadroDoDiaFechado {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 0.7rem;
+  color: var(--tinta-tenue);
+}
+
+.quadroDoDia--trabalhado {
+  background: var(--ok-tenue);
+  border-color: var(--ok-tenue);
+}
+
+.quadroDoDia--parado {
+  background: var(--aviso-tenue);
+  border-color: var(--aviso-tenue);
+}
+
+/*
+ * Nao lancado nao tem cor de estado, e isso e a regra desenhada: ninguem
+ * disse nada sobre esse dia. Pintar de cinza-forte o faria parecer uma
+ * terceira condicao declarada, que e o que a decisao 4.2 separa.
+ */
+.quadroDoDia--vazio {
+  background: transparent;
+  border-style: dashed;
+  color: var(--tinta-tenue);
+}
+
+.legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e2) var(--e4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.82rem;
+  color: var(--tinta-tenue);
+}
+
+.legenda li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e2);
+}
+
+.legendaMarca {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid var(--borda);
+}
+
+.legendaMarca--trabalhado {
+  background: var(--ok-tenue);
+  border-color: var(--ok);
+}
+
+.legendaMarca--parado {
+  background: var(--aviso-tenue);
+  border-color: var(--aviso);
+}
+
+.legendaMarca--vazio {
+  background: transparent;
+  border-style: dashed;
+}
