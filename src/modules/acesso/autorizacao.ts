@@ -44,13 +44,13 @@ function recusa(): ErroDeAcesso {
  * Devolve `AtorNaObra`, que é o tipo que os casos de uso protegidos exigem:
  * quem não chamou esta função não tem como fabricar o argumento.
  */
-export function exigeAcessoNaObra(
+export async function exigeAcessoNaObra(
   ator: PortadorDeAcesso,
   obraId: ObraId,
   perfilMinimo: Perfil,
   amb: Ambiente,
-): Result<AtorNaObra, ErroDeAcesso> {
-  const linha = repositorio.buscaAcessoAtivo(amb.db, ator.usuarioId, obraId);
+): Promise<Result<AtorNaObra, ErroDeAcesso>> {
+  const linha = await repositorio.buscaAcessoAtivo(amb.db, ator.usuarioId, obraId);
 
   if (linha === null || !perfilAtende(linha.perfil, perfilMinimo)) {
     registra('aviso', geraId<'correlacao'>(), 'acesso.recusado', {
@@ -85,11 +85,11 @@ export function exigeAcessoNaObra(
  * estado global — e qualquer rotina que um dia apague, arquive ou migre obras a
  * reabriria, sem que ninguém lembrasse que ela existe.
  */
-export function exigePermissaoParaCriarObra(
+export async function exigePermissaoParaCriarObra(
   ator: Ator,
   amb: Ambiente,
-): Result<Ator, ErroDeAcesso> {
-  if (repositorio.eContaDeEngenheiro(amb.db, ator.usuarioId)) return ok(ator);
+): Promise<Result<Ator, ErroDeAcesso>> {
+  if (await repositorio.eContaDeEngenheiro(amb.db, ator.usuarioId)) return ok(ator);
 
   registra('aviso', geraId<'correlacao'>(), 'acesso.criar_obra_recusado', {
     usuarioId: ator.usuarioId,
@@ -128,14 +128,14 @@ export function comAtorNaObra(
   perfilMinimo: Perfil,
   manipulador: ManipuladorProtegido,
   dependencias: {
-    readonly autentica: (requisicao: Request) => Result<Ator, ErroDeAcesso>;
+    readonly autentica: (requisicao: Request) => Promise<Result<Ator, ErroDeAcesso>>;
     readonly amb: () => Ambiente;
   },
 ): (requisicao: Request, contexto: ContextoDeRota) => Promise<Response> {
   return async (requisicao, contexto) => {
     const semAcesso = () => Response.json({ erro: recusa().mensagem }, { status: 403 });
 
-    const atorOuErro = dependencias.autentica(requisicao);
+    const atorOuErro = await dependencias.autentica(requisicao);
     if (!atorOuErro.ok) {
       return Response.json({ erro: atorOuErro.erro.mensagem }, { status: 401 });
     }
@@ -147,7 +147,7 @@ export function comAtorNaObra(
     // O identificador vem da URL: é hostil. Não é validado como existente aqui
     // porque `exigeAcessoNaObra` já devolve o mesmo erro para obra inexistente
     // e para obra sem acesso — é o ponto do CT-075.
-    const naObra = exigeAcessoNaObra(
+    const naObra = await exigeAcessoNaObra(
       atorOuErro.valor,
       idConfiavel<'obra'>(bruto),
       perfilMinimo,

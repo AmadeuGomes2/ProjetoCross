@@ -16,9 +16,11 @@
  * 3. A senha em claro **não é gravada**: o banco guarda o hash de `scrypt`.
  */
 
+import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { paraAcesso } from '../../app/_composicao/ambiente-de-cadastro';
+import { usuario } from '../../db/schema';
 import { CODIGO_ERRO } from '../../shared/result';
 import {
   criaObraDoPrd,
@@ -39,13 +41,13 @@ let cenario: Cenario;
  *  vai mesmo nascer. Pedir o segredo e jogá-lo fora é expô-lo à toa. */
 let senhasPedidas = 0;
 
-beforeEach(() => {
-  cenario = montaCenario();
+beforeEach(async () => {
+  cenario = await montaCenario();
   senhasPedidas = 0;
 });
 
-afterEach(() => {
-  cenario.fecha();
+afterEach(async () => {
+  await cenario.fecha();
 });
 
 function cria(email: string, senha: string, mesmoComEngenheiroExistente = false) {
@@ -63,21 +65,27 @@ function cria(email: string, senha: string, mesmoComEngenheiroExistente = false)
   );
 }
 
-function linhaDoUsuario(email: string): {
+async function linhaDoUsuario(email: string): Promise<{
   id: string;
-  hash_de_senha: string | null;
-  e_engenheiro: number;
-} {
-  return cenario.conexao.sqlite
-    .prepare('SELECT id, hash_de_senha, e_engenheiro FROM usuario WHERE email = ?')
-    .get(email) as { id: string; hash_de_senha: string | null; e_engenheiro: number };
+  hashDeSenha: string | null;
+  eEngenheiro: number;
+}> {
+  const linhas = await cenario.conexao.db
+    .select({
+      id: usuario.id,
+      hashDeSenha: usuario.hashDeSenha,
+      eEngenheiro: usuario.eEngenheiro,
+    })
+    .from(usuario)
+    .where(eq(usuario.email, email));
+  const linha = linhas[0];
+  if (linha === undefined) throw new Error('conta não encontrada');
+  return linha;
 }
 
-function totalDeUsuarios(): number {
-  const linha = cenario.conexao.sqlite
-    .prepare('SELECT count(*) AS total FROM usuario')
-    .get() as { total: number };
-  return linha.total;
+async function totalDeUsuarios(): Promise<number> {
+  const linhas = await cenario.conexao.db.select({ id: usuario.id }).from(usuario);
+  return linhas.length;
 }
 
 describe('comando de instalação: primeira conta de engenheiro', () => {
@@ -88,10 +96,10 @@ describe('comando de instalação: primeira conta de engenheiro', () => {
     if (!resultado.ok) return;
     expect(resultado.valor.situacao).toBe('conta_criada');
 
-    const linha = linhaDoUsuario('e1@exemplo.invalido');
-    expect(linha.hash_de_senha).not.toBe(null);
-    expect(linha.hash_de_senha).not.toContain(SENHA);
-    expect(await verificaSenha(SENHA, linha.hash_de_senha ?? '')).toBe(true);
+    const linha = await linhaDoUsuario('e1@exemplo.invalido');
+    expect(linha.hashDeSenha).not.toBe(null);
+    expect(linha.hashDeSenha).not.toContain(SENHA);
+    expect(await verificaSenha(SENHA, linha.hashDeSenha ?? '')).toBe(true);
   });
 
   it('liga a coluna de engenheiro da conta que cria', async () => {
@@ -100,33 +108,33 @@ describe('comando de instalação: primeira conta de engenheiro', () => {
     // comando é o único caminho que liga a coluna.
     expect((await cria('e1@exemplo.invalido', SENHA)).ok).toBe(true);
 
-    expect(linhaDoUsuario('e1@exemplo.invalido').e_engenheiro).toBe(1);
+    expect((await linhaDoUsuario('e1@exemplo.invalido')).eEngenheiro).toBe(1);
   });
 
   it('rodar de novo com o mesmo e-mail não cria segunda conta nem troca a senha', async () => {
     expect((await cria('e1@exemplo.invalido', SENHA)).ok).toBe(true);
-    const antes = linhaDoUsuario('e1@exemplo.invalido');
+    const antes = await linhaDoUsuario('e1@exemplo.invalido');
 
     const segunda = await cria('E1@Exemplo.Invalido', 'outra-senha-bem-diferente');
 
     expect(segunda.ok).toBe(true);
     if (!segunda.ok) return;
     expect(segunda.valor.situacao).toBe('conta_ja_existia');
-    expect(totalDeUsuarios()).toBe(1);
+    expect(await totalDeUsuarios()).toBe(1);
     // A segunda execução nem chega a pedir senha: não há o que fazer com ela.
     expect(senhasPedidas).toBe(1);
     // A senha antiga continua valendo, e a nova não vale: nada foi resetado.
-    const depois = linhaDoUsuario('e1@exemplo.invalido');
-    expect(depois.hash_de_senha).toBe(antes.hash_de_senha);
+    const depois = await linhaDoUsuario('e1@exemplo.invalido');
+    expect(depois.hashDeSenha).toBe(antes.hashDeSenha);
     expect(
-      await verificaSenha('outra-senha-bem-diferente', depois.hash_de_senha ?? ''),
+      await verificaSenha('outra-senha-bem-diferente', depois.hashDeSenha ?? ''),
     ).toBe(false);
   });
 
   it('recusa quando o sistema já tem engenheiro, e não cria conta nenhuma', async () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    criaObraDoPrd(e1, cenario.amb);
-    const antes = totalDeUsuarios();
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    await criaObraDoPrd(e1, cenario.amb);
+    const antes = await totalDeUsuarios();
 
     const resultado = await cria('e2@exemplo.invalido', SENHA);
 
@@ -134,13 +142,13 @@ describe('comando de instalação: primeira conta de engenheiro', () => {
     if (resultado.ok) return;
     expect(resultado.erro.codigo).toBe(CODIGO_ERRO.JA_EXISTE);
     expect(resultado.erro.mensagem).toContain('--forcar');
-    expect(totalDeUsuarios()).toBe(antes);
+    expect(await totalDeUsuarios()).toBe(antes);
     expect(senhasPedidas).toBe(0);
   });
 
   it('prossegue com a opção explícita, mesmo com engenheiro no sistema', async () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    criaObraDoPrd(e1, cenario.amb);
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    await criaObraDoPrd(e1, cenario.amb);
 
     const resultado = await cria('e2@exemplo.invalido', SENHA, true);
 
@@ -157,12 +165,12 @@ describe('comando de instalação: primeira conta de engenheiro', () => {
     expect(resultado.ok).toBe(false);
     if (resultado.ok) return;
     expect(resultado.erro.codigo).toBe(CODIGO_ERRO.CAMPO_OBRIGATORIO);
-    expect(totalDeUsuarios()).toBe(0);
+    expect(await totalDeUsuarios()).toBe(0);
   });
 
   it('não devolve o e-mail nem a senha na mensagem de erro', async () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    criaObraDoPrd(e1, cenario.amb);
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    await criaObraDoPrd(e1, cenario.amb);
 
     const resultado = await cria('pessoa@exemplo.invalido', SENHA);
 

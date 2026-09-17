@@ -88,7 +88,7 @@ export async function registraUsuario(
     );
   }
 
-  if (repositorio.buscaUsuarioPorEmail(amb.db, email) !== null) {
+  if ((await repositorio.buscaUsuarioPorEmail(amb.db, email)) !== null) {
     return erro(
       erroDeDominio(
         // Mensagem propositalmente vaga: dizer "este e-mail já tem conta"
@@ -102,7 +102,7 @@ export async function registraUsuario(
   const hashDeSenha = cmd.senha === undefined ? null : await geraHashDeSenha(cmd.senha);
 
   const id = geraId<'usuario'>();
-  repositorio.insereUsuario(amb.db, {
+  await repositorio.insereUsuario(amb.db, {
     id,
     nome,
     email,
@@ -133,7 +133,7 @@ export async function iniciaSessaoComSenha(
   senha: string,
   amb: Ambiente,
 ): Promise<Result<SessaoAberta, ErroDeAcesso>> {
-  const linha = repositorio.buscaUsuarioPorEmail(amb.db, email);
+  const linha = await repositorio.buscaUsuarioPorEmail(amb.db, email);
 
   if (linha === null || linha.hashDeSenha === null) {
     await gastaTempoDeVerificacao(senha);
@@ -148,17 +148,20 @@ export async function iniciaSessaoComSenha(
     return erro(credencialInvalida());
   }
 
-  return ok(abreSessao(linha.id, amb));
+  return ok(await abreSessao(linha.id, amb));
 }
 
 /** Abre a sessão sem senha. Usado pelo aceite de convite, que já provou posse. */
-export function abreSessao(usuarioId: UsuarioId, amb: Ambiente): SessaoAberta {
+export async function abreSessao(
+  usuarioId: UsuarioId,
+  amb: Ambiente,
+): Promise<SessaoAberta> {
   const agora = amb.relogio();
   const token = geraToken();
   const expiraEm = somaHoras(agora, HORAS_DE_SESSAO);
   const id = geraId<'sessao'>();
 
-  repositorio.insereSessao(amb.db, {
+  await repositorio.insereSessao(amb.db, {
     id,
     usuarioId,
     tokenHash: hashDeToken(token),
@@ -179,17 +182,17 @@ export function abreSessao(usuarioId: UsuarioId, amb: Ambiente): SessaoAberta {
  * Sessão ausente, desconhecida, revogada ou vencida devolvem o **mesmo** erro:
  * a resposta não ajuda quem está tentando adivinhar cookie.
  */
-export function autenticaRequisicao(
+export async function autenticaRequisicao(
   valorDoCookie: string | undefined,
   amb: Ambiente,
-): Result<Ator, ErroDeAcesso> {
+): Promise<Result<Ator, ErroDeAcesso>> {
   const recusa = erro(
     erroDeAcesso(CODIGO_ERRO.SEM_PERMISSAO, 'Sua sessão terminou. Entre de novo.'),
   );
 
   if (valorDoCookie === undefined || valorDoCookie === '') return recusa;
 
-  const linha = repositorio.buscaSessaoPorHash(amb.db, hashDeToken(valorDoCookie));
+  const linha = await repositorio.buscaSessaoPorHash(amb.db, hashDeToken(valorDoCookie));
   if (linha === null) return recusa;
   if (linha.revogadaEm !== null) return recusa;
   if (linha.expiraEm <= instanteAgora(amb.relogio)) return recusa;
@@ -198,9 +201,12 @@ export function autenticaRequisicao(
 }
 
 /** Sair invalida a sessão no servidor, não só no navegador. */
-export function encerraSessao(valorDoCookie: string | undefined, amb: Ambiente): void {
+export async function encerraSessao(
+  valorDoCookie: string | undefined,
+  amb: Ambiente,
+): Promise<void> {
   if (valorDoCookie === undefined || valorDoCookie === '') return;
-  repositorio.revogaSessaoPorHash(
+  await repositorio.revogaSessaoPorHash(
     amb.db,
     hashDeToken(valorDoCookie),
     instanteAgora(amb.relogio),

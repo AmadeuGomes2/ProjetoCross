@@ -21,6 +21,7 @@
  * ela, ligar a coluna para todo mundo passaria no teste positivo.
  */
 
+import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { paraAcesso } from '../../app/_composicao/ambiente-de-cadastro';
@@ -31,6 +32,7 @@ import {
   montaCenario,
   type Cenario,
 } from '../../../test/fixtures/cenario-de-cadastro';
+import { convite as tabelaDeConvite, usuario } from '../../db/schema';
 import type { ObraId } from '../../shared/id';
 import { CODIGO_ERRO } from '../../shared/result';
 import { aceitaConvite, listaAcessosDaObra, perfilDeConvite } from './convite';
@@ -40,76 +42,82 @@ let cenario: Cenario;
 let e1: Ator;
 let obraId: ObraId;
 
-beforeEach(() => {
-  cenario = montaCenario();
-  e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-  obraId = criaObraDoPrd(e1, cenario.amb);
+beforeEach(async () => {
+  cenario = await montaCenario();
+  e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+  obraId = await criaObraDoPrd(e1, cenario.amb);
 });
 
-afterEach(() => {
-  cenario.fecha();
+afterEach(async () => {
+  await cenario.fecha();
 });
 
 function ambDeAcesso(): Ambiente {
   return paraAcesso(cenario.amb);
 }
 
-function eEngenheiroNaConta(ator: Ator): number {
-  const linha = cenario.conexao.sqlite
-    .prepare('SELECT e_engenheiro FROM usuario WHERE id = ?')
-    .get(ator.usuarioId) as { e_engenheiro: number } | undefined;
+async function eEngenheiroNaConta(ator: Ator): Promise<number> {
+  const linhas = await cenario.conexao.db
+    .select({ eEngenheiro: usuario.eEngenheiro })
+    .from(usuario)
+    .where(eq(usuario.id, ator.usuarioId));
+  const linha = linhas[0];
   if (linha === undefined) throw new Error('conta não encontrada');
-  return linha.e_engenheiro;
+  return linha.eEngenheiro;
 }
 
-function perfilDoAcessoDe(ator: Ator): string | undefined {
-  const lista = listaAcessosDaObra(obraId, e1, ambDeAcesso());
+async function perfilDoAcessoDe(ator: Ator): Promise<string | undefined> {
+  const lista = await listaAcessosDaObra(obraId, e1, ambDeAcesso());
   if (!lista.ok) throw new Error(lista.erro.mensagem);
   return lista.valor.find((a) => a.usuarioId === ator.usuarioId)?.perfil;
 }
 
 describe('decisão 34.1 — convite de engenheiro', () => {
-  it('o convite de engenheiro aceito dá perfil de engenheiro na obra', () => {
-    const convite = geraConviteProtegido(e1, obraId, 'engenheiro', cenario.amb);
+  it('o convite de engenheiro aceito dá perfil de engenheiro na obra', async () => {
+    const convite = await geraConviteProtegido(e1, obraId, 'engenheiro', cenario.amb);
     expect(convite.ok).toBe(true);
     if (!convite.ok) return;
 
-    const e2 = cenario.novoAtor('e2@exemplo.invalido');
-    const aceite = aceitaConvite(convite.valor.token, e2.usuarioId, ambDeAcesso());
+    const e2 = await cenario.novoAtor('e2@exemplo.invalido');
+    const aceite = await aceitaConvite(convite.valor.token, e2.usuarioId, ambDeAcesso());
 
     expect(aceite.ok).toBe(true);
-    expect(perfilDoAcessoDe(e2)).toBe('engenheiro');
+    expect(await perfilDoAcessoDe(e2)).toBe('engenheiro');
   });
 
-  it('aceitar convite de engenheiro liga a coluna de engenheiro da conta', () => {
-    const convite = geraConviteProtegido(e1, obraId, 'engenheiro', cenario.amb);
+  it('aceitar convite de engenheiro liga a coluna de engenheiro da conta', async () => {
+    const convite = await geraConviteProtegido(e1, obraId, 'engenheiro', cenario.amb);
     if (!convite.ok) return;
-    const e2 = cenario.novoAtor('e2@exemplo.invalido');
-    expect(eEngenheiroNaConta(e2)).toBe(0);
+    const e2 = await cenario.novoAtor('e2@exemplo.invalido');
+    expect(await eEngenheiroNaConta(e2)).toBe(0);
 
-    expect(aceitaConvite(convite.valor.token, e2.usuarioId, ambDeAcesso()).ok).toBe(true);
+    expect(
+      (await aceitaConvite(convite.valor.token, e2.usuarioId, ambDeAcesso())).ok,
+    ).toBe(true);
 
-    expect(eEngenheiroNaConta(e2)).toBe(1);
+    expect(await eEngenheiroNaConta(e2)).toBe(1);
   });
 
-  it('aceitar convite de encarregado NÃO liga a coluna de engenheiro da conta', () => {
-    const convite = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
+  it('aceitar convite de encarregado NÃO liga a coluna de engenheiro da conta', async () => {
+    const convite = await geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
     if (!convite.ok) return;
-    const c1 = cenario.novoAtor('c1@exemplo.invalido');
+    const c1 = await cenario.novoAtor('c1@exemplo.invalido');
 
-    expect(aceitaConvite(convite.valor.token, c1.usuarioId, ambDeAcesso()).ok).toBe(true);
+    expect(
+      (await aceitaConvite(convite.valor.token, c1.usuarioId, ambDeAcesso())).ok,
+    ).toBe(true);
 
-    expect(eEngenheiroNaConta(c1)).toBe(0);
-    expect(perfilDoAcessoDe(c1)).toBe('encarregado');
+    expect(await eEngenheiroNaConta(c1)).toBe(0);
+    expect(await perfilDoAcessoDe(c1)).toBe('encarregado');
   });
 
-  it('quem entrou por convite de engenheiro passa a criar obra (decisão 25.1)', () => {
-    const convite = geraConviteProtegido(e1, obraId, 'engenheiro', cenario.amb);
+  it('quem entrou por convite de engenheiro passa a criar obra (decisão 25.1)', async () => {
+    const convite = await geraConviteProtegido(e1, obraId, 'engenheiro', cenario.amb);
     if (!convite.ok) return;
-    const e2 = cenario.novoAtor('e2@exemplo.invalido');
-    aceitaConvite(convite.valor.token, e2.usuarioId, ambDeAcesso());
+    const e2 = await cenario.novoAtor('e2@exemplo.invalido');
+    await aceitaConvite(convite.valor.token, e2.usuarioId, ambDeAcesso());
 
-    const outra = criaObraProtegida(
+    const outra = await criaObraProtegida(
       e2,
       { ...DADOS_DA_OBRA, contrato: 'P0999/01-25 - OUTRA' },
       cenario.amb,
@@ -118,13 +126,13 @@ describe('decisão 34.1 — convite de engenheiro', () => {
     expect(outra.ok).toBe(true);
   });
 
-  it('quem entrou por convite de encarregado continua sem criar obra', () => {
-    const convite = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
+  it('quem entrou por convite de encarregado continua sem criar obra', async () => {
+    const convite = await geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
     if (!convite.ok) return;
-    const c1 = cenario.novoAtor('c1@exemplo.invalido');
-    aceitaConvite(convite.valor.token, c1.usuarioId, ambDeAcesso());
+    const c1 = await cenario.novoAtor('c1@exemplo.invalido');
+    await aceitaConvite(convite.valor.token, c1.usuarioId, ambDeAcesso());
 
-    const outra = criaObraProtegida(
+    const outra = await criaObraProtegida(
       c1,
       { ...DADOS_DA_OBRA, contrato: 'P0999/01-25 - OUTRA' },
       cenario.amb,
@@ -133,30 +141,32 @@ describe('decisão 34.1 — convite de engenheiro', () => {
     expect(outra.ok).toBe(false);
   });
 
-  it('o perfil pedido é gravado na linha do convite', () => {
-    expect(geraConviteProtegido(e1, obraId, 'engenheiro', cenario.amb).ok).toBe(true);
+  it('o perfil pedido é gravado na linha do convite', async () => {
+    expect((await geraConviteProtegido(e1, obraId, 'engenheiro', cenario.amb)).ok).toBe(
+      true,
+    );
 
-    const linha = cenario.conexao.sqlite.prepare('SELECT perfil FROM convite').get() as {
-      perfil: string;
-    };
+    const linhas = await cenario.conexao.db
+      .select({ perfil: tabelaDeConvite.perfil })
+      .from(tabelaDeConvite);
 
-    expect(linha.perfil).toBe('engenheiro');
+    expect(linhas.map((l) => l.perfil)).toEqual(['engenheiro']);
   });
 
-  it('o encarregado não gera convite de engenheiro', () => {
-    const convite = geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
+  it('o encarregado não gera convite de engenheiro', async () => {
+    const convite = await geraConviteProtegido(e1, obraId, 'encarregado', cenario.amb);
     if (!convite.ok) return;
-    const c1 = cenario.novoAtor('c1@exemplo.invalido');
-    aceitaConvite(convite.valor.token, c1.usuarioId, ambDeAcesso());
+    const c1 = await cenario.novoAtor('c1@exemplo.invalido');
+    await aceitaConvite(convite.valor.token, c1.usuarioId, ambDeAcesso());
 
-    const tentativa = geraConviteProtegido(c1, obraId, 'engenheiro', cenario.amb);
+    const tentativa = await geraConviteProtegido(c1, obraId, 'engenheiro', cenario.amb);
 
     expect(tentativa.ok).toBe(false);
     expect(!tentativa.ok && tentativa.erro.codigo).toBe(CODIGO_ERRO.SEM_PERMISSAO);
   });
 
-  it('engenheiro de outra obra não gera convite de engenheiro para esta', () => {
-    const outra = criaObraProtegida(
+  it('engenheiro de outra obra não gera convite de engenheiro para esta', async () => {
+    const outra = await criaObraProtegida(
       e1,
       { ...DADOS_DA_OBRA, contrato: 'P0999/01-25 - OUTRA' },
       cenario.amb,
@@ -164,26 +174,30 @@ describe('decisão 34.1 — convite de engenheiro', () => {
     expect(outra.ok).toBe(true);
     if (!outra.ok) return;
 
-    const conviteDaOutra = geraConviteProtegido(
+    const conviteDaOutra = await geraConviteProtegido(
       e1,
       outra.valor,
       'engenheiro',
       cenario.amb,
     );
     if (!conviteDaOutra.ok) return;
-    const e2 = cenario.novoAtor('e2@exemplo.invalido');
-    aceitaConvite(conviteDaOutra.valor.token, e2.usuarioId, ambDeAcesso());
+    const e2 = await cenario.novoAtor('e2@exemplo.invalido');
+    await aceitaConvite(conviteDaOutra.valor.token, e2.usuarioId, ambDeAcesso());
 
-    expect(geraConviteProtegido(e2, obraId, 'engenheiro', cenario.amb).ok).toBe(false);
+    expect((await geraConviteProtegido(e2, obraId, 'engenheiro', cenario.amb)).ok).toBe(
+      false,
+    );
   });
 
-  it('o engenheiro convidado convida na obra em que entrou', () => {
-    const convite = geraConviteProtegido(e1, obraId, 'engenheiro', cenario.amb);
+  it('o engenheiro convidado convida na obra em que entrou', async () => {
+    const convite = await geraConviteProtegido(e1, obraId, 'engenheiro', cenario.amb);
     if (!convite.ok) return;
-    const e2 = cenario.novoAtor('e2@exemplo.invalido');
-    aceitaConvite(convite.valor.token, e2.usuarioId, ambDeAcesso());
+    const e2 = await cenario.novoAtor('e2@exemplo.invalido');
+    await aceitaConvite(convite.valor.token, e2.usuarioId, ambDeAcesso());
 
-    expect(geraConviteProtegido(e2, obraId, 'encarregado', cenario.amb).ok).toBe(true);
+    expect((await geraConviteProtegido(e2, obraId, 'encarregado', cenario.amb)).ok).toBe(
+      true,
+    );
   });
 
   it('perfil que não é dos dois é recusado antes de virar convite', () => {

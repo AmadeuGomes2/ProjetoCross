@@ -14,6 +14,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { paraAcesso } from '../../app/_composicao/ambiente-de-cadastro';
+import { sessao, usuario } from '../../db/schema';
 import { montaCenario, type Cenario } from '../../../test/fixtures/cenario-de-cadastro';
 import { relogioMovel } from '../../../test/fixtures/banco-de-teste';
 import {
@@ -30,13 +31,13 @@ import type { Ambiente } from './tipos';
 let cenario: Cenario;
 let amb: Ambiente;
 
-beforeEach(() => {
-  cenario = montaCenario();
+beforeEach(async () => {
+  cenario = await montaCenario();
   amb = paraAcesso(cenario.amb);
 });
 
-afterEach(() => {
-  cenario.fecha();
+afterEach(async () => {
+  await cenario.fecha();
 });
 
 const SENHA = 'uma senha comprida de teste 1234';
@@ -81,7 +82,7 @@ describe('entrada e sessão', () => {
     );
     expect(criado.ok).toBe(true);
 
-    const linhas = cenario.conexao.sqlite.prepare('SELECT * FROM usuario').all();
+    const linhas = await cenario.conexao.db.select().from(usuario);
     expect(JSON.stringify(linhas)).not.toContain(SENHA);
   });
 
@@ -161,7 +162,7 @@ describe('entrada e sessão', () => {
     expect(entrada.ok).toBe(true);
     if (!entrada.ok) return;
 
-    const linhas = cenario.conexao.sqlite.prepare('SELECT * FROM sessao').all();
+    const linhas = await cenario.conexao.db.select().from(sessao);
     expect(JSON.stringify(linhas)).not.toContain(entrada.valor.token);
   });
 
@@ -174,14 +175,14 @@ describe('entrada e sessão', () => {
     expect(entrada.ok).toBe(true);
     if (!entrada.ok) return;
 
-    const ator = autenticaRequisicao(entrada.valor.token, amb);
+    const ator = await autenticaRequisicao(entrada.valor.token, amb);
     expect(ator.ok && ator.valor.usuarioId).toBe(entrada.valor.ator.usuarioId);
   });
 
-  it('recusa cookie ausente, desconhecido e vazio, com a mesma mensagem', () => {
-    const ausente = autenticaRequisicao(undefined, amb);
-    const desconhecido = autenticaRequisicao('inventado', amb);
-    const vazio = autenticaRequisicao('', amb);
+  it('recusa cookie ausente, desconhecido e vazio, com a mesma mensagem', async () => {
+    const ausente = await autenticaRequisicao(undefined, amb);
+    const desconhecido = await autenticaRequisicao('inventado', amb);
+    const vazio = await autenticaRequisicao('', amb);
 
     expect(ausente.ok || desconhecido.ok || vazio.ok).toBe(false);
     if (ausente.ok || desconhecido.ok) return;
@@ -201,10 +202,10 @@ describe('entrada e sessão', () => {
 
     // Um minuto antes do prazo ainda vale; um minuto depois, não.
     relogio.vaiPara('2026-09-16T19:59:00.000Z');
-    expect(autenticaRequisicao(entrada.valor.token, comRelogio).ok).toBe(true);
+    expect((await autenticaRequisicao(entrada.valor.token, comRelogio)).ok).toBe(true);
 
     relogio.vaiPara('2026-09-16T20:01:00.000Z');
-    expect(autenticaRequisicao(entrada.valor.token, comRelogio).ok).toBe(false);
+    expect((await autenticaRequisicao(entrada.valor.token, comRelogio)).ok).toBe(false);
     expect(HORAS_DE_SESSAO).toBe(12);
   });
 
@@ -217,9 +218,9 @@ describe('entrada e sessão', () => {
     expect(entrada.ok).toBe(true);
     if (!entrada.ok) return;
 
-    encerraSessao(entrada.valor.token, amb);
+    await encerraSessao(entrada.valor.token, amb);
 
-    expect(autenticaRequisicao(entrada.valor.token, amb).ok).toBe(false);
+    expect((await autenticaRequisicao(entrada.valor.token, amb)).ok).toBe(false);
   });
 
   it('recusa criar duas contas com o mesmo e-mail, sem confirmar que ele existe', async () => {

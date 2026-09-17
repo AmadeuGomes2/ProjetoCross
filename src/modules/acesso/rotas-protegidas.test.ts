@@ -35,10 +35,12 @@ import {
   montaCenario,
   type Cenario,
 } from '../../../test/fixtures/cenario-de-cadastro';
+import { acesso as tabelaDeAcesso } from '../../db/schema';
 import { comAtorNaObra } from './autorizacao';
 import type { Ambiente, Ator } from './tipos';
 import { CODIGO_ERRO, erro, erroDeAcesso, ok, type Result } from '../../shared/result';
 import type { ErroDeAcesso } from '../../shared/result';
+import { idConfiavel } from '../../shared/id';
 
 const PASTA_APP = fileURLToPath(new URL('../../app', import.meta.url));
 
@@ -157,17 +159,21 @@ describe('comAtorNaObra', () => {
   let amb: Ambiente;
   let atorFalso: Ator;
 
-  beforeEach(() => {
-    cenario = montaCenario();
+  beforeEach(async () => {
+    cenario = await montaCenario();
     amb = paraAcesso(cenario.amb);
-    atorFalso = cenario.novoEngenheiro('e1@exemplo.invalido');
+    atorFalso = await cenario.novoEngenheiro('e1@exemplo.invalido');
   });
 
-  afterEach(() => {
-    cenario.fecha();
+  afterEach(async () => {
+    await cenario.fecha();
   });
 
-  function dependencias(autentica: () => Result<Ator, ErroDeAcesso>) {
+  /**
+   * A porta de autenticação passou a ser assíncrona junto com o banco: quem
+   * responde quem é o portador lê a tabela `sessao`, e ler virou `await`.
+   */
+  function dependencias(autentica: () => Promise<Result<Ator, ErroDeAcesso>>) {
     return { autentica, amb: () => amb };
   }
 
@@ -175,7 +181,7 @@ describe('comAtorNaObra', () => {
     const manipulador = comAtorNaObra(
       'encarregado',
       async () => Response.json({ ok: true }),
-      dependencias(() =>
+      dependencias(async () =>
         erro(erroDeAcesso(CODIGO_ERRO.SEM_PERMISSAO, 'Sua sessão terminou.')),
       ),
     );
@@ -196,7 +202,7 @@ describe('comAtorNaObra', () => {
         chamou = true;
         return Response.json({ ok: true });
       },
-      dependencias(() => ok(atorFalso)),
+      dependencias(async () => ok(atorFalso)),
     );
 
     const resposta = await manipulador(new Request('https://exemplo.invalido/'), {
@@ -215,7 +221,7 @@ describe('comAtorNaObra', () => {
         chamou = true;
         return Response.json({ ok: true });
       },
-      dependencias(() => ok(atorFalso)),
+      dependencias(async () => ok(atorFalso)),
     );
 
     const resposta = await manipulador(new Request('https://exemplo.invalido/'), {
@@ -227,7 +233,7 @@ describe('comAtorNaObra', () => {
   });
 
   it('chama o manipulador com o AtorNaObra quando o acesso existe', async () => {
-    const obraId = criaObraDoPrd(atorFalso, cenario.amb);
+    const obraId = await criaObraDoPrd(atorFalso, cenario.amb);
     let perfilRecebido: string | null = null;
 
     const manipulador = comAtorNaObra(
@@ -236,7 +242,7 @@ describe('comAtorNaObra', () => {
         perfilRecebido = ator.perfil;
         return Response.json({ ok: true });
       },
-      dependencias(() => ok(atorFalso)),
+      dependencias(async () => ok(atorFalso)),
     );
 
     const resposta = await manipulador(new Request('https://exemplo.invalido/'), {
@@ -250,7 +256,7 @@ describe('comAtorNaObra', () => {
   it('entrega ao manipulador os demais parâmetros da rota', async () => {
     // O dia do RDO vem do caminho, como o `obraId`. Sem isto o manipulador
     // precisaria remontar a URL na mão, que é onde se erra o segmento.
-    const obraId = criaObraDoPrd(atorFalso, cenario.amb);
+    const obraId = await criaObraDoPrd(atorFalso, cenario.amb);
     let diaRecebido: unknown = null;
 
     const manipulador = comAtorNaObra(
@@ -259,7 +265,7 @@ describe('comAtorNaObra', () => {
         diaRecebido = params['dia'];
         return Response.json({ ok: true });
       },
-      dependencias(() => ok(atorFalso)),
+      dependencias(async () => ok(atorFalso)),
     );
 
     await manipulador(new Request('https://exemplo.invalido/'), {
@@ -270,25 +276,23 @@ describe('comAtorNaObra', () => {
   });
 
   it('responde 403 ao encarregado numa rota que exige engenheiro', async () => {
-    const obraId = criaObraDoPrd(atorFalso, cenario.amb);
-    const c1 = cenario.novoAtor('c1@exemplo.invalido');
-    cenario.conexao.sqlite
-      .prepare(
-        `INSERT INTO acesso (id, obra_id, usuario_id, perfil, liberado_por, liberado_em)
-         VALUES (?, ?, ?, 'encarregado', ?, ?)`,
-      )
-      .run(
-        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-        obraId,
-        c1.usuarioId,
-        atorFalso.usuarioId,
-        '2026-09-16T12:00:00.000Z',
-      );
+    const obraId = await criaObraDoPrd(atorFalso, cenario.amb);
+    const c1 = await cenario.novoAtor('c1@exemplo.invalido');
+    // Acesso de encarregado gravado direto na tabela: o que está sob teste é o
+    // embrulho de rota, não o caminho pelo qual o acesso nasceu.
+    await cenario.conexao.db.insert(tabelaDeAcesso).values({
+      id: idConfiavel<'acesso'>('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+      obraId,
+      usuarioId: c1.usuarioId,
+      perfil: 'encarregado',
+      liberadoPor: atorFalso.usuarioId,
+      liberadoEm: '2026-09-16T12:00:00.000Z',
+    });
 
     const manipulador = comAtorNaObra(
       'engenheiro',
       async () => Response.json({ ok: true }),
-      dependencias(() => ok(c1)),
+      dependencias(async () => ok(c1)),
     );
 
     const resposta = await manipulador(new Request('https://exemplo.invalido/'), {
