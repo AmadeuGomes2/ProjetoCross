@@ -27,7 +27,6 @@ import {
   type Ator,
 } from '../src/modules/acesso';
 import type { ObraId } from '../src/shared/id';
-import { relogioFixo } from './fixtures/banco-de-teste';
 import {
   AGORA,
   criaObraDoPrd,
