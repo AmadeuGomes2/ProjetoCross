@@ -87,8 +87,13 @@ vazar, e é por isso que produção e prévia não compartilham o mesmo.
 
 ## 4. O deploy
 
-Com o repositório conectado, **cada `push` no branch principal publica**. Não há
-passo manual.
+Com o repositório conectado, **cada `push` no branch de produção publica**. Não
+há passo manual.
+
+> **Confira qual é o branch de produção.** A Vercel usa `main` por padrão, e este
+> repositório trabalha em `master`. Se os dois não baterem, o push acontece e
+> nada é publicado — sem erro, sem aviso, e a impressão é de que o deploy falhou.
+> Ajuste em **Settings → Git → Production Branch**, ou renomeie o branch.
 
 O build roda `next build`. Ele **não** aplica migrations — de propósito: migration
 no build roda a cada deploy de prévia e concorre consigo mesma. Esquema é passo
@@ -96,7 +101,29 @@ separado, feito por quem sabe o que está mudando.
 
 ---
 
-## 5. Conferir que subiu de pé
+## 5. Antes de mandar o endereço para alguém de fora
+
+Três coisas que valem para um ambiente que o cliente vai abrir. Nenhuma é
+detalhe.
+
+**As contas de demonstração têm senha escrita no repositório.**
+`engenheira@obra.local` e `encarregado@obra.local` existem com senha fixa em
+`scripts/demonstracao.ts`, e isso é deliberado: elas são de banco descartável, na
+máquina de quem desenvolve. Num endereço público **são conta aberta para quem
+leu o código**. Para um ambiente que sai da sua máquina, crie a conta pelo
+`npm run criar-engenheiro`, com senha de verdade, e convide o resto de dentro.
+
+**Não rode `npm run demonstracao` contra o banco de produção.** Ele cria as duas
+contas acima. Se quiser um ambiente de vitrine com dado de mentira, use um banco
+separado e trate aquele endereço como vitrine — nada real entra lá.
+
+**Ambiente de prévia.** Cada branch gera uma URL própria. Se ela apontar para o
+banco de produção, um link de prévia dá acesso a nome de trabalhador, que é dado
+pessoal sob a LGPD. Banco separado para prévia, ou prévia desligada.
+
+---
+
+## 6. Conferir que subiu de pé
 
 Em ordem, porque cada um depende do anterior:
 
@@ -128,6 +155,5 @@ Em ordem, porque cada um depende do anterior:
   documento contratual: confira a janela antes de depender dela.
 - **Domínio próprio.** Enquanto não houver, `AUTH_URL` aponta para o endereço da
   Vercel, que muda entre projetos.
-- **Dado pessoal em prévia.** Cada branch gera um ambiente de prévia. Se ele
-  apontar para o banco de produção, um link de prévia dá acesso a nome de
-  trabalhador. Use **banco separado** para prévia, ou desligue a prévia.
+- **Dado pessoal em prévia.** Tratado na seção 5, e repetido aqui porque é o
+  erro mais fácil de cometer: banco separado para prévia, ou prévia desligada.
