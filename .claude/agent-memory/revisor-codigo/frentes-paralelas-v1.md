@@ -30,4 +30,17 @@ escreveu os módulos antes dos testes, mas as expectativas vêm de
 `docs/qa/v1-casos-passos-1-3.md` e das decisões de 16/09/2026, citadas por número
 nos comentários dos próprios testes. Não é fotografia do defeito.
 
+## Segunda rodada — RDO de período, 17/09/2026
+
+Mesma forma: frentes cegas (`rdo/periodo`, `export/periodo`, telas de cadastro)
+mais integração pelo coordenador. Desta vez a raiz de composição **estava
+ligada** — o defeito mudou de lugar: o que o coordenador escreve **depois**, para
+costurar duas frentes, vira um **segundo caminho de entrada** que não passa pela
+borda do módulo e não herda os limites dela.
+
+**How to apply:** ao revisar integração, para cada rota nova pergunte qual função
+de `modules/**/borda/` ela usa. Se a resposta for "nenhuma, a composição valida",
+compare as duas validações campo a campo: é ali que some o teto, o `trim` e o
+código de erro.
+
 Ver [[defeitos-recorrentes]].

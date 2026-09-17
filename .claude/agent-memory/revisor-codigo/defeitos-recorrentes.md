@@ -19,6 +19,19 @@ ou abstração faltando em `src/shared/`.
 | P4  | **Validação de intervalo copiada em vez de subir para `shared/date/`**: `validaIntervaloDaPassagem` e `validaSobreposicao` idênticas em dois módulos; `seSobrepoem` é uma terceira forma.                                                                      | 3           | pessoal, equipamento, obra                                                      |
 | P5  | **Função de `shared/` ignorada e reescrita inline**: `ehFuturo` existe em `shared/date/fuso.ts` e ninguém usa; `lancamento/regras.ts` refaz a comparação.                                                                                                      | 1           | lancamento                                                                      |
 
+## Revisão 2 — `c7af33f~1..HEAD`, RDO de período (87 arquivos, 3 frentes + integração)
+
+| #   | Padrão                                                                                                                                                                                      | Ocorrências | Onde                                                                                     |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------- |
+| P5  | **Função de `shared/` ignorada e reescrita inline** (reincidência): `algumaPassagemCobreODia` refeita em `_composicao/impacto.ts`, sem a guarda `saida < entrada`.                          | 2           | `lancamento/regras.ts` (rev. 1), `_composicao/impacto.ts`                                 |
+| P4' | **Regra de dia/conjunto copiada em vez de subir para `shared/date/`** (família de P4): normalizar conjunto de dias existe em três formas, com garantias diferentes — uma delas sem o teto.  | 3           | `rdo/borda/esquemas-de-periodo.ts`, `lancamento/leitura-de-periodo.ts`, `_composicao/exportacao-de-periodo.ts` |
+| P6  | **Segunda borda na composição**, escrita para ligar frentes, sem os limites que a borda do módulo impõe. A rota nova não passa pelo esquema do módulo, e o teto de 366 dias some.           | 1           | `_composicao/exportacao-de-periodo.ts`                                                    |
+| P7  | **Comentário que afirma garantia que outro caminho não cumpre.** "o servidor recusa acima de 366", "não existe um segundo lugar que decida a ordem", "o arquivo não foi gerado".            | 3           | `seletor-de-periodo.tsx`, `esquemas-de-periodo.ts`, `exporta-rdo-de-periodo.ts`           |
+| P8  | **Contador exibido ao usuário testado só no caminho zero**: `diasFechados` e `exportacoes` nunca são exercitados diferentes de 0; o gêmeo do equipamento não tem teste nenhum.              | 1           | `test/impacto-de-alteracao.test.ts`                                                       |
+
+P1 (raiz de composição entregue como esboço) **não reapareceu**: as portas do
+período estão ligadas e `_composicao/rdo-de-periodo.test.ts` cobre a costura.
+
 ## O que NÃO foi defeito (não reapontar sem prova nova)
 
 - `any`: zero ocorrências. Nenhum `eslint-disable`, `@ts-ignore` nem `as any`.
@@ -40,5 +53,17 @@ ou abstração faltando em `src/shared/`.
    concordar**. Propor regra explícita (P3).
 3. `shared/date/intervalo.ts` tem `intervaloCobreODia`, mas não tem
    `intervalosSeSobrepoem` nem `validaOrdemDasDatas`. Propor subir as duas (P4).
+   **Feito na revisão 2**: as duas existem e são usadas.
+
+## Mudanças estruturais propostas na revisão 2
+
+4. **`shared/date/conjunto-de-dias.ts`**, com `normalizaConjuntoDeDias` e o teto
+   `DIAS_MAXIMOS_DA_CONSULTA`, exportado. Três cópias já é tarde (P4').
+5. `padroes-codigo` não diz nada sobre **borda escrita na composição**. Propor
+   regra: rota nova valida pelo esquema do módulo; se a composição precisar de um
+   esquema próprio, ele compõe o do módulo em vez de reescrevê-lo (P6).
+6. Propor no `padroes-codigo`, seção Comentário: **comentário que afirma garantia
+   de outro arquivo cita `arquivo:função`** — assim a garantia que muda de lugar
+   quebra a busca, em vez de virar mentira silenciosa (P7).
 
 Ver [[frentes-paralelas-v1]].

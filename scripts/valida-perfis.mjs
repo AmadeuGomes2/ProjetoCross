@@ -156,6 +156,45 @@ function regras(ctx) {
       },
     },
 
+    // ----------------------------------------------------- RDO de período
+    {
+      perfil: 'eng',
+      nome: 'engenheiro tem o seletor de período na obra',
+      url: `/obras/${obra}`,
+      prova: async (p) => {
+        const texto = await p.locator('body').innerText();
+        const erros = [];
+        if (!texto.includes('Exportar um período')) erros.push('sem o seletor');
+        if (!texto.includes('Escolher dias a dedo')) erros.push('sem dias avulsos');
+        return erros.length > 0 ? erros.join('; ') : null;
+      },
+    },
+    {
+      perfil: 'enc',
+      nome: 'encarregado não vê o seletor de período',
+      url: `/obras/${obra}`,
+      prova: async (p) => {
+        const texto = await p.locator('body').innerText();
+        return texto.includes('Exportar um período') ? 'viu o seletor' : null;
+      },
+    },
+    {
+      perfil: 'enc',
+      nome: 'encarregado é recusado ao exportar um período',
+      url: `/rdo/${obra}/periodo`,
+      metodo: 'POST',
+      corpo: { dias: [dia], modo: 'consolidado', formato: 'PDF' },
+      esperaStatus: 403,
+    },
+    {
+      perfil: 'eng',
+      nome: 'engenheiro exporta um período, e vem um PDF',
+      url: `/rdo/${obra}/periodo`,
+      metodo: 'POST',
+      corpo: { dias: [dia], modo: 'consolidado', formato: 'PDF' },
+      esperaStatus: 200,
+    },
+
     // -------------------------------------------------------------- lançamento
     {
       perfil: 'enc',
@@ -187,10 +226,18 @@ async function main() {
 
     let problema = null;
     try {
-      const resposta = await pagina.goto(BASE + regra.url, {
-        waitUntil: 'networkidle',
-        timeout: 25000,
-      });
+      /*
+       * `POST` vai pelo contexto, não pela navegação: a exportação de período
+       * recebe o conjunto no corpo, e `page.goto` só faz `GET`. O cookie da
+       * sessão acompanha os dois caminhos.
+       */
+      const resposta =
+        regra.metodo === 'POST'
+          ? await contexto.request.post(BASE + regra.url, { data: regra.corpo })
+          : await pagina.goto(BASE + regra.url, {
+              waitUntil: 'networkidle',
+              timeout: 25000,
+            });
       const status = resposta?.status() ?? 0;
 
       if (regra.esperaStatus !== undefined) {
