@@ -29,6 +29,19 @@ import type {
  */
 export interface Colecao<L extends LinhaDeLancamento> {
   doDia(obraId: ObraId, data: DiaPuro): Promise<L[]>;
+  /**
+   * Um **conjunto** de dias, numa consulta só (`data IN (...)`).
+   *
+   * Não é `doDia` chamada N vezes, e a razão principal não é custo: é
+   * determinismo. O RDO de período anexa os diários que ele consolida, e uma
+   * retificação concorrente no meio de trinta leituras faria o consolidado
+   * discordar do diário do mesmo dia (`docs/arquitetura/periodo.md`, 3.2).
+   *
+   * Recebe conjunto, e não intervalo: `{02, 05, 09}` não pode trazer o dia 03
+   * (DP1). Um argumento de intervalo permitiria escrever essa soma sem que
+   * ninguém percebesse na revisão.
+   */
+  dosDias(obraId: ObraId, datas: readonly DiaPuro[]): Promise<L[]>;
   porId(obraId: ObraId, id: LancamentoId): Promise<L | null>;
   cadeia(obraId: ObraId, raizId: LancamentoId): Promise<L[]>;
   /** Reenvio do mesmo rascunho não duplica (arquitetura, decisão 18). */
@@ -67,6 +80,14 @@ export interface RepositorioDeLancamento {
      * lançado que não houve trabalho.
      */
     naJanela(obraId: ObraId, de: DiaPuro, ate: DiaPuro): Promise<DiaDeObra[]>;
+    /**
+     * Os dias declarados de um **conjunto**, para o RDO de período.
+     *
+     * Devolve só o que existe, como `naJanela`: dia sem linha não vem, e quem
+     * lê marca a ausência. Preencher aqui apagaria a diferença entre ninguém
+     * ter lançado e alguém ter lançado que não houve trabalho (decisão 4.2).
+     */
+    nosDias(obraId: ObraId, datas: readonly DiaPuro[]): Promise<DiaDeObra[]>;
     salva(dia: DiaDeObra): Promise<void>;
   };
   readonly atividades: Colecao<LinhaDeAtividade>;

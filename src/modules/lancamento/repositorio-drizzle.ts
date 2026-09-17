@@ -13,7 +13,7 @@
  * `Decimal`, o banco guarda `INTEGER` em milésimos.
  */
 
-import { and, desc, eq, gte, lte } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lte } from 'drizzle-orm';
 
 import { diaPuroConfiavel, type DiaPuro } from '../../shared/date/dia';
 import { deMilesimos, paraMilesimos } from '../../shared/decimal';
@@ -114,6 +114,17 @@ function colunasDaExclusao(exclusao: Exclusao) {
   };
 }
 
+/**
+ * Conjunto vazio não vira `IN ()`.
+ *
+ * `inArray` com lista vazia não é SQL válido em todo dialeto, e a resposta
+ * certa é conhecida sem ir ao banco: nada. A verificação fica aqui, num lugar
+ * só, e não repetida em cada uma das cinco consultas de conjunto.
+ */
+function conjuntoVazio(datas: readonly DiaPuro[]): boolean {
+  return datas.length === 0;
+}
+
 export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancamento {
   const { db, sqlite } = conexao;
 
@@ -130,6 +141,21 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
             ),
           )
       ).map(atividadeDoBanco),
+    dosDias: async (obraId, datas) =>
+      conjuntoVazio(datas)
+        ? []
+        : (
+            await db
+              .select()
+              .from(lancamentoAtividade)
+              .where(
+                and(
+                  eq(lancamentoAtividade.obraId, obraId),
+                  inArray(lancamentoAtividade.data, [...datas]),
+                ),
+              )
+              .orderBy(asc(lancamentoAtividade.data))
+          ).map(atividadeDoBanco),
     porId: async (obraId, id) => {
       const achadas = await db
         .select()
@@ -211,6 +237,21 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
             and(eq(lancamentoProducao.obraId, obraId), eq(lancamentoProducao.data, data)),
           )
       ).map(producaoDoBanco),
+    dosDias: async (obraId, datas) =>
+      conjuntoVazio(datas)
+        ? []
+        : (
+            await db
+              .select()
+              .from(lancamentoProducao)
+              .where(
+                and(
+                  eq(lancamentoProducao.obraId, obraId),
+                  inArray(lancamentoProducao.data, [...datas]),
+                ),
+              )
+              .orderBy(asc(lancamentoProducao.data))
+          ).map(producaoDoBanco),
     ate: async (obraId, ate) =>
       (
         await db
@@ -299,6 +340,21 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
             ),
           )
       ).map(pluviometriaDoBanco),
+    dosDias: async (obraId, datas) =>
+      conjuntoVazio(datas)
+        ? []
+        : (
+            await db
+              .select()
+              .from(lancamentoPluviometria)
+              .where(
+                and(
+                  eq(lancamentoPluviometria.obraId, obraId),
+                  inArray(lancamentoPluviometria.data, [...datas]),
+                ),
+              )
+              .orderBy(asc(lancamentoPluviometria.data))
+          ).map(pluviometriaDoBanco),
     porId: async (obraId, id) => {
       const achadas = await db
         .select()
@@ -392,6 +448,21 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
             ),
           )
       ).map(observacaoDoBanco),
+    dosDias: async (obraId, datas) =>
+      conjuntoVazio(datas)
+        ? []
+        : (
+            await db
+              .select()
+              .from(lancamentoObservacao)
+              .where(
+                and(
+                  eq(lancamentoObservacao.obraId, obraId),
+                  inArray(lancamentoObservacao.data, [...datas]),
+                ),
+              )
+              .orderBy(asc(lancamentoObservacao.data))
+          ).map(observacaoDoBanco),
     porId: async (obraId, id) => {
       const achadas = await db
         .select()
@@ -469,19 +540,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
           .limit(1);
         const primeiro = achados[0];
         if (primeiro === undefined) return null;
-        return {
-          obraId: primeiro.obraId,
-          data: diaPuroConfiavel(primeiro.data),
-          estado: primeiro.estado,
-          motivoParada: primeiro.motivoParada,
-          registradoPor: primeiro.registradoPor,
-          registradoEm: primeiro.registradoEm,
-          atualizadoPor: primeiro.atualizadoPor,
-          atualizadoEm: primeiro.atualizadoEm,
-          fechadoPor: primeiro.fechadoPor,
-          fechadoEm: primeiro.fechadoEm,
-          numeroRdoCongelado: primeiro.numeroRdoCongelado,
-        };
+        return diaDoBanco(primeiro);
       },
       naJanela: async (obraId, de, ate) => {
         const achados = await db
@@ -495,19 +554,16 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
             ),
           )
           .orderBy(desc(tabelaDia.data));
-        return achados.map((linha) => ({
-          obraId: linha.obraId,
-          data: diaPuroConfiavel(linha.data),
-          estado: linha.estado,
-          motivoParada: linha.motivoParada,
-          registradoPor: linha.registradoPor,
-          registradoEm: linha.registradoEm,
-          atualizadoPor: linha.atualizadoPor,
-          atualizadoEm: linha.atualizadoEm,
-          fechadoPor: linha.fechadoPor,
-          fechadoEm: linha.fechadoEm,
-          numeroRdoCongelado: linha.numeroRdoCongelado,
-        }));
+        return achados.map(diaDoBanco);
+      },
+      nosDias: async (obraId, datas) => {
+        if (conjuntoVazio(datas)) return [];
+        const achados = await db
+          .select()
+          .from(tabelaDia)
+          .where(and(eq(tabelaDia.obraId, obraId), inArray(tabelaDia.data, [...datas])))
+          .orderBy(asc(tabelaDia.data));
+        return achados.map(diaDoBanco);
       },
       salva: async (dia: DiaDeObra) => {
         // PK natural `(obra_id, data)`: o mesmo dia nunca vira duas linhas.
@@ -563,6 +619,23 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
         throw e;
       }
     },
+  };
+}
+
+/** As onze colunas de `dia_de_obra`, numa conversão só: três leituras a usam. */
+function diaDoBanco(linha: typeof tabelaDia.$inferSelect): DiaDeObra {
+  return {
+    obraId: linha.obraId,
+    data: diaPuroConfiavel(linha.data),
+    estado: linha.estado,
+    motivoParada: linha.motivoParada,
+    registradoPor: linha.registradoPor,
+    registradoEm: linha.registradoEm,
+    atualizadoPor: linha.atualizadoPor,
+    atualizadoEm: linha.atualizadoEm,
+    fechadoPor: linha.fechadoPor,
+    fechadoEm: linha.fechadoEm,
+    numeroRdoCongelado: linha.numeroRdoCongelado,
   };
 }
 

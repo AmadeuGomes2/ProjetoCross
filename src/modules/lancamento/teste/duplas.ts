@@ -81,6 +81,15 @@ function criaColecaoEmMemoria<L extends LinhaDeLancamento>(): Colecao<L> & {
     linhas,
     doDia: (obraId, data) =>
       Promise.resolve(linhas.filter((l) => l.obraId === obraId && l.data === data)),
+    // Conjunto, e não intervalo: o dia entre dois dias pedidos não entra (DP1).
+    dosDias: (obraId, datas) => {
+      const pedidos = new Set<string>(datas);
+      return Promise.resolve(
+        linhas
+          .filter((l) => l.obraId === obraId && pedidos.has(l.data))
+          .sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : 0)),
+      );
+    },
     porId: (obraId, id) =>
       Promise.resolve(linhas.find((l) => l.obraId === obraId && l.id === id) ?? null),
     cadeia: (obraId, raizId) =>
@@ -153,6 +162,14 @@ export function criaRepositorioEmMemoria(): RepositorioEmMemoria {
             .filter((d) => d.obraId === obraId && d.data >= de && d.data <= ate)
             .sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : 0)),
         ),
+      nosDias: (obraId, datas) => {
+        const pedidos = new Set<string>(datas);
+        return Promise.resolve(
+          [...dias.values()]
+            .filter((d) => d.obraId === obraId && pedidos.has(d.data))
+            .sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : 0)),
+        );
+      },
       salva: (d) => {
         dias.set(`${d.obraId}|${d.data}`, d);
         return Promise.resolve();

@@ -100,3 +100,13 @@ export type {
 export { SUGESTOES_MOTIVO_PARADA } from '../../shared/taxonomia';
 export { janelaDeDias, montaPainelDosDias } from './painel';
 export type { DiaNoPainel } from './painel';
+/**
+ * A leitura do conjunto de dias, para o RDO de período. Uma consulta por
+ * coleção, nunca uma por dia — ver `leitura-de-periodo.ts`.
+ */
+export { criaLeituraDePeriodo, normalizaConjuntoDeDias } from './leitura-de-periodo';
+export type {
+  DependenciasDaLeituraDePeriodo,
+  InstantaneoDoPeriodo,
+  LeituraDePeriodo,
+} from './leitura-de-periodo';
