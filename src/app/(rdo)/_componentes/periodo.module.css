@@ -1,0 +1,83 @@
+/*
+ * Seletor de período.
+ *
+ * O calendário é uma grade de alvos pequenos e MARCÁVEIS, não uma tabela de
+ * dados: 45 quadradinhos com o número do dia. É a única grade do sistema em que
+ * o alvo pode ficar abaixo de 44px, e só porque ela é opcional — os atalhos de
+ * 7 e 30 dias resolvem o caso comum sem nenhum toque fino.
+ */
+
+.atalhos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e2);
+  margin-bottom: var(--e4);
+}
+
+.calendario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e4);
+  margin: 0 0 var(--e4);
+  padding: var(--e3);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+}
+
+/*
+ * O mes e rotulado porque sem ele a grade mostra `04 … 31 01 …` e o `08`
+ * aparece duas vezes sem dizer de qual mes e. Escolher o dia errado aqui
+ * exporta o RDO errado.
+ */
+.mesRotulo {
+  margin: 0 0 var(--e2);
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--tinta-fraca);
+}
+
+.grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.6rem, 1fr));
+  gap: var(--e2);
+}
+
+.calendario legend {
+  padding: 0 var(--e2);
+}
+
+.dia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.6rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-pequeno);
+  background: var(--papel);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.dia:hover {
+  border-color: var(--realce);
+}
+
+/* O marcado muda fundo E borda: cor sozinha não comunica. */
+.diaMarcado {
+  background: var(--realce);
+  border-color: var(--realce);
+  color: var(--realce-tinta);
+  font-weight: 650;
+}
+
+/* Foco visível mesmo com a caixa de marcação escondida do olho. */
+.dia:has(input:focus-visible) {
+  outline: 3px solid var(--realce);
+  outline-offset: 2px;
+}
+
+.contagem {
+  margin: 0 0 var(--e2);
+  color: var(--tinta-tenue);
+  font-size: 0.9rem;
+}

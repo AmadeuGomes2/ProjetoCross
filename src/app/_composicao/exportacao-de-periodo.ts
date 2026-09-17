@@ -39,17 +39,17 @@ import { montaRdoDiario } from '../../modules/rdo/monta-rdo-diario';
 import { montaRdoDePeriodo } from '../../modules/rdo/periodo/monta-rdo-de-periodo';
 import { paraDocumentoDePeriodo } from '../../modules/rdo/periodo/para-documento-de-periodo';
 import { paraDocumento } from '../../modules/rdo/para-documento';
-import type { DiaPuro } from '../../shared/date/dia';
+import { criaDiaPuro, type DiaPuro } from '../../shared/date/dia';
 import { instanteAgora } from '../../shared/date/fuso';
 import { erro, erroDeDominio, ok, CODIGO_ERRO, type Result } from '../../shared/result';
 import type { ObraId } from '../../shared/id';
-import type { Ator } from '../../modules/acesso';
+import type { PortadorDeAcesso } from '../../modules/acesso';
 import { ambienteDaComposicao, type AmbienteDaComposicao } from './ambiente';
 import { criaPortasDoRdo } from './rdo-diario';
 import { portasDoRdoDePeriodoProtegidas } from './rdo-de-periodo';
 
 export function criaPortasDoExportDePeriodo(
-  ator: Ator,
+  ator: PortadorDeAcesso,
   ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
 ): PortasDoExportDePeriodo {
   return {
@@ -110,7 +110,7 @@ export function criaPortasDoExportDePeriodo(
 }
 
 export async function exportaPeriodoProtegido(
-  ator: Ator,
+  ator: PortadorDeAcesso,
   pedido: {
     readonly obraId: ObraId;
     readonly dias: readonly DiaPuro[];
@@ -128,3 +128,105 @@ export async function exportaPeriodoProtegido(
 }
 
 export type { PacoteParaDocumento };
+
+/**
+ * A resposta HTTP da exportação de período.
+ *
+ * Borda: valida a entrada hostil, delega e embrulha. O conjunto de dias chega
+ * **no corpo**, não em `?dias=`: uma lista de 30 datas na URL entra em log de
+ * servidor, em histórico de navegador e em referrer — e o que se exporta de uma
+ * obra é informação sobre ela.
+ */
+export async function respondeComOPeriodoExportado(
+  ator: PortadorDeAcesso,
+  perfil: 'engenheiro' | 'encarregado',
+  obraId: ObraId,
+  corpo: unknown,
+  ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
+): Promise<Response> {
+  const pedido = leiaPedidoDeExportacao(corpo);
+  if (!pedido.ok) return Response.json({ erro: pedido.erro }, { status: 400 });
+
+  const exportado = await exportaPeriodoProtegido(
+    ator,
+    { obraId, ...pedido.valor },
+    perfil,
+    ambiente,
+  );
+  if (!exportado.ok) {
+    return Response.json(
+      { erro: exportado.erro.mensagem },
+      { status: statusDaExportacao(exportado.erro) },
+    );
+  }
+
+  // Cópia para buffer próprio, como na rota do diário: o corpo de `Response`
+  // exige `ArrayBuffer`, e copiar é mais honesto que calar o compilador.
+  const bytes = new Uint8Array(exportado.valor.bytes.byteLength);
+  bytes.set(exportado.valor.bytes);
+
+  return new Response(bytes, {
+    status: 200,
+    headers: {
+      'content-type':
+        pedido.valor.formato === 'XLSX'
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          : 'application/pdf',
+      'content-disposition': `attachment; filename="${exportado.valor.nomeDoArquivo}"`,
+      // O documento muda quando o lançamento muda: nada de cache intermediário.
+      'cache-control': 'no-store',
+    },
+  });
+}
+
+const MODOS: readonly ModoDeExportacaoDePeriodo[] = [
+  'consolidado',
+  'diarios',
+  'consolidado-com-diarios',
+];
+
+/** Entrada do navegador é hostil: tipo, faixa e domínio, sempre no servidor. */
+function leiaPedidoDeExportacao(bruto: unknown): Result<
+  {
+    readonly dias: readonly DiaPuro[];
+    readonly modo: ModoDeExportacaoDePeriodo;
+    readonly formato: FormatoDeExportacaoDePeriodo;
+  },
+  string
+> {
+  if (typeof bruto !== 'object' || bruto === null) {
+    return erro('O pedido chegou incompleto.');
+  }
+  const corpo = bruto as Record<string, unknown>;
+
+  if (!Array.isArray(corpo['dias']) || corpo['dias'].length === 0) {
+    return erro('Escolha ao menos um dia.');
+  }
+  const dias: DiaPuro[] = [];
+  for (const cru of corpo['dias']) {
+    if (typeof cru !== 'string') return erro('Data inválida no pedido.');
+    const dia = criaDiaPuro(cru);
+    if (!dia.ok) return erro(dia.erro.mensagem);
+    dias.push(dia.valor);
+  }
+
+  const modo = corpo['modo'];
+  if (!MODOS.includes(modo as ModoDeExportacaoDePeriodo)) {
+    return erro('Escolha o que exportar.');
+  }
+  const formato = corpo['formato'];
+  if (formato !== 'PDF' && formato !== 'XLSX') return erro('Escolha o formato.');
+
+  // Ordena e tira repetição AQUI, e não confia na tela: o pedido pode não vir
+  // dela. O módulo recebe o conjunto já normalizado (contrato, 1.1).
+  const unicos = [...new Set(dias)].sort();
+  return ok({ dias: unicos, modo: modo as ModoDeExportacaoDePeriodo, formato });
+}
+
+function statusDaExportacao(e: ErroDeExportacao): number {
+  if (e.tipo === 'acesso') return 403;
+  if (e.tipo === 'entrada') return 400;
+  if (e.tipo === 'inesperado' || e.codigo === CODIGO_ERRO.FALHA_INESPERADA) return 500;
+  if (e.codigo === CODIGO_ERRO.NAO_ENCONTRADO) return 404;
+  return 422;
+}

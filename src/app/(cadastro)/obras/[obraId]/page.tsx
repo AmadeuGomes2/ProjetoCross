@@ -42,6 +42,7 @@ import { impactoDoCabecalho, impactoDoPeriodoBms } from '../../../_composicao/im
 import { painelDosUltimosDiasProtegido } from '../../../_composicao/lancamento';
 import { perfilNaObraProtegido } from '../../../_composicao/rdo-diario';
 import { atorDaRequisicao } from '../../sessao';
+import { SeletorDePeriodo } from '../../../(rdo)/_componentes/seletor-de-periodo';
 import { AbasDaObra } from './abas';
 import { PainelDeDias } from './painel-de-dias';
 
@@ -121,6 +122,9 @@ export default async function Obra({
       <AbasDaObra obraId={obraId} atual="visao" ehEngenheiro={ehEngenheiro} />
 
       <PainelDeDias obraId={obraId} dias={ultimosDias} ehEngenheiro={ehEngenheiro} />
+
+      {/* Exportar é do engenheiro (R19). O servidor recusa de qualquer forma. */}
+      {ehEngenheiro && <SeletorDePeriodo obraId={obraId} hoje={hoje} />}
 
       <Bloco titulo="Informações gerais">
         <dl className="fichaTecnica">

@@ -40,7 +40,7 @@ import { listaPeriodosBms } from '../../modules/obra';
 import { criaLeituraDePeriodo, normalizaConjuntoDeDias } from '../../modules/lancamento';
 import type { InstantaneoDoPeriodo } from '../../modules/lancamento';
 import { criaRepositorioDrizzle } from '../../modules/lancamento/repositorio-drizzle';
-import { exigeAcessoNaObra, type Ator } from '../../modules/acesso';
+import { exigeAcessoNaObra, type PortadorDeAcesso } from '../../modules/acesso';
 import { comparaDias, type DiaPuro } from '../../shared/date/dia';
 import type { Quantidade } from '../../shared/decimal';
 import {
@@ -337,7 +337,12 @@ function portasSobreOInstantaneo(
  * toda chamada e sem cache.
  */
 export async function portasDoRdoDePeriodoProtegidas(
-  ator: Ator,
+  /*
+   * `PortadorDeAcesso`, e não `Ator`: a verificação só precisa do id de quem
+   * age, e é ele que vai à tabela `acesso`. Exigir a sessão obrigaria a rota a
+   * inventar uma — foi o que quase aconteceu ao ligar a exportação de período.
+   */
+  ator: PortadorDeAcesso,
   obraIdBruto: string,
   dias: readonly DiaPuro[],
   ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
