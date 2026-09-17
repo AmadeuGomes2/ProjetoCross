@@ -225,7 +225,7 @@ export function cadastraPessoaProtegida(
   bruto: Record<string, unknown>,
   amb: Amb = ambienteDeCadastroPadrao(),
 ): Resposta<string> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+  const permitido = autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const cmd = analisaCadastrarPessoa({ ...bruto, obraId });
@@ -242,7 +242,7 @@ export function registraPassagemProtegida(
   bruto: Record<string, unknown>,
   amb: Amb = ambienteDeCadastroPadrao(),
 ): Resposta<string> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+  const permitido = autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const cmd = analisaPassagem({ ...bruto, obraId });
@@ -256,8 +256,8 @@ export function registraPassagemProtegida(
 /**
  * Troca de função (decisão 29.1): encerra a passagem vigente e abre outra.
  *
- * **Só o engenheiro**, como todo o cadastro de pessoal. Devolve o id da
- * passagem nova.
+ * **Os dois perfis escrevem**, como todo o cadastro de pessoal desde a decisão
+ * do dono do produto de 17/09/2026. Devolve o id da passagem nova.
  */
 export function trocaFuncaoProtegida(
   ator: Ator,
@@ -265,7 +265,7 @@ export function trocaFuncaoProtegida(
   bruto: Record<string, unknown>,
   amb: Amb = ambienteDeCadastroPadrao(),
 ): Resposta<string> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+  const permitido = autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const cmd = analisaTrocarFuncao({ ...bruto, obraId });
@@ -281,8 +281,9 @@ export function trocaFuncaoProtegida(
  *
  * O tipo devolvido carrega nome de trabalhador, e por isso a lista era
  * exclusiva do engenheiro. O encarregado passou a ler porque convive com essas
- * pessoas todo dia e precisa conferir quem está mobilizado; o que ele não faz é
- * escrever — cadastrar e trocar de função continuam sendo do engenheiro.
+ * pessoas todo dia e precisa conferir quem está mobilizado; na segunda decisão
+ * do mesmo dia passou também a escrever — cadastrar, abrir passagem e trocar de
+ * função são dele, que é quem vê o canteiro.
  *
  * A fronteira que não se moveu é a da **obra**: quem não tem acesso continua
  * recebendo a recusa genérica, sem nome nenhum.

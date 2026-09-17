@@ -14,21 +14,28 @@
  *
  * ## O que mudou em 17/09/2026
  *
- * | Operação                | Antes      | Agora       |
- * | ----------------------- | ---------- | ----------- |
- * | ler pessoal             | engenheiro | encarregado |
- * | ler equipamento         | engenheiro | encarregado |
- * | cadastrar equipamento   | engenheiro | encarregado |
- * | passagem de equipamento | engenheiro | encarregado |
- * | **consultar o RDO**     | encarregado| engenheiro  |
+ * | Operação                 | Antes      | Agora       |
+ * | ------------------------ | ---------- | ----------- |
+ * | ler pessoal              | engenheiro | encarregado |
+ * | ler equipamento          | engenheiro | encarregado |
+ * | cadastrar equipamento    | engenheiro | encarregado |
+ * | passagem de equipamento  | engenheiro | encarregado |
+ * | **cadastrar pessoa**     | engenheiro | encarregado |
+ * | **passagem de pessoal**  | engenheiro | encarregado |
+ * | **trocar de função**     | engenheiro | encarregado |
+ * | **consultar o RDO**      | encarregado| engenheiro  |
  *
- * As duas primeiras mudam o CT-034 e o CT-047, reescritos nos módulos. A do RDO
- * é a mais sensível na direção da segurança: o documento carrega observação em
- * texto livre e o CREA do responsável técnico.
+ * As duas primeiras mudam o CT-034 e o CT-047, reescritos nos módulos; as três
+ * de pessoal mudam o CT-035, na segunda decisão do dia — quem vê chegar e sair
+ * do canteiro é o encarregado, e mandar o movimento pelo engenheiro é a
+ * transcrição que o produto veio acabar. A do RDO é a mais sensível na direção
+ * da segurança: o documento carrega observação em texto livre e o CREA do
+ * responsável técnico.
  *
  * O que NÃO mudou, e está aqui para continuar não mudando: o encarregado não
- * cadastra pessoa, não encerra passagem de equipamento, não define quantidade
- * de projeto, não acrescenta termo e não vê a lista de acessos.
+ * encerra passagem de equipamento, não define quantidade de projeto, não
+ * acrescenta termo e não vê a lista de acessos. E, acima de qualquer decisão de
+ * perfil, a fronteira da OBRA continua no lugar.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -48,6 +55,7 @@ import {
   listaEquipamentosProtegida,
   listaPessoalProtegida,
   listaServicosProtegida,
+  trocaFuncaoProtegida,
 } from '../src/app/_composicao/cadastro';
 import { consultaRdoProtegida } from '../src/app/_composicao/rdo-diario';
 import type { Ator } from '../src/modules/acesso';
@@ -120,21 +128,40 @@ describe('o que o encarregado PODE, depois de 17/09/2026', () => {
   it('lê os serviços controlados, que ele precisa para lançar produção', () => {
     expect(listaServicosProtegida(encarregado, obraId, cenario.amb).ok).toBe(true);
   });
-});
 
-describe('o que o encarregado NÃO pode', () => {
-  it('não consulta o RDO: o documento é do engenheiro', async () => {
-    const r = await consultaRdoProtegida(encarregado, { obraId, dia: '2026-09-03' });
-    expect(r.ok).toBe(false);
-  });
-
-  it('não cadastra pessoa', () => {
+  it('cadastra pessoa, porque é ele que vê quem chega ao canteiro', () => {
     const r = cadastraPessoaProtegida(
       encarregado,
       obraId,
       { nome: 'P9', funcao: 'Motorista', entrada: '2026-02-10' },
       cenario.amb,
     );
+    expect(r.ok).toBe(true);
+  });
+
+  it('troca a função de quem já está na obra', () => {
+    const criada = cadastraPessoaProtegida(
+      encarregado,
+      obraId,
+      { nome: 'P8', funcao: 'Motorista', entrada: '2026-02-10' },
+      cenario.amb,
+    );
+    expect(criada.ok).toBe(true);
+    if (!criada.ok) return;
+
+    const r = trocaFuncaoProtegida(
+      encarregado,
+      obraId,
+      { pessoaId: criada.valor, funcao: 'Servente', aPartirDe: '2026-03-01' },
+      cenario.amb,
+    );
+    expect(r.ok).toBe(true);
+  });
+});
+
+describe('o que o encarregado NÃO pode', () => {
+  it('não consulta o RDO: o documento é do engenheiro', async () => {
+    const r = await consultaRdoProtegida(encarregado, { obraId, dia: '2026-09-03' });
     expect(r.ok).toBe(false);
   });
 
@@ -212,6 +239,30 @@ describe('a fronteira da obra, que nenhuma decisão de perfil move', () => {
       cenario.amb,
     );
     expect(r.ok).toBe(false);
+  });
+
+  it('recusa o CADASTRO de pessoa do encarregado da obra A na obra B, sem devolver o nome', () => {
+    /*
+     * Escrever pessoal virou ato de encarregado em 17/09/2026; a fronteira da
+     * obra não se moveu junto. Quem tem acesso legítimo a uma obra pedindo
+     * escrita em outra é o formato de um vazamento real, e a recusa não pode
+     * devolver o nome que veio no comando: é dado pessoal sob a LGPD, e ele
+     * acabaria em log e em tela de erro.
+     */
+    const outraObra = criaObraDoPrd(engenheira, cenario.amb, {
+      contrato: 'P0888/88-88 - BLOCO 08',
+    });
+
+    const r = cadastraPessoaProtegida(
+      encarregado,
+      outraObra,
+      { nome: 'P9', funcao: 'Motorista', entrada: '2026-02-10' },
+      cenario.amb,
+    );
+
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(JSON.stringify(r.erro)).not.toContain('P9');
   });
 
   it('recusa o ENGENHEIRO da obra A quando ele pede a obra B', () => {

@@ -171,22 +171,28 @@ agente `seguranca` a cada frente de trabalho.
 O dono do produto mudou quem faz o quê. **Onde esta seção divergir do que vem
 antes, vale esta**, e a fonte viva é `test/permissoes-por-perfil.test.ts`.
 
-| Operação               | Antes       | Agora       |
-| ---------------------- | ----------- | ----------- |
-| ler a lista de pessoal | engenheiro  | encarregado |
-| ler a frota            | engenheiro  | encarregado |
-| cadastrar equipamento  | engenheiro  | encarregado |
-| **abrir o RDO**        | encarregado | engenheiro  |
+| Operação                | Antes       | Agora       |
+| ----------------------- | ----------- | ----------- |
+| ler a lista de pessoal  | engenheiro  | encarregado |
+| ler a frota             | engenheiro  | encarregado |
+| cadastrar equipamento   | engenheiro  | encarregado |
+| **cadastrar pessoa**    | engenheiro  | encarregado |
+| **passagem de pessoal** | engenheiro  | encarregado |
+| **trocar de função**    | engenheiro  | encarregado |
+| **abrir o RDO**         | encarregado | engenheiro  |
 
 O encarregado **não abre o RDO** — nem na tela, nem em impressão, nem em PDF. O
 documento carrega observação em texto livre e o registro do responsável técnico,
 e conferir e entregar ao fiscal é do engenheiro.
 
 O encarregado passou a **ler** a lista nominal de pessoal porque convive com
-essas pessoas todo dia e precisa conferir quem está mobilizado. Escrever — criar
-pessoa e trocar de função — continua sendo do engenheiro. A mudança reverte o
-CT-034, que existia por causa da LGPD, e está registrada no laudo de
-`docs/seguranca/2026-09-17-periodo-e-perfis.md`.
+essas pessoas todo dia e precisa conferir quem está mobilizado. Na segunda
+decisão do mesmo dia passou também a **escrever** — criar pessoa, abrir passagem
+e trocar de função —, porque é ele que vê chegar e sair do canteiro, e mandar o
+movimento pelo engenheiro recria a transcrição que o produto veio acabar. A
+mudança reverte o CT-034 e o CT-035, que existiam por causa da LGPD; o laudo de
+`docs/seguranca/2026-09-17-periodo-e-perfis.md` cobre a primeira metade e ainda
+não foi revisto para a segunda.
 
 A aba **Acesso** não aparece para o encarregado.
 

@@ -251,6 +251,28 @@
   margin-bottom: 14px;
 }
 
+/*
+ * O índice em mm, quando algum turno é C ou I (17/09/2026). Ele estava no fim
+ * da seção, sem moldura, e o dono do produto não o encontrou; aqui ganha borda
+ * e recuo de fundo, que sobrevivem ao sol na tela melhor do que a cor sozinha.
+ *
+ * Sem transição nem animação de propósito: o bloco aparece e some com o toque
+ * no turno, e movimento na tela atrapalha quem lança de pé, com uma mão.
+ */
+.destaqueDoIndice {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 2px solid var(--realce-forte);
+  border-radius: 14px;
+  background: var(--papel-recuo);
+}
+
+.ajuda {
+  margin: 8px 0 0;
+  color: var(--tinta-fraca);
+  font-size: 16px;
+}
+
 .recado {
   padding: 14px 16px;
   border: 1px solid var(--borda);

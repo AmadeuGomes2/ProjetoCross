@@ -5,14 +5,11 @@ import { useState } from 'react';
 import { LETRAS_DE_TURNO, type LetraDeTurno } from '../../../shared/taxonomia';
 import { confirmaODia, type RespostaDaAcao } from '../acoes';
 import estilos from '../estilos.module.css';
+import { temChuvaNosTurnos, type TurnosNaTela } from './chuva-nos-turnos';
 
 type EstadoEscolhido = 'trabalhado' | 'parado';
 
-export interface TurnosNaTela {
-  readonly noiteAnterior: LetraDeTurno | null;
-  readonly manha: LetraDeTurno | null;
-  readonly tarde: LetraDeTurno | null;
-}
+export type { TurnosNaTela };
 
 const NOME_DO_TURNO = {
   noiteAnterior: 'Noite anterior',
@@ -34,6 +31,11 @@ const TURNOS: readonly NomeDeTurno[] = ['noiteAnterior', 'manha', 'tarde'];
  *
  * As oito sugestões de motivo PREENCHEM o campo e não o fecham (20.1): o motivo
  * é texto livre obrigatório, e validar contra a lista seria defeito.
+ *
+ * O campo do índice em mm só aparece quando algum turno é `C` ou `I` (decisão
+ * do dono do produto, 17/09/2026): sem chuva ele não muda resposta nenhuma, e
+ * no fim da lista de turnos, sem destaque, ninguém o encontrava. Continua
+ * OPCIONAL — a decisão foi de visibilidade, não de obrigatoriedade.
  */
 export function FormularioDoDia({
   obraId,
@@ -174,18 +176,31 @@ export function FormularioDoDia({
             </div>
           </div>
         ))}
-        <label className={estilos.rotulo} htmlFor="indice">
-          Índice em mm
-        </label>
-        <input
-          id="indice"
-          className={estilos.campo}
-          value={indice}
-          onChange={(e) => setIndice(e.target.value)}
-          inputMode="decimal"
-          placeholder="0"
-          autoComplete="off"
-        />
+        {/*
+          Choveu: o índice entra em destaque, pedindo os milímetros. Quando os
+          turnos voltam a `B` o bloco recua, mas `indice` continua no estado
+          deste componente — quem digitou 12 e mexeu no turno reencontra o 12.
+          Perder o que foi digitado é o pior defeito de formulário de campo.
+        */}
+        {temChuvaNosTurnos(turnos) ? (
+          <div className={estilos.destaqueDoIndice}>
+            <label className={estilos.rotulo} htmlFor="indice">
+              Choveu. Índice em mm
+            </label>
+            <input
+              id="indice"
+              className={estilos.campo}
+              value={indice}
+              onChange={(e) => setIndice(e.target.value)}
+              inputMode="decimal"
+              placeholder="0"
+              autoComplete="off"
+            />
+            <p className={estilos.ajuda}>
+              Quanto o pluviômetro marcou. Se não mediu, deixe em branco.
+            </p>
+          </div>
+        ) : null}
       </section>
 
       {resposta === null ? null : (

@@ -37,7 +37,7 @@ export interface AtorDePessoal {
 
 export interface ComandoCadastrarPessoa {
   readonly obraId: ObraId;
-  /** **Dado pessoal.** Só o engenheiro da obra lê; nunca sai no RDO. */
+  /** **Dado pessoal.** Só quem tem acesso à obra lê; nunca sai no RDO. */
   readonly nome: string;
   /**
    * Texto escolhido na lista; vira referência ao cadastro (R13).

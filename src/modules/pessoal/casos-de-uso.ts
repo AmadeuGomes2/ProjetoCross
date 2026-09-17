@@ -335,9 +335,9 @@ export function encerraPassagem(
 }
 
 /**
- * Cadastro nominal da obra. **Resposta só para o engenheiro** (PRD, "Quem
- * usa"; CT-034). A verificação mora na rota; este tipo carrega nome e por isso
- * não pode ser devolvido ao encarregado.
+ * Cadastro nominal da obra. **Resposta para os dois perfis COM acesso à obra**
+ * (CT-034, revisto em 17/09/2026). A verificação mora na rota; este tipo
+ * carrega nome, e o que ele nunca atravessa é a fronteira da obra.
  */
 export function listaPessoalDaObra(
   obraId: ObraId,

@@ -246,14 +246,19 @@ describe('F2.1 — cadastro de pessoal e passagens', () => {
   });
 
   /*
-   * CT-034 mudou em 17/09/2026, por decisão do dono do produto.
+   * CT-034 e CT-035 mudaram em 17/09/2026, por decisão do dono do produto.
    *
    * A lista era exclusiva do engenheiro porque é nominal, e nome de
-   * trabalhador é dado pessoal sob a LGPD. O encarregado passa a **ler**: ele
-   * convive com essas pessoas todo dia e precisa conferir quem está
-   * mobilizado. O que não mudou é que ele não escreve — CT-035 abaixo.
+   * trabalhador é dado pessoal sob a LGPD. De manhã o encarregado passou a
+   * **ler**: ele convive com essas pessoas todo dia e precisa conferir quem
+   * está mobilizado. À tarde passou também a **escrever** — cadastrar pessoa,
+   * abrir passagem e trocar de função —, porque é ele que vê quem chega e quem
+   * sai do canteiro, e esperar o engenheiro transcrever é a transcrição que o
+   * produto veio acabar.
    *
-   * A fronteira que importa continua sendo a da OBRA, e é o segundo caso.
+   * A fronteira que NENHUMA dessas decisões move é a da OBRA: quem não tem
+   * acesso continua recusado, e a recusa continua sem nome. É o que travam o
+   * CT-034b e o CT-035b.
    */
   it('CT-034 deixa o encarregado LER a lista de pessoal da obra dele', () => {
     expect(cadastra('P1', 'Motorista', '2026-02-10').ok).toBe(true);
@@ -279,7 +284,7 @@ describe('F2.1 — cadastro de pessoal e passagens', () => {
     expect(JSON.stringify(resultado.erro)).not.toContain('P1');
   });
 
-  it('CT-035 recusa no servidor o cadastro de pessoa enviado por encarregado', () => {
+  it('CT-035 aceita o cadastro de pessoa enviado pelo encarregado da obra', () => {
     const c1 = daAcessoDeEncarregado(
       cenario.novoAtor('c1@exemplo.invalido'),
       '66666666-6666-4666-8666-666666666666',
@@ -292,9 +297,48 @@ describe('F2.1 — cadastro de pessoal e passagens', () => {
       cenario.amb,
     );
 
+    expect(resultado.ok).toBe(true);
+    const lista = listaPessoalDaObra(obraId, paraPessoal(cenario.amb));
+    expect(lista.ok && lista.valor.map((p) => p.nome)).toEqual(['P9']);
+  });
+
+  it('CT-035b recusa o cadastro de quem não tem acesso à obra, e não vaza o nome enviado', () => {
+    const estranho = cenario.novoAtor('estranho@exemplo.invalido');
+
+    const resultado = cadastraPessoaProtegida(
+      estranho,
+      obraId,
+      { nome: 'P9', funcao: 'Motorista', entrada: '2026-02-10' },
+      cenario.amb,
+    );
+
     expect(resultado.ok).toBe(false);
+    if (resultado.ok) return;
+    expect(JSON.stringify(resultado.erro)).not.toContain('P9');
     const lista = listaPessoalDaObra(obraId, paraPessoal(cenario.amb));
     expect(lista.ok && lista.valor).toHaveLength(0);
+  });
+
+  it('CT-035c deixa o encarregado abrir a segunda passagem de quem voltou', () => {
+    // Quem vê a pessoa voltar ao canteiro é ele. Decisão de 17/09/2026.
+    const criada = cadastra('P1', 'Motorista', '2026-02-10', '2026-02-28');
+    expect(criada.ok).toBe(true);
+    if (!criada.ok) return;
+    const c1 = daAcessoDeEncarregado(
+      cenario.novoAtor('c2@exemplo.invalido'),
+      '77777777-7777-4777-8777-777777777777',
+    );
+
+    const segunda = registraPassagemProtegida(
+      c1,
+      obraId,
+      { pessoaId: criada.valor, funcao: 'Motorista', entrada: '2026-03-15' },
+      cenario.amb,
+    );
+
+    expect(segunda.ok).toBe(true);
+    const lista = listaPessoalDaObra(obraId, paraPessoal(cenario.amb));
+    expect(lista.ok && lista.valor[0]?.passagens).toHaveLength(2);
   });
 
   it('CT-036 recusa pessoa sem função', () => {
