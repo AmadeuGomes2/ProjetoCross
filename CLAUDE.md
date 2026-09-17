@@ -187,14 +187,34 @@ Desenhar para desktop e depois "adaptar" é o caminho errado aqui.
 
 ---
 
+## Entrou no escopo em 17/09/2026
+
+O dono do produto pediu, e as respostas que faltavam vieram. **Não são mais
+fora do escopo:**
+
+- **RDO por período.** Um conjunto de dias — semana, mês, intervalo ou dias
+  avulsos não contíguos. Três modos: só o consolidado, só os diários, ou o
+  consolidado com os diários anexados.
+- **Exportação em Excel**, espelhando o documento.
+
+As decisões de agregação, que antes não existiam: efetivo de pessoal e de
+equipamento por **média por dia**; atividades **todas, por data**; pluviometria
+com **total de mm mais a contagem de dias por letra**; `EXEC.` do período e
+`ACUM.` da obra até o último dia.
+
+O contrato entre as frentes está em `docs/arquitetura/periodo.md`. Os rótulos
+que o gabarito da planilha **não tem** estão marcados `[A APROVAR]` ali, e
+continuam valendo a regra de sempre: **não se inventa rótulo de documento
+contratual.**
+
+---
+
 ## Fora do escopo da v1
 
 **Se eu pedir algo desta lista, pergunte antes de fazer.**
 
 - Mapa linear por estaca, a aba `LINEAR`. O domínio não foi compreendido: não
   sabemos o que são PE, CV, PD, APP, nem o código 5. Ver `duvidas.md`, dúvida 8.
-- RDO semanal e mensal. Dependem de um layout que ainda não existe.
-- Exportação em Excel. O PDF é o que o fiscal recebe.
 - Assinatura digital do RDO.
 - Fluxo de aprovação e comentário do contratante.
 - Múltiplas obras simultâneas.

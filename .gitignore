@@ -89,3 +89,6 @@ desktop.ini
 # ---------------------------------------------------------------------------
 .claude/settings.local.json
 .claude/subagentes.log
+
+# Worktrees dos agentes paralelos. Sao copias de trabalho, nao fonte.
+/.claude/worktrees/

@@ -29,6 +29,13 @@
       "when": 1789596882548,
       "tag": "0003_exclusao_com_rastro_e_convite",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789683282548,
+      "tag": "0004_exportacao_de_periodo",
+      "breakpoints": true
     }
   ]
 }

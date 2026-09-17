@@ -6,6 +6,8 @@
  *
  * A linha é gravada **antes** de entregar o arquivo, e nunca é apagada nem
  * atualizada. Identifica o autor por `usuario_id`, **nunca por nome**.
+ *
+ * Exportação de período grava **uma linha por dia**, amarradas por `lote_id`.
  */
 
 import { desc, sql } from 'drizzle-orm';
@@ -31,12 +33,24 @@ export const registroExportacao = sqliteTable(
     momento: colunaInstante('momento'),
     /** O dia do RDO exportado, não o dia em que se exportou. */
     dataRdo: colunaDia('data_rdo'),
-    formato: text('formato').$type<'PDF'>().notNull(),
+    formato: text('formato').$type<'PDF' | 'XLSX'>().notNull(),
+    /**
+     * Reúne as linhas de uma exportação de período (17/09/2026).
+     *
+     * **Uma linha por dia**, e não `data_inicial`/`data_final`: o pedido pode
+     * ser um conjunto não contíguo, e um par de datas transformaria
+     * {02, 05, 09} em "02 a 09" — a auditoria leria oito dias onde houve três.
+     *
+     * Nulo nas linhas anteriores a esta migration, que eram de um dia só.
+     * Inventar um lote para elas afirmaria um agrupamento que nunca existiu.
+     */
+    loteId: text('lote_id'),
   },
   (t) => [
     index('idx_exportacao').on(t.obraId, desc(t.momento)),
-    // Na v1 o fiscal recebe PDF. Exportação em Excel está fora do escopo.
-    check('ck_exportacao_formato', sql`${t.formato} = 'PDF'`),
+    index('idx_exportacao_lote').on(t.loteId),
+    // O fiscal recebe PDF; o Excel entrou em 17/09/2026, para quem soma.
+    check('ck_exportacao_formato', sql`${t.formato} IN ('PDF', 'XLSX')`),
     checkDia('ck_exportacao_data_rdo', t.dataRdo),
     checkInstante('ck_exportacao_momento', t.momento),
   ],
