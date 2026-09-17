@@ -59,6 +59,23 @@ export function paraObra(amb: AmbienteDeCadastro): AmbienteDeObra {
   return { db: amb.db, relogio: amb.relogio, concedeAcessoDeEngenheiro };
 }
 
+/**
+ * **PENDENTE — contrato a pedir aos donos de `pessoal` e `equipamento`.**
+ *
+ * `taxonomia.resolveTermo` passou a ser assíncrona com o Postgres (17/09/2026),
+ * e não existe forma de atender uma porta síncrona com uma leitura de rede: um
+ * adaptador que "esperasse" não existe em JavaScript. As duas portas precisam
+ * virar assíncronas, e são quatro linhas, em dois módulos que esta frente não
+ * pode tocar:
+ *
+ * - `src/modules/pessoal/tipos.ts:30` — `ResolveFuncao` devolvendo `Promise`;
+ * - `src/modules/pessoal/casos-de-uso.ts:132` — `resolveFuncaoOuErro` `async`;
+ * - `src/modules/equipamento/tipos.ts:24` — `ResolveTipoEquipamento` idem;
+ * - `src/modules/equipamento/casos-de-uso.ts:121` — `await amb.resolve...`.
+ *
+ * O adaptador abaixo já está na forma certa. Enquanto o contrato não muda, é
+ * ele que o `tsc` acusa — de propósito: o erro é o pedido.
+ */
 export function paraPessoal(amb: AmbienteDeCadastro): AmbienteDePessoal {
   const taxonomia = paraTaxonomia(amb);
   return {
@@ -66,9 +83,9 @@ export function paraPessoal(amb: AmbienteDeCadastro): AmbienteDePessoal {
     relogio: amb.relogio,
     // Comparação por `chaveDeTermo`, nunca por igualdade exata: `"Motorista "`
     // e `"motorista"` encontram o mesmo termo (CT-029, CT-030).
-    resolveFuncao: (termo) => {
-      const achado = resolveTermo('funcao', termo, taxonomia);
-      if (achado === null || !achado.ativo) return await null;
+    resolveFuncao: async (termo) => {
+      const achado = await resolveTermo('funcao', termo, taxonomia);
+      if (achado === null || !achado.ativo) return null;
       return { id: idDeFuncao(achado.id), termo: achado.termo };
     },
   };
@@ -79,9 +96,9 @@ export function paraEquipamento(amb: AmbienteDeCadastro): AmbienteDeEquipamento 
   return {
     db: amb.db,
     relogio: amb.relogio,
-    resolveTipoEquipamento: (termo) => {
-      const achado = resolveTermo('tipo_equipamento', termo, taxonomia);
-      if (achado === null || !achado.ativo) return await null;
+    resolveTipoEquipamento: async (termo) => {
+      const achado = await resolveTermo('tipo_equipamento', termo, taxonomia);
+      if (achado === null || !achado.ativo) return null;
       return { id: idDeTipoEquipamento(achado.id), termo: achado.termo };
     },
   };

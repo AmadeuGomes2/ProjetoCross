@@ -67,12 +67,12 @@ const NADA: Impacto = { diasLancados: 0, diasFechados: 0, exportacoes: 0 };
  * `de` e `ate` nulos significam "a obra inteira" — é o caso do cabeçalho, que
  * aparece em todo RDO.
  */
-function contaNaJanela(
+async function contaNaJanela(
   ambiente: AmbienteDaComposicao,
   obraId: ObraId,
   de: DiaPuro | null,
   ate: DiaPuro | null,
-): Impacto {
+): Promise<Impacto> {
   const db = ambiente.cadastro.db;
   const limites = [
     eq(diaDeObra.obraId, obraId),
@@ -80,43 +80,57 @@ function contaNaJanela(
     ...(ate === null ? [] : [lte(diaDeObra.data, ate)]),
   ];
 
-  const dias = db
-    .select({
-      total: count(),
-      fechados: sql<number>`sum(case when ${diaDeObra.fechadoEm} is not null then 1 else 0 end)`,
-    })
-    .from(diaDeObra)
-    .where(and(...limites))
-    .get();
-
-  const exportacoes = db
-    .select({ total: count() })
-    .from(registroExportacao)
-    .where(
-      and(
-        eq(registroExportacao.obraId, obraId),
-        ...(de === null ? [] : [gte(registroExportacao.dataRdo, de)]),
-        ...(ate === null ? [] : [lte(registroExportacao.dataRdo, ate)]),
+  // As duas contagens não dependem uma da outra e não estão em transação: em
+  // série seriam duas idas à rede em fila, e o aviso aparece no clique de quem
+  // está editando o cadastro. `Promise.all` cabe aqui — e **só** aqui, porque
+  // `impactoDasPassagens` precisa dos dias antes de saber o que contar.
+  const [dias, exportacoes] = await Promise.all([
+    db
+      .select({
+        total: count(),
+        fechados: sql<number>`sum(case when ${diaDeObra.fechadoEm} is not null then 1 else 0 end)`,
+      })
+      .from(diaDeObra)
+      .where(and(...limites)),
+    db
+      .select({ total: count() })
+      .from(registroExportacao)
+      .where(
+        and(
+          eq(registroExportacao.obraId, obraId),
+          ...(de === null ? [] : [gte(registroExportacao.dataRdo, de)]),
+          ...(ate === null ? [] : [lte(registroExportacao.dataRdo, ate)]),
+        ),
       ),
-    )
-    .get();
+  ]);
 
   return {
-    diasLancados: dias?.total ?? 0,
-    // `sum` de zero linhas devolve NULL no SQLite, não 0.
-    diasFechados: Number(dias?.fechados ?? 0),
-    exportacoes: exportacoes?.total ?? 0,
+    diasLancados: dias[0]?.total ?? 0,
+    // `sum` de zero linhas devolve NULL, e o driver do Postgres entrega
+    // `numeric` como texto: o `Number` cobre os dois casos.
+    diasFechados: Number(dias[0]?.fechados ?? 0),
+    exportacoes: exportacoes[0]?.total ?? 0,
   };
 }
 
-/** Sem acesso à obra, nenhum número. Contagem também é informação. */
-function autorizado(ator: Ator, obraId: ObraId, ambiente: AmbienteDaComposicao): boolean {
-  return await exigeAcessoNaObra(
+/**
+ * Sem acesso à obra, nenhum número. Contagem também é informação.
+ *
+ * Sempre em série com o que vem depois, e nunca dentro de um `Promise.all` com
+ * a leitura que ela protege: autorizar e ler ao mesmo tempo é ler sem autorizar.
+ */
+async function autorizado(
+  ator: Ator,
+  obraId: ObraId,
+  ambiente: AmbienteDaComposicao,
+): Promise<boolean> {
+  const permitido = await exigeAcessoNaObra(
     ator,
     obraId,
     'encarregado',
     paraAcesso(ambiente.cadastro),
-  ).ok;
+  );
+  return permitido.ok;
 }
 
 /**
@@ -127,12 +141,12 @@ function autorizado(ator: Ator, obraId: ObraId, ambiente: AmbienteDaComposicao):
  * já emitidos — daí o aviso precisar dizer quantos documentos já saíram com o
  * texto antigo.
  */
-export function impactoDoCabecalho(
+export async function impactoDoCabecalho(
   ator: Ator,
   obraId: ObraId,
   ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
-): Impacto {
-  if (!autorizado(ator, obraId, ambiente)) return NADA;
+): Promise<Impacto> {
+  if (!(await autorizado(ator, obraId, ambiente))) return NADA;
   return contaNaJanela(ambiente, obraId, null, null);
 }
 
@@ -143,15 +157,15 @@ export function impactoDoCabecalho(
  * o campo `BM'S` vazio e aviso na tela — que é o comportamento que a decisão
  * 21.1 já definiu para dia fora de período. Nenhum lançamento se perde.
  */
-export function impactoDoPeriodoBms(
+export async function impactoDoPeriodoBms(
   ator: Ator,
   obraId: ObraId,
   periodoId: string,
   ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
-): Impacto {
-  if (!autorizado(ator, obraId, ambiente)) return NADA;
+): Promise<Impacto> {
+  if (!(await autorizado(ator, obraId, ambiente))) return NADA;
 
-  const periodo = ambiente.cadastro.db
+  const achados = await ambiente.cadastro.db
     .select({ inicial: periodoBms.dataInicial, final: periodoBms.dataFinal })
     .from(periodoBms)
     .where(
@@ -159,9 +173,9 @@ export function impactoDoPeriodoBms(
         eq(periodoBms.obraId, obraId),
         eq(periodoBms.id, idConfiavel<'periodo_bms'>(periodoId)),
       ),
-    )
-    .get();
+    );
 
+  const periodo = achados[0];
   if (periodo === undefined) return NADA;
   return contaNaJanela(ambiente, obraId, periodo.inicial, periodo.final);
 }
@@ -174,15 +188,15 @@ export function impactoDoPeriodoBms(
  * deveria acontecer, mas contar duas vezes daria um número maior que o total de
  * dias da obra, e um aviso que exagera deixa de ser lido.
  */
-export function impactoDaPessoa(
+export async function impactoDaPessoa(
   ator: Ator,
   obraId: ObraId,
   pessoaId: string,
   ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
-): Impacto {
-  if (!autorizado(ator, obraId, ambiente)) return NADA;
+): Promise<Impacto> {
+  if (!(await autorizado(ator, obraId, ambiente))) return NADA;
 
-  const passagens = ambiente.cadastro.db
+  const passagens = await ambiente.cadastro.db
     .select({ entrada: passagemPessoa.entrada, saida: passagemPessoa.saida })
     .from(passagemPessoa)
     .where(
@@ -190,22 +204,21 @@ export function impactoDaPessoa(
         eq(passagemPessoa.obraId, obraId),
         eq(passagemPessoa.pessoaId, idConfiavel<'pessoa'>(pessoaId)),
       ),
-    )
-    .all();
+    );
 
   return impactoDasPassagens(ambiente, obraId, passagens);
 }
 
 /** Impacto de mexer num equipamento. Mesma regra da pessoa. */
-export function impactoDoEquipamento(
+export async function impactoDoEquipamento(
   ator: Ator,
   obraId: ObraId,
   equipamentoId: string,
   ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
-): Impacto {
-  if (!autorizado(ator, obraId, ambiente)) return NADA;
+): Promise<Impacto> {
+  if (!(await autorizado(ator, obraId, ambiente))) return NADA;
 
-  const passagens = ambiente.cadastro.db
+  const passagens = await ambiente.cadastro.db
     .select({
       entrada: passagemEquipamento.entrada,
       saida: passagemEquipamento.saida,
@@ -216,8 +229,7 @@ export function impactoDoEquipamento(
         eq(passagemEquipamento.obraId, obraId),
         eq(passagemEquipamento.equipamentoId, idConfiavel<'equipamento'>(equipamentoId)),
       ),
-    )
-    .all();
+    );
 
   return impactoDasPassagens(ambiente, obraId, passagens);
 }
@@ -229,18 +241,17 @@ export function impactoDoEquipamento(
  * um `OR` de N intervalos em SQL — cresce com o número de passagens e fica
  * ilegível. A obra tem dezenas de dias, não milhões.
  */
-function impactoDasPassagens(
+async function impactoDasPassagens(
   ambiente: AmbienteDaComposicao,
   obraId: ObraId,
   passagens: readonly { entrada: string; saida: string | null }[],
-): Impacto {
+): Promise<Impacto> {
   if (passagens.length === 0) return NADA;
 
-  const dias = ambiente.cadastro.db
+  const dias = await ambiente.cadastro.db
     .select({ data: diaDeObra.data, fechadoEm: diaDeObra.fechadoEm })
     .from(diaDeObra)
-    .where(eq(diaDeObra.obraId, obraId))
-    .all();
+    .where(eq(diaDeObra.obraId, obraId));
 
   /*
    * `algumaPassagemCobreODia` de `shared/date/intervalo.ts`, que se declara a
@@ -253,7 +264,9 @@ function impactoDasPassagens(
 
   if (cobertos.length === 0) return NADA;
 
-  const exportacoes = ambiente.cadastro.db
+  // Em série, e não em paralelo com a leitura acima: o `inArray` é montado com
+  // as datas que acabaram de sair dela.
+  const exportacoes = await ambiente.cadastro.db
     .select({ total: count() })
     .from(registroExportacao)
     .where(
@@ -264,13 +277,12 @@ function impactoDasPassagens(
           cobertos.map((d) => d.data),
         ),
       ),
-    )
-    .get();
+    );
 
   return {
     diasLancados: cobertos.length,
     diasFechados: cobertos.filter((d) => d.fechadoEm !== null).length,
-    exportacoes: exportacoes?.total ?? 0,
+    exportacoes: exportacoes[0]?.total ?? 0,
   };
 }
 

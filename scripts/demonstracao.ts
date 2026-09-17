@@ -182,13 +182,15 @@ async function atorDe(credenciais: readonly [string, string]): Promise<Ator> {
   if (!sessao.ok) throw new Error(`não entrei como ${credenciais[0]}`);
   const ator = await autenticaRequisicao(sessao.valor.token, paraAcesso(amb));
   if (!ator.ok) throw new Error('sessão criada mas não autenticou');
-  return await ator.valor;
+  return ator.valor;
 }
 
 async function main(): Promise<void> {
-  const sqlite = ambienteDaComposicao().conexao.sqlite;
-  const obra = sqlite.prepare('SELECT id FROM obra ORDER BY criado_em LIMIT 1').get() as
-    { id: string } | undefined;
+  const conexao = ambienteDaComposicao().conexao;
+  const obras = await conexao.consulta<{ id: string }>(
+    'SELECT id FROM obra ORDER BY criado_em LIMIT 1',
+  );
+  const obra = obras[0];
   if (obra === undefined) {
     console.warn('Não há obra no banco. Rode `npm run db:preparar` antes.');
     process.exit(1);
@@ -207,15 +209,15 @@ async function main(): Promise<void> {
   // ---------------------------------------------------------------- cadastro
 
   const jaPessoas = new Set(
-    (
-      exige(listaPessoalProtegida(eng, obraId), 'listar pessoal') as { nome: string }[]
-    ).map((p) => p.nome),
+    exige(await listaPessoalProtegida(eng, obraId), 'listar pessoal').map((p) => p.nome),
   );
   let novasPessoas = 0;
+  // Em série, e não em `Promise.all`: cada cadastro escreve, e o `exige` do
+  // laço precisa parar a carga no primeiro que a regra recusar.
   for (const [nome, funcao] of ELENCO) {
     if (jaPessoas.has(nome)) continue;
     exige(
-      cadastraPessoaProtegida(eng, obraId, { nome, funcao, entrada: primeiro }),
+      await cadastraPessoaProtegida(eng, obraId, { nome, funcao, entrada: primeiro }),
       `cadastrar ${nome}`,
     );
     novasPessoas += 1;
@@ -223,17 +225,15 @@ async function main(): Promise<void> {
   console.warn(`pessoal        ${novasPessoas} nova(s), ${jaPessoas.size} já existia(m)`);
 
   const jaEquip = new Set(
-    (
-      exige(listaEquipamentosProtegida(eng, obraId), 'listar equipamento') as {
-        identificador: string;
-      }[]
-    ).map((e) => e.identificador),
+    exige(await listaEquipamentosProtegida(eng, obraId), 'listar equipamento').map(
+      (e) => e.identificador,
+    ),
   );
   let novosEquip = 0;
   for (const [identificador, tipo] of FROTA) {
     if (jaEquip.has(identificador)) continue;
     exige(
-      cadastraEquipamentoProtegido(eng, obraId, {
+      await cadastraEquipamentoProtegido(eng, obraId, {
         identificador,
         tipo,
         entrada: primeiro,
@@ -248,15 +248,12 @@ async function main(): Promise<void> {
    * Quantidade de projeto: sem ela o bloco 7 sai com PROJETO 0,00 e o
    * percentual não existe, que é exatamente como a tela estava.
    */
-  const servicos = exige(listaServicosProtegida(eng, obraId), 'listar serviços') as {
-    servicoId: string;
-    nome: string;
-  }[];
+  const servicos = exige(await listaServicosProtegida(eng, obraId), 'listar serviços');
   for (const s of servicos) {
     const quantidade = PROJETO[s.nome];
     if (quantidade === undefined) continue;
     exige(
-      defineQuantidadeDeProjetoProtegida(
+      await defineQuantidadeDeProjetoProtegida(
         eng,
         obraId,
         idConfiavel<'servico_controlado'>(s.servicoId),
@@ -268,15 +265,19 @@ async function main(): Promise<void> {
   console.warn(`projeto        ${servicos.length} serviço(s) com quantidade`);
 
   /* Período de BM'S que cubra o mês anterior, para nenhum dia sair sem BM'S. */
-  const periodos = exige(listaPeriodosBmsProtegida(eng, obraId), 'listar BMS') as {
-    numero: number;
-  }[];
+  const periodos = exige(await listaPeriodosBmsProtegida(eng, obraId), 'listar BMS');
   if (!periodos.some((p) => p.numero === 6)) {
-    cadastraPeriodoBmsProtegido(eng, obraId, {
-      numero: '6',
-      dataInicial: '2026-08-01',
-      dataFinal: '2026-08-31',
-    });
+    // Sem `await` e sem `exige`, esta chamada era uma Promise solta: o período
+    // podia não existir ao fim do script e a recusa não aparecia em lugar
+    // nenhum. A mensagem abaixo mentia — dizia "cadastrado" sem ter esperado.
+    exige(
+      await cadastraPeriodoBmsProtegido(eng, obraId, {
+        numero: '6',
+        dataInicial: '2026-08-01',
+        dataFinal: '2026-08-31',
+      }),
+      `BM'S 6 de agosto`,
+    );
     console.warn(`BM'S           6 cadastrado (agosto)`);
   }
 
@@ -307,13 +308,11 @@ async function main(): Promise<void> {
      * Sem este desvio, rodar o seed duas vezes parava na primeira data já
      * fechada — que é exatamente o que aconteceu ao escrevê-lo.
      */
-    const fechado =
-      (
-        sqlite
-          .prepare('SELECT fechado_em FROM dia_de_obra WHERE obra_id = ? AND data = ?')
-          .get(obraId, data) as { fechado_em: string | null } | undefined
-      )?.fechado_em != null;
-    if (fechado) {
+    const linhasDoDia = await conexao.consulta<{ fechado_em: string | null }>(
+      'SELECT fechado_em FROM dia_de_obra WHERE obra_id = $1 AND data = $2',
+      [obraId, data],
+    );
+    if (linhasDoDia[0]?.fechado_em != null) {
       jaFechados += 1;
       continue;
     }
@@ -326,14 +325,14 @@ async function main(): Promise<void> {
      * quando esta carga tentou chover sobre um dia que já existia no banco. O
      * seed respeita o que já foi lançado em vez de forçar o sorteio por cima.
      */
-    const jaTemAtividade =
-      (
-        sqlite
-          .prepare(
-            'SELECT COUNT(*) c FROM lancamento_atividade WHERE obra_id = ? AND data = ?',
-          )
-          .get(obraId, data) as { c: number }
-      ).c > 0;
+    // Depois da guarda de dia fechado, e não junto dela: se o dia já está
+    // fechado o laço nem chega aqui, e contar atividade seria consulta jogada
+    // fora. Série de propósito.
+    const atividadesDoDia = await conexao.consulta<{ c: string }>(
+      'SELECT COUNT(*) c FROM lancamento_atividade WHERE obra_id = $1 AND data = $2',
+      [obraId, data],
+    );
+    const jaTemAtividade = Number(atividadesDoDia[0]?.c ?? 0) > 0;
     /*
      * O sorteio acontece SEMPRE, antes da guarda.
      *

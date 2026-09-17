@@ -232,8 +232,8 @@ function portasSobreOInstantaneo(
     servicos: presaAObra(doDiario.servicos),
 
     periodosBms: presaAObra(async (obraId) => {
-      const lista = listaPeriodosBms(obraId, paraObra(ambiente.cadastro));
-      if (!lista.ok) return await lista;
+      const lista = await listaPeriodosBms(obraId, paraObra(ambiente.cadastro));
+      if (!lista.ok) return lista;
       return ok(
         lista.valor.map((p) => ({
           numero: p.numero,
@@ -356,7 +356,7 @@ export async function portasDoRdoDePeriodoProtegidas(
     paraAcesso(ambiente.cadastro),
   );
   if (!permitido.ok) {
-    return await erro(erroDeDominio(permitido.erro.codigo, permitido.erro.mensagem));
+    return erro(erroDeDominio(permitido.erro.codigo, permitido.erro.mensagem));
   }
 
   const leitura = criaLeituraDePeriodo({

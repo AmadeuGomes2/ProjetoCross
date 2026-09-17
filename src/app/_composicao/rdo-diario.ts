@@ -38,9 +38,10 @@
  * | `pluviometria`             | `lancamento.obtemPluviometriaVigente`       |
  * | `observacoesCros`          | `lancamento.listaObservacoesVigentes`       |
  *
- * As portas são `async` só para casar com o contrato: o driver do SQLite é
- * síncrono e os casos de uso de cadastro também são. O lugar de acomodar essa
- * diferença é a raiz de composição.
+ * As portas são `async` porque tudo abaixo delas é: desde 17/09/2026 o banco é
+ * Postgres, no Neon, e toda leitura atravessa a rede. Cada porta faz **uma**
+ * consulta e nenhuma espera pela outra — quem decide o que roda junto é
+ * `montaRdoDiario`, que é quem sabe o que depende de quê.
  */
 
 import { listaMobilizacao as listaEquipamentosMobilizados } from '../../modules/equipamento';
@@ -130,15 +131,15 @@ export function criaPortasDoRdo(
 
   return {
     cabecalho: async (obraId) =>
-      cabecalhoParaRdo(obtemCabecalhoDaObra(obraId, paraObra(amb))),
+      cabecalhoParaRdo(await obtemCabecalhoDaObra(obraId, paraObra(amb))),
     bms: async (obraId, dia) => resolveBmsDoDia(obraId, dia, paraObra(amb)),
     funcoes: async () => listaFuncoesParaEfetivo(paraTaxonomia(amb)),
     pessoalMobilizado: async (obraId) => listaPessoalMobilizado(obraId, paraPessoal(amb)),
     equipamentosMobilizados: async (obraId) =>
       listaEquipamentosMobilizados(obraId, paraEquipamento(amb)),
     servicos: async (obraId) => {
-      const lista = listaServicosControlados(obraId, paraObra(amb));
-      if (!lista.ok) return await lista;
+      const lista = await listaServicosControlados(obraId, paraObra(amb));
+      if (!lista.ok) return lista;
       return ok(
         lista.valor.map((s) => ({
           servicoId: s.servicoId,
@@ -253,7 +254,7 @@ export async function consultaRdoProtegida(
     paraAcesso(ambiente.cadastro),
   );
   if (!permitido.ok) {
-    return await erro({
+    return erro({
       tipo: 'dominio',
       codigo: permitido.erro.codigo,
       mensagem: permitido.erro.mensagem,
@@ -284,16 +285,16 @@ export { eDiaInexistente };
  * `null` quando não há acesso. Na prática a página não chega aqui, porque
  * `consultaRdoProtegida` já recusou antes; o tipo não deixa supor.
  */
-export function perfilNaObraProtegido(
+export async function perfilNaObraProtegido(
   ator: Ator,
   obraIdBruto: string,
   ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
-): Perfil | null {
-  const permitido = exigeAcessoNaObra(
+): Promise<Perfil | null> {
+  const permitido = await exigeAcessoNaObra(
     ator,
     idConfiavel<'obra'>(obraIdBruto),
     'encarregado',
     paraAcesso(ambiente.cadastro),
   );
-  return (await permitido.ok) ? permitido.valor.perfil : null;
+  return permitido.ok ? permitido.valor.perfil : null;
 }

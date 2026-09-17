@@ -60,13 +60,13 @@ const PERFIL_MINIMO_DA_ACAO: Readonly<Record<AcaoProtegida, Perfil>> = {
   retificar_lancamento: 'engenheiro',
 };
 
-function servicosDaObra(
+async function servicosDaObra(
   ambiente: AmbienteDaComposicao,
   obraId: ObraId,
-): ServicoControlado[] {
-  const lista = listaServicosControlados(obraId, paraObra(ambiente.cadastro));
+): Promise<ServicoControlado[]> {
+  const lista = await listaServicosControlados(obraId, paraObra(ambiente.cadastro));
   if (!lista.ok) return [];
-  return await lista.valor.map((s) => ({
+  return lista.valor.map((s) => ({
     id: s.servicoId,
     obraId,
     nome: s.nome,
@@ -84,8 +84,8 @@ export function portasDeLancamento(
       exigeAcessoNaObra(ator, obraId, PERFIL_MINIMO_DA_ACAO[acao], paraAcesso(amb)),
 
     periodoDaObra: async (obraId) => {
-      const cabecalho = obtemCabecalhoDaObra(obraId, paraObra(amb));
-      if (!cabecalho.ok) return await null;
+      const cabecalho = await obtemCabecalhoDaObra(obraId, paraObra(amb));
+      if (!cabecalho.ok) return null;
       return {
         dataInicio: cabecalho.valor.dataInicio,
         dataTermino: cabecalho.valor.dataTermino,
@@ -94,9 +94,9 @@ export function portasDeLancamento(
 
     status: {
       porId: async (id) => {
-        const termos = listaTermosAtivos('status_atividade', paraTaxonomia(amb));
-        if (!termos.ok) return await null;
-        const achado = await termos.valor.find((t) => t.id === String(id));
+        const termos = await listaTermosAtivos('status_atividade', paraTaxonomia(amb));
+        if (!termos.ok) return null;
+        const achado = termos.valor.find((t) => t.id === String(id));
         return achado === undefined
           ? null
           : { id: idConfiavel<'status_atividade'>(achado.id), termo: achado.termo };
@@ -104,14 +104,14 @@ export function portasDeLancamento(
       // Comparação por `chaveDeTermo`, nunca por igualdade exata, e **nunca
       // cria termo**: foi assim que a planilha ganhou status gêmeos (CT-101).
       porTermo: async (termo) => {
-        const achado = resolveTermo('status_atividade', termo, paraTaxonomia(amb));
-        if (achado === null || !achado.ativo) return await null;
+        const achado = await resolveTermo('status_atividade', termo, paraTaxonomia(amb));
+        if (achado === null || !achado.ativo) return null;
         return { id: idConfiavel<'status_atividade'>(achado.id), termo: achado.termo };
       },
       ativos: async () => {
-        const termos = listaTermosAtivos('status_atividade', paraTaxonomia(amb));
+        const termos = await listaTermosAtivos('status_atividade', paraTaxonomia(amb));
         if (!termos.ok) return [];
-        return await termos.valor.map((t) => ({
+        return termos.valor.map((t) => ({
           id: idConfiavel<'status_atividade'>(t.id),
           termo: t.termo,
         }));
@@ -120,18 +120,19 @@ export function portasDeLancamento(
 
     servicos: {
       porId: async (obraId, id) =>
-        servicosDaObra(ambiente, obraId).find((s) => s.id === id) ?? null,
+        (await servicosDaObra(ambiente, obraId)).find((s) => s.id === id) ?? null,
       // Espaço INTERNO não é espaço de ponta: a normalização do R13 não pode
       // transformar `REC. (FRESA+CAPA)` em `REC.(FRESA+CAPA)` (CT-125).
       porNome: async (obraId, nome) =>
-        servicosDaObra(ambiente, obraId).find((s) => s.nome.trim() === nome.trim()) ??
-        null,
+        (await servicosDaObra(ambiente, obraId)).find(
+          (s) => s.nome.trim() === nome.trim(),
+        ) ?? null,
       daObra: async (obraId) => servicosDaObra(ambiente, obraId),
     },
 
     sugestoesDeMotivo: async () => {
-      const lista = listaSugestoesDeMotivo(paraTaxonomia(amb));
-      return (await lista.ok) ? lista.valor : [];
+      const lista = await listaSugestoesDeMotivo(paraTaxonomia(amb));
+      return lista.ok ? lista.valor : [];
     },
   };
 }

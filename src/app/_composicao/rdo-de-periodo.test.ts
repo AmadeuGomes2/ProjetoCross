@@ -75,13 +75,12 @@ function exige<T>(resultado: { ok: boolean }, oQue: string): T {
 }
 
 /** Libera o encarregado por SQL cru: o convite tem teste próprio. */
-function daAcessoDeEncarregado(ator: Ator, acessoId: string): Ator {
-  cenario.conexao.sqlite
-    .prepare(
-      `INSERT INTO acesso (id, obra_id, usuario_id, perfil, liberado_por, liberado_em)
-       VALUES (?, ?, ?, 'encarregado', ?, ?)`,
-    )
-    .run(acessoId, obraId, ator.usuarioId, engenheira.usuarioId, AGORA);
+async function daAcessoDeEncarregado(ator: Ator, acessoId: string): Promise<Ator> {
+  await cenario.conexao.executa(
+    `INSERT INTO acesso (id, obra_id, usuario_id, perfil, liberado_por, liberado_em)
+       VALUES ($1, $2, $3, 'encarregado', $4, $5)`,
+    [acessoId, obraId, ator.usuarioId, engenheira.usuarioId, AGORA],
+  );
   return ator;
 }
 
@@ -109,7 +108,7 @@ beforeEach(async () => {
   estranho = await cenario.novoAtor(EMAIL_DO_ESTRANHO);
 
   exige(
-    cadastraPeriodoBmsProtegido(
+    await cadastraPeriodoBmsProtegido(
       engenheira,
       obraId,
       { numero: 8, dataInicial: '2026-09-01', dataFinal: '2026-09-30' },
@@ -119,7 +118,7 @@ beforeEach(async () => {
   );
 
   const servicos = exige<{ servicoId: ServicoControladoId }[]>(
-    listaServicosProtegida(engenheira, obraId, cenario.amb),
+    await listaServicosProtegida(engenheira, obraId, cenario.amb),
     'serviços controlados',
   );
   const primeiro = servicos[0];

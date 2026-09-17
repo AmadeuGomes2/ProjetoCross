@@ -134,9 +134,9 @@ export async function criaObraProtegida(
   const cmd = analisaCriarObra(bruto);
   if (!cmd.ok) return erro(cmd.erro);
 
-  const criada = criaObra(cmd.valor, ator, paraObra(amb));
-  if (!criada.ok) return await erro(criada.erro);
-  return await ok(criada.valor);
+  const criada = await criaObra(cmd.valor, ator, paraObra(amb));
+  if (!criada.ok) return erro(criada.erro);
+  return ok(criada.valor);
 }
 
 export async function obtemCabecalhoProtegido(
@@ -147,9 +147,9 @@ export async function obtemCabecalhoProtegido(
   const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
-  const cabecalho = obtemCabecalhoDaObra(obraId, paraObra(amb));
-  if (!cabecalho.ok) return await erro(cabecalho.erro);
-  return await ok(cabecalho.valor);
+  const cabecalho = await obtemCabecalhoDaObra(obraId, paraObra(amb));
+  if (!cabecalho.ok) return erro(cabecalho.erro);
+  return ok(cabecalho.valor);
 }
 
 export async function defineResponsavelTecnicoProtegido(
@@ -168,8 +168,8 @@ export async function defineResponsavelTecnicoProtegido(
   const resp = analisaResponsavelTecnico(bruto);
   if (!resp.ok) return erro(resp.erro);
 
-  const definido = defineResponsavelTecnico(obraId, resp.valor, paraObra(amb));
-  if (!definido.ok) return await erro(definido.erro);
+  const definido = await defineResponsavelTecnico(obraId, resp.valor, paraObra(amb));
+  if (!definido.ok) return erro(definido.erro);
   return ok(undefined);
 }
 
@@ -185,9 +185,9 @@ export async function cadastraPeriodoBmsProtegido(
   const cmd = analisaPeriodoBms({ ...bruto, obraId });
   if (!cmd.ok) return erro(cmd.erro);
 
-  const criado = cadastraPeriodoBms(cmd.valor, ator, paraObra(amb));
-  if (!criado.ok) return await erro(criado.erro);
-  return await ok(criado.valor);
+  const criado = await cadastraPeriodoBms(cmd.valor, ator, paraObra(amb));
+  if (!criado.ok) return erro(criado.erro);
+  return ok(criado.valor);
 }
 
 export async function listaPeriodosBmsProtegida(
@@ -198,9 +198,9 @@ export async function listaPeriodosBmsProtegida(
   const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
-  const lista = listaPeriodosBms(obraId, paraObra(amb));
-  if (!lista.ok) return await erro(lista.erro);
-  return await ok(lista.valor);
+  const lista = await listaPeriodosBms(obraId, paraObra(amb));
+  if (!lista.ok) return erro(lista.erro);
+  return ok(lista.valor);
 }
 
 export async function resolveBmsDoDiaProtegido(
@@ -212,9 +212,9 @@ export async function resolveBmsDoDiaProtegido(
   const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
-  const bms = resolveBmsDoDia(obraId, dia, paraObra(amb));
-  if (!bms.ok) return await erro(bms.erro);
-  return await ok(bms.valor);
+  const bms = await resolveBmsDoDia(obraId, dia, paraObra(amb));
+  if (!bms.ok) return erro(bms.erro);
+  return ok(bms.valor);
 }
 
 // ---------------------------------------------------------------- passo 2
@@ -419,8 +419,8 @@ export async function defineQuantidadeDeProjetoProtegida(
   const cmd = analisaQuantidadeDeProjeto({ obraId, servicoId, quantidade });
   if (!cmd.ok) return erro(cmd.erro);
 
-  const definida = defineQuantidadeDeProjeto(cmd.valor, ator, paraObra(amb));
-  if (!definida.ok) return await erro(definida.erro);
+  const definida = await defineQuantidadeDeProjeto(cmd.valor, ator, paraObra(amb));
+  if (!definida.ok) return erro(definida.erro);
   return ok(undefined);
 }
 
@@ -432,9 +432,9 @@ export async function listaServicosProtegida(
   const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
-  const lista = listaServicosControlados(obraId, paraObra(amb));
-  if (!lista.ok) return await erro(lista.erro);
-  return await ok(lista.valor);
+  const lista = await listaServicosControlados(obraId, paraObra(amb));
+  if (!lista.ok) return erro(lista.erro);
+  return ok(lista.valor);
 }
 
 export async function listaHistoricoDeQuantidadeProtegido(
@@ -446,9 +446,9 @@ export async function listaHistoricoDeQuantidadeProtegido(
   const permitido = await autoriza(ator, obraId, 'engenheiro', amb);
   if (!permitido.ok) return permitido;
 
-  const historico = listaHistoricoDeQuantidade(obraId, servicoId, paraObra(amb));
-  if (!historico.ok) return await erro(historico.erro);
-  return await ok(historico.valor);
+  const historico = await listaHistoricoDeQuantidade(obraId, servicoId, paraObra(amb));
+  if (!historico.ok) return erro(historico.erro);
+  return ok(historico.valor);
 }
 
 // ---------------------------------------------------------------- taxonomia
@@ -468,9 +468,9 @@ export async function acrescentaTermoProtegido(
   const permitido = await autoriza(ator, obraId, 'engenheiro', amb);
   if (!permitido.ok) return permitido;
 
-  const criado = acrescentaTermo(tipo, termo, paraTaxonomia(amb));
-  if (!criado.ok) return await erro(criado.erro);
-  return await ok(criado.valor);
+  const criado = await acrescentaTermo(tipo, termo, paraTaxonomia(amb));
+  if (!criado.ok) return erro(criado.erro);
+  return ok(criado.valor);
 }
 
 /** Leitura é dos dois perfis: o encarregado precisa da lista para lançar. */
@@ -483,9 +483,9 @@ export async function listaTermosProtegida(
   const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
-  const lista = listaTermosAtivos(tipo, paraTaxonomia(amb));
-  if (!lista.ok) return await erro(lista.erro);
-  return await ok(lista.valor);
+  const lista = await listaTermosAtivos(tipo, paraTaxonomia(amb));
+  if (!lista.ok) return erro(lista.erro);
+  return ok(lista.valor);
 }
 
 export async function listaSugestoesDeMotivoProtegida(
@@ -496,9 +496,9 @@ export async function listaSugestoesDeMotivoProtegida(
   const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
-  const lista = listaSugestoesDeMotivo(paraTaxonomia(amb));
-  if (!lista.ok) return await erro(lista.erro);
-  return await ok(lista.valor);
+  const lista = await listaSugestoesDeMotivo(paraTaxonomia(amb));
+  if (!lista.ok) return erro(lista.erro);
+  return ok(lista.valor);
 }
 
 // ---------------------------------------------------------------- passo 3
@@ -585,8 +585,8 @@ export async function editaCadastroDaObraProtegida(
   const cmd = analisaEditarObra(bruto);
   if (!cmd.ok) return erro(cmd.erro);
 
-  const editada = editaCadastroDaObra({ ...cmd.valor, obraId }, paraObra(amb));
-  if (!editada.ok) return await erro(editada.erro);
+  const editada = await editaCadastroDaObra({ ...cmd.valor, obraId }, paraObra(amb));
+  if (!editada.ok) return erro(editada.erro);
   return ok(undefined);
 }
 
@@ -603,11 +603,11 @@ export async function atualizaPeriodoBmsProtegido(
   const cmd = analisaPeriodoBms({ ...bruto, obraId });
   if (!cmd.ok) return erro(cmd.erro);
 
-  const atualizado = atualizaPeriodoBms(
+  const atualizado = await atualizaPeriodoBms(
     { ...cmd.valor, periodoId: idConfiavel<'periodo_bms'>(periodoId) },
     paraObra(amb),
   );
-  if (!atualizado.ok) return await erro(atualizado.erro);
+  if (!atualizado.ok) return erro(atualizado.erro);
   return ok(undefined);
 }
 
@@ -627,11 +627,11 @@ export async function excluiPeriodoBmsProtegido(
   const permitido = await autoriza(ator, obraId, 'engenheiro', amb);
   if (!permitido.ok) return permitido;
 
-  const excluido = excluiPeriodoBms(
+  const excluido = await excluiPeriodoBms(
     obraId,
     idConfiavel<'periodo_bms'>(periodoId),
     paraObra(amb),
   );
-  if (!excluido.ok) return await erro(excluido.erro);
+  if (!excluido.ok) return erro(excluido.erro);
   return ok(undefined);
 }

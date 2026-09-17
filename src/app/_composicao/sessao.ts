@@ -46,7 +46,7 @@ export async function atorDaRequisicao(): Promise<Ator | null> {
 export function atorDaRota(
   requisicao: Request,
   ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
-): Result<Ator, ErroDeAcesso> {
+): Promise<Result<Ator, ErroDeAcesso>> {
   return autenticaRequisicao(
     leCookie(requisicao, NOME_DO_COOKIE_DE_SESSAO),
     paraAcesso(ambiente.cadastro),
@@ -65,7 +65,8 @@ export async function apagaCookieDeSessao(): Promise<void> {
   const bolsa = await cookies();
   const valor = bolsa.get(NOME_DO_COOKIE_DE_SESSAO)?.value;
   // Invalida no servidor antes de apagar no navegador: apagar só o cookie
-  // deixaria a sessão viva para quem tivesse copiado o valor.
-  encerraSessao(valor, paraAcesso(ambienteDaComposicao().cadastro));
+  // deixaria a sessão viva para quem tivesse copiado o valor. O `await` é a
+  // ordem: sem ele a sessão seria encerrada depois da resposta sair, ou nunca.
+  await encerraSessao(valor, paraAcesso(ambienteDaComposicao().cadastro));
   bolsa.delete(NOME_DO_COOKIE_DE_SESSAO);
 }

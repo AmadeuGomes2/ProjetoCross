@@ -42,7 +42,7 @@ import { paraDocumentoDePeriodo } from '../../modules/rdo/periodo/para-documento
 import { paraDocumento } from '../../modules/rdo/para-documento';
 import type { DiaPuro } from '../../shared/date/dia';
 import { instanteAgora } from '../../shared/date/fuso';
-import { erro, erroDeDominio, ok, CODIGO_ERRO, type Result } from '../../shared/result';
+import { erro, ok, CODIGO_ERRO, type Result } from '../../shared/result';
 import type { ObraId } from '../../shared/id';
 import type { PortadorDeAcesso } from '../../modules/acesso';
 import { ambienteDaComposicao, type AmbienteDaComposicao } from './ambiente';

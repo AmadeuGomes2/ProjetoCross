@@ -19,22 +19,24 @@ const CONTAS = {
 async function main(): Promise<void> {
   const composicao = ambienteDaComposicao();
   const amb = composicao.cadastro;
-  const sqlite = composicao.conexao.sqlite;
+  const conexao = composicao.conexao;
 
-  const obra = sqlite.prepare('SELECT id FROM obra ORDER BY criado_em LIMIT 1').get() as
-    { id: string } | undefined;
+  const obras = await conexao.consulta<{ id: string }>(
+    'SELECT id FROM obra ORDER BY criado_em LIMIT 1',
+  );
+  const obra = obras[0];
   if (obra === undefined) {
     console.warn('Não há obra no banco. Rode a preparação do ambiente local antes.');
     process.exit(1);
   }
 
-  /** O dia com mais lançamentos: é o que mostra a tela cheia. */
-  const dia = sqlite
-    .prepare(
-      `SELECT data, COUNT(*) AS n FROM lancamento_atividade
-        WHERE obra_id = ? GROUP BY data ORDER BY n DESC, data DESC LIMIT 1`,
-    )
-    .get(obra.id) as { data: string } | undefined;
+  /** O dia com mais lançamentos: é o que mostra a tela cheia. Depende da obra. */
+  const dias = await conexao.consulta<{ data: string }>(
+    `SELECT data, COUNT(*) AS n FROM lancamento_atividade
+        WHERE obra_id = $1 GROUP BY data ORDER BY n DESC, data DESC LIMIT 1`,
+    [obra.id],
+  );
+  const dia = dias[0];
 
   /** Um dia sem nada, para fotografar o estado vazio, que também é tela. */
   const diaVazio = '2026-09-20';
