@@ -56,25 +56,60 @@ export async function montaRdoDiario(
     );
   }
 
-  const bms = await portas.bms(obraId, dia);
+  /*
+   * As dez leituras restantes vão JUNTAS.
+   *
+   * Nenhuma depende do resultado de outra: todas recebem `obraId` e `dia`, e
+   * nada mais. Em série custavam onze idas ao banco, uma atrás da outra — com
+   * SQLite em arquivo isso eram microssegundos e ninguém via; contra o Neon,
+   * **cada uma atravessa a rede**. Medido contra o projeto real, 155 ms por ida
+   * e volta: 1,7 s de espera pura para abrir um dia, e a exportação de um mês,
+   * que monta o diário dia a dia, fazia 330 dessas idas.
+   *
+   * O cabeçalho continua na frente, sozinho, e isso é de propósito: é ele que
+   * guarda a recusa por data fora do contrato, a recusa mais barata, que não
+   * deve custar as outras dez consultas.
+   *
+   * **A ordem das recusas não muda.** `Promise.all` resolve com os dez
+   * `Result`, e a conferência abaixo os lê na mesma ordem de antes — quem
+   * pedisse um dia com dois problemas recebe a mesma mensagem que recebia. O
+   * que muda é que as dez rodam mesmo quando uma vai falhar; são leituras, sem
+   * efeito nenhum, e pagar dez leituras no caso de erro vale mais que pagar dez
+   * idas em série no caso normal.
+   */
+  const [
+    bms,
+    diaDeObra,
+    funcoes,
+    pessoal,
+    equipamentos,
+    servicos,
+    lancamentos,
+    atividades,
+    pluviometria,
+    observacoes,
+  ] = await Promise.all([
+    portas.bms(obraId, dia),
+    portas.dia(obraId, dia),
+    portas.funcoes(obraId),
+    portas.pessoalMobilizado(obraId),
+    portas.equipamentosMobilizados(obraId),
+    portas.servicos(obraId),
+    portas.lancamentosDeProducaoAte(obraId, dia),
+    portas.atividades(obraId, dia),
+    portas.pluviometria(obraId, dia),
+    portas.observacoesCros(obraId, dia),
+  ]);
+
   if (!bms.ok) return bms;
-  const diaDeObra = await portas.dia(obraId, dia);
   if (!diaDeObra.ok) return diaDeObra;
-  const funcoes = await portas.funcoes(obraId);
   if (!funcoes.ok) return funcoes;
-  const pessoal = await portas.pessoalMobilizado(obraId);
   if (!pessoal.ok) return pessoal;
-  const equipamentos = await portas.equipamentosMobilizados(obraId);
   if (!equipamentos.ok) return equipamentos;
-  const servicos = await portas.servicos(obraId);
   if (!servicos.ok) return servicos;
-  const lancamentos = await portas.lancamentosDeProducaoAte(obraId, dia);
   if (!lancamentos.ok) return lancamentos;
-  const atividades = await portas.atividades(obraId, dia);
   if (!atividades.ok) return atividades;
-  const pluviometria = await portas.pluviometria(obraId, dia);
   if (!pluviometria.ok) return pluviometria;
-  const observacoes = await portas.observacoesCros(obraId, dia);
   if (!observacoes.ok) return observacoes;
 
   const registroDoDia = diaDeObra.valor;

@@ -48,11 +48,11 @@
       "Read(**)",
       "Write(src/**)",
       "Write(docs/**)",
+      "Bash(git push:*)",
       "Write(test/**)"
     ],
     "deny": [
       "Bash(rm -rf:*)",
-      "Bash(git push:*)",
       "Read(.env)",
       "Write(.env)",
       "Write(.claude/**)"
