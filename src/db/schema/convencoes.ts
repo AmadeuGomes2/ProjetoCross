@@ -4,21 +4,46 @@
  * Fonte: docs/arquitetura/v1.md, seção 1. Toda tabela deste diretório usa
  * estas funções; quem escrever coluna de dia, de instante, de booleano ou de
  * quantidade à mão está divergindo e precisa dizer por quê.
+ *
+ * ## Postgres, desde 17/09/2026
+ *
+ * O banco era SQLite em arquivo, que não existe em serverless: a Vercel não tem
+ * disco persistente, e a aplicação simplesmente não subia. O destino é o Neon.
+ *
+ * Duas convenções mudaram de forma, e uma delas ficou **melhor**:
+ *
+ * - **dia puro** era `TEXT` com `GLOB` mais o truque `date(x) = x` para pegar
+ *   31 de setembro. Agora é o tipo `DATE` do Postgres, que valida o calendário
+ *   sozinho: recusa `2026-09-31`, recusa `2026-02-29`, aceita `2024-02-29`.
+ *   O modo `string` do Drizzle devolve `AAAA-MM-DD`, então `DiaPuro` continua
+ *   sendo o mesmo texto de sempre para o resto do sistema;
+ * - **instante** continua `TEXT`, porque `timestamptz` devolveria
+ *   `2026-09-17 12:00:00+00` e o sistema fala ISO-8601 com `Z`. O `GLOB` virou
+ *   o operador `~`, com classes `[0-9]` — `\\d` depende de escape e some no
+ *   caminho até o banco.
+ *
+ * `to_date` foi recusado de propósito: no Postgres ele **lança exceção** em
+ * data inválida em vez de normalizar, e exceção dentro de um `CHECK` dá erro de
+ * driver onde deveria dar violação de restrição.
  */
 
 import { sql } from 'drizzle-orm';
-import { check, integer, text, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
+import { check, date, integer, text, type AnyPgColumn } from 'drizzle-orm/pg-core';
 
 import type { DiaPuro } from '../../shared/date/dia';
 import type { Instante } from '../../shared/date/fuso';
 
 /**
- * Dia de obra: TEXT `AAAA-MM-DD`, dia puro, sem hora e sem deslocamento.
- * Comparação lexicográfica = comparação cronológica, então o índice serve
- * direto e o dump é legível.
+ * Dia de obra: `DATE`, dia puro, sem hora e sem deslocamento.
+ *
+ * `mode: 'string'` devolve `AAAA-MM-DD`, que é o formato de `DiaPuro`. A
+ * comparação continua sendo cronológica — agora por ser data de verdade, e não
+ * por coincidência lexicográfica.
  */
-export const colunaDia = (nome: string) => text(nome).$type<DiaPuro>().notNull();
-export const colunaDiaOpcional = (nome: string) => text(nome).$type<DiaPuro>();
+export const colunaDia = (nome: string) =>
+  date(nome, { mode: 'string' }).$type<DiaPuro>().notNull();
+export const colunaDiaOpcional = (nome: string) =>
+  date(nome, { mode: 'string' }).$type<DiaPuro>();
 
 /** Instante de auditoria: ISO-8601 em UTC com sufixo `Z`. Nunca hora local. */
 export const colunaInstante = (nome: string) => text(nome).$type<Instante>().notNull();
@@ -26,50 +51,33 @@ export const colunaInstanteOpcional = (nome: string) => text(nome).$type<Instant
 
 /**
  * Quantidade decimal em milésimos (escala 3, `shared/decimal`).
- * INTEGER porque `SUM()` de inteiro é exato e `REAL` é proibido no esquema
- * inteiro: ponto flutuante binário não soma acumulado.
+ *
+ * `integer` porque `SUM()` de inteiro é exato. Ponto flutuante é proibido no
+ * esquema inteiro: binário não soma acumulado sem erro.
  */
 export const colunaMilesimos = (nome: string) => integer(nome).notNull();
 
-/** Booleano: INTEGER 0/1, com CHECK. SQLite não tem tipo booleano. */
+/**
+ * Booleano: `integer` 0/1, com CHECK.
+ *
+ * O Postgres tem `boolean` de verdade, e ainda assim fica 0/1: trocar o tipo
+ * mudaria o valor lido por todo o domínio no meio de uma migração de banco, que
+ * é onde se acumulam duas mudanças e se perde qual delas quebrou.
+ */
 export const colunaBooleano = (nome: string) => integer(nome).notNull();
 
 /** Ordem de exibição da taxonomia. Não é o id, e por isso pode ser reordenada. */
 export const colunaOrdem = (nome: string) => integer(nome).notNull();
 
-const GLOB_DIA = "'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'";
-
-const GLOB_INSTANTE =
-  "'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9]Z'";
-
 /**
- * Dia puro válido NO CALENDÁRIO REAL.
+ * ISO-8601 em UTC, com `Z` e milissegundos.
  *
- * O GLOB sozinho aceita `2026-09-31`, que foi exatamente o defeito da planilha:
- * encadear dia+1 produziu um 31 de setembro e um RDO datado de outro mês
- * (regras-extraidas §7, caso de teste obrigatório 10). Por isso vai junto
- * `date(x) = x`: o `date()` do SQLite normaliza 2026-09-31 para 2026-10-01, e a
- * comparação denuncia. O `IS NOT NULL` existe porque mês 13 faz `date()`
- * devolver NULL, e CHECK que avalia NULL passa.
- *
- * Isto é mais estrito que a seção 1 da arquitetura, que pede só o GLOB. A
- * validação de calendário continua na borda, em `criaDiaPuro`; aqui ela é a
- * rede, para a rota nova que esquecer a borda.
+ * Classes `[0-9]`, e não `\\d`: a barra invertida precisa sobreviver ao
+ * TypeScript, ao gerador de migration e ao driver, e em algum desses passos ela
+ * some. `[0-9]` não depende de escape nenhum.
  */
-export function checkDia(nome: string, coluna: AnySQLiteColumn) {
-  return check(
-    nome,
-    sql`${coluna} GLOB ${sql.raw(GLOB_DIA)} AND date(${coluna}) IS NOT NULL AND date(${coluna}) = ${coluna}`,
-  );
-}
-
-/** Igual ao `checkDia`, aceitando nulo. Usado em `saida`, que é "ainda na obra". */
-export function checkDiaOpcional(nome: string, coluna: AnySQLiteColumn) {
-  return check(
-    nome,
-    sql`${coluna} IS NULL OR (${coluna} GLOB ${sql.raw(GLOB_DIA)} AND date(${coluna}) IS NOT NULL AND date(${coluna}) = ${coluna})`,
-  );
-}
+const REGEX_INSTANTE =
+  "'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$'";
 
 /**
  * Instante em UTC, com `Z` e milissegundos.
@@ -77,25 +85,25 @@ export function checkDiaOpcional(nome: string, coluna: AnySQLiteColumn) {
  * Decisão 3 da seção 7 da arquitetura: "hora local sem deslocamento é como se
  * perde um dia de RDO". O CHECK impede que alguém grave `2026-09-03 23:14:05`.
  */
-export function checkInstante(nome: string, coluna: AnySQLiteColumn) {
-  return check(nome, sql`${coluna} GLOB ${sql.raw(GLOB_INSTANTE)}`);
+export function checkInstante(nome: string, coluna: AnyPgColumn) {
+  return check(nome, sql`${coluna} ~ ${sql.raw(REGEX_INSTANTE)}`);
 }
 
-export function checkInstanteOpcional(nome: string, coluna: AnySQLiteColumn) {
-  return check(nome, sql`${coluna} IS NULL OR ${coluna} GLOB ${sql.raw(GLOB_INSTANTE)}`);
+export function checkInstanteOpcional(nome: string, coluna: AnyPgColumn) {
+  return check(nome, sql`${coluna} IS NULL OR ${coluna} ~ ${sql.raw(REGEX_INSTANTE)}`);
 }
 
 /** Texto de domínio obrigatório: nulo já barrado pelo NOT NULL, vazio aqui. */
-export function checkTextoNaoVazio(nome: string, coluna: AnySQLiteColumn) {
+export function checkTextoNaoVazio(nome: string, coluna: AnyPgColumn) {
   return check(nome, sql`length(trim(${coluna})) > 0`);
 }
 
-export function checkBooleano(nome: string, coluna: AnySQLiteColumn) {
+export function checkBooleano(nome: string, coluna: AnyPgColumn) {
   return check(nome, sql`${coluna} IN (0, 1)`);
 }
 
 /** Quantidade de produção e de projeto: maior que zero (decisões 13.3 e 13.4). */
-export function checkMilesimosPositivo(nome: string, coluna: AnySQLiteColumn) {
+export function checkMilesimosPositivo(nome: string, coluna: AnyPgColumn) {
   return check(nome, sql`${coluna} > 0`);
 }
 
@@ -108,15 +116,12 @@ export function checkMilesimosPositivo(nome: string, coluna: AnySQLiteColumn) {
  * ninguém saber qual vale. O motivo é obrigatório porque é ele que responde,
  * meses depois, por que o número mudou; `excluido_em` gravado com o motivo em
  * branco seria rastro pela metade, que é o mesmo que rastro nenhum.
- *
- * Uma regra, quatro tabelas de lançamento, uma função — pelo mesmo motivo de
- * `checkSaidaNaoAntesDaEntrada`.
  */
 export function checkExclusao(
   nome: string,
-  por: AnySQLiteColumn,
-  em: AnySQLiteColumn,
-  motivo: AnySQLiteColumn,
+  por: AnyPgColumn,
+  em: AnyPgColumn,
+  motivo: AnyPgColumn,
 ) {
   return check(
     nome,
@@ -134,8 +139,8 @@ export function checkExclusao(
  */
 export function checkSaidaNaoAntesDaEntrada(
   nome: string,
-  saida: AnySQLiteColumn,
-  entrada: AnySQLiteColumn,
+  saida: AnyPgColumn,
+  entrada: AnyPgColumn,
 ) {
   return check(nome, sql`${saida} IS NULL OR ${saida} >= ${entrada}`);
 }

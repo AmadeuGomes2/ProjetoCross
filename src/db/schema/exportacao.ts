@@ -11,14 +11,14 @@
  */
 
 import { desc, sql } from 'drizzle-orm';
-import { check, index, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { check, index, pgTable, text } from 'drizzle-orm/pg-core';
 
 import type { ObraId, RegistroExportacaoId, UsuarioId } from '../../shared/id';
-import { checkDia, checkInstante, colunaDia, colunaInstante } from './convencoes';
+import { checkInstante, colunaDia, colunaInstante } from './convencoes';
 import { obra } from './obra';
 import { usuario } from './usuario';
 
-export const registroExportacao = sqliteTable(
+export const registroExportacao = pgTable(
   'registro_exportacao',
   {
     id: text('id').$type<RegistroExportacaoId>().primaryKey(),
@@ -51,7 +51,6 @@ export const registroExportacao = sqliteTable(
     index('idx_exportacao_lote').on(t.loteId),
     // O fiscal recebe PDF; o Excel entrou em 17/09/2026, para quem soma.
     check('ck_exportacao_formato', sql`${t.formato} IN ('PDF', 'XLSX')`),
-    checkDia('ck_exportacao_data_rdo', t.dataRdo),
     checkInstante('ck_exportacao_momento', t.momento),
   ],
 );

@@ -15,15 +15,14 @@
 import {
   foreignKey,
   index,
-  sqliteTable,
+  pgTable,
   text,
+  unique,
   uniqueIndex,
-} from 'drizzle-orm/sqlite-core';
+} from 'drizzle-orm/pg-core';
 
 import type { FuncaoId, ObraId, PassagemPessoaId, PessoaId } from '../../shared/id';
 import {
-  checkDia,
-  checkDiaOpcional,
   checkInstante,
   checkSaidaNaoAntesDaEntrada,
   checkTextoNaoVazio,
@@ -35,7 +34,7 @@ import { obra } from './obra';
 import { funcao } from './taxonomia';
 import { colunaAutor } from './usuario';
 
-export const pessoa = sqliteTable(
+export const pessoa = pgTable(
   'pessoa',
   {
     id: text('id').$type<PessoaId>().primaryKey(),
@@ -56,13 +55,16 @@ export const pessoa = sqliteTable(
     // Existe só para ser o alvo da FK composta de `passagem_pessoa`. Não há
     // UNIQUE (obra_id, nome): dois homônimos na mesma obra são possíveis e
     // rejeitar isso seria regra inventada.
-    uniqueIndex('ux_pessoa_id_obra').on(t.id, t.obraId),
+    // Restrição de tabela, e não índice: o Postgres exige que o alvo da chave
+    // estrangeira composta exista quando o `ALTER TABLE` roda, e o gerador
+    // escreve os índices DEPOIS dos ALTERs.
+    unique('ux_pessoa_id_obra').on(t.id, t.obraId),
     checkTextoNaoVazio('ck_pessoa_nome', t.nome),
     checkInstante('ck_pessoa_criado_em', t.criadoEm),
   ],
 );
 
-export const passagemPessoa = sqliteTable(
+export const passagemPessoa = pgTable(
   'passagem_pessoa',
   {
     id: text('id').$type<PassagemPessoaId>().primaryKey(),
@@ -103,8 +105,6 @@ export const passagemPessoa = sqliteTable(
     index('idx_passagem_pessoa_dia').on(t.obraId, t.entrada, t.saida),
     index('idx_passagem_pessoa_pessoa').on(t.pessoaId),
     index('idx_passagem_pessoa_funcao').on(t.funcaoId),
-    checkDia('ck_passagem_pessoa_entrada', t.entrada),
-    checkDiaOpcional('ck_passagem_pessoa_saida', t.saida),
     checkSaidaNaoAntesDaEntrada('ck_passagem_pessoa_intervalo', t.saida, t.entrada),
     checkInstante('ck_passagem_pessoa_registrado_em', t.registradoEm),
   ],

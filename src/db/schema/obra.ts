@@ -9,18 +9,10 @@
  */
 
 import { sql } from 'drizzle-orm';
-import {
-  check,
-  index,
-  integer,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from 'drizzle-orm/sqlite-core';
+import { check, index, integer, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core';
 
 import type { ObraId, PeriodoBmsId } from '../../shared/id';
 import {
-  checkDia,
   checkInstante,
   checkTextoNaoVazio,
   colunaDia,
@@ -28,7 +20,7 @@ import {
 } from './convencoes';
 import { colunaAutor } from './usuario';
 
-export const obra = sqliteTable(
+export const obra = pgTable(
   'obra',
   {
     id: text('id').$type<ObraId>().primaryKey(),
@@ -61,8 +53,6 @@ export const obra = sqliteTable(
     checkTextoNaoVazio('ck_obra_nome_projeto', t.nomeProjeto),
     checkTextoNaoVazio('ck_obra_area', t.area),
     checkTextoNaoVazio('ck_obra_local', t.local),
-    checkDia('ck_obra_data_inicio', t.dataInicio),
-    checkDia('ck_obra_data_termino', t.dataTermino),
     // R14: a planilha tem um período de -716 dias. Caso de teste obrigatório 9.
     // A mensagem em português fica na borda; este CHECK é a rede.
     check('ck_obra_termino_apos_inicio', sql`${t.dataTermino} >= ${t.dataInicio}`),
@@ -70,7 +60,7 @@ export const obra = sqliteTable(
   ],
 );
 
-export const periodoBms = sqliteTable(
+export const periodoBms = pgTable(
   'periodo_bms',
   {
     id: text('id').$type<PeriodoBmsId>().primaryKey(),
@@ -89,8 +79,6 @@ export const periodoBms = sqliteTable(
     // Consulta do cabeçalho: qual período cobre este dia.
     index('idx_periodo_bms_busca').on(t.obraId, t.dataInicial, t.dataFinal),
     check('ck_periodo_bms_numero', sql`${t.numero} >= 0`),
-    checkDia('ck_periodo_bms_data_inicial', t.dataInicial),
-    checkDia('ck_periodo_bms_data_final', t.dataFinal),
     // R14 e R25, a mesma validação da obra.
     check('ck_periodo_bms_final_apos_inicial', sql`${t.dataFinal} >= ${t.dataInicial}`),
     checkInstante('ck_periodo_bms_criado_em', t.criadoEm),

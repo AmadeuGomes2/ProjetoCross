@@ -6,7 +6,7 @@
  * CLAUDE.md, Segurança: "Identifique por id, não por nome."
  */
 
-import { sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core';
 
 import type { UsuarioId } from '../../shared/id';
 import {
@@ -17,7 +17,7 @@ import {
   colunaInstante,
 } from './convencoes';
 
-export const usuario = sqliteTable(
+export const usuario = pgTable(
   'usuario',
   {
     id: text('id').$type<UsuarioId>().primaryKey(),

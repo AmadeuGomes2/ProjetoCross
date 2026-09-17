@@ -1,18 +1,32 @@
 /**
- * Apoio de teste: banco em memória, migrations aplicadas, taxonomias semeadas.
+ * Apoio de teste: Postgres em processo, migrations aplicadas, taxonomias semeadas.
  *
  * Só dado sintético (CLAUDE.md, Segurança). Nenhum nome daqui é de pessoa real.
  *
- * Não toca o sistema de arquivos: `:memory:` do SQLite vive no processo, e o
- * relógio é sempre injetado (padroes-codigo, Testes: "nada de rede, relógio
- * real nem sistema de arquivos").
+ * ## Por que PGlite, e não um banco em memória de outro dialeto
+ *
+ * Desde 17/09/2026 a produção é Postgres, no Neon. PGlite é **o Postgres de
+ * verdade**, compilado para WebAssembly, rodando dentro do processo: mesmo
+ * dialeto, mesmas restrições, as mesmas migrations. O teste passa a provar o
+ * que roda em produção.
+ *
+ * A alternativa — manter o teste em SQLite — foi recusada: dois dialetos fazem
+ * o teste verde sobre um `CHECK` que o banco de produção nem entende, e é onde
+ * nascem os defeitos que só aparecem no ar.
+ *
+ * Não toca o sistema de arquivos, e o relógio é sempre injetado
+ * (padroes-codigo, Testes: "nada de rede, relógio real nem sistema de arquivos").
  */
 
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
+import { PGlite } from '@electric-sql/pglite';
+import { drizzle } from 'drizzle-orm/pglite';
 
-import { criaBanco, EM_MEMORIA, type ConexaoRdo } from '../../src/db';
+import { type ConexaoRdo } from '../../src/db';
+import * as schema from '../../src/db/schema';
 import { semeiaTaxonomias } from '../../src/db/seed';
 import type { Instante } from '../../src/shared/date/fuso';
 import { geraId, type UsuarioId } from '../../src/shared/id';
@@ -21,10 +35,44 @@ const PASTA_DE_MIGRATIONS = fileURLToPath(
   new URL('../../src/db/migrations', import.meta.url),
 );
 
-export function criaBancoDeTeste(): ConexaoRdo {
-  const conexao = criaBanco(EM_MEMORIA);
-  migrate(conexao.db, { migrationsFolder: PASTA_DE_MIGRATIONS });
-  semeiaTaxonomias(conexao.db, '2026-01-01T00:00:00.000Z');
+/**
+ * Aplica as migrations lendo o SQL direto.
+ *
+ * O migrator do Drizzle grava a tabela de controle e exige o journal; aqui o
+ * banco nasce e morre com o teste, então controlar versão seria cerimônia sem
+ * ninguém para ler. O `statement-breakpoint` é a separação que o próprio
+ * `drizzle-kit` escreve.
+ */
+async function aplicaMigrations(pg: PGlite): Promise<void> {
+  const arquivos = readdirSync(PASTA_DE_MIGRATIONS)
+    .filter((nome) => nome.endsWith('.sql'))
+    .sort();
+
+  for (const arquivo of arquivos) {
+    const sql = readFileSync(join(PASTA_DE_MIGRATIONS, arquivo), 'utf8');
+    for (const comando of sql.split('--> statement-breakpoint')) {
+      const limpo = comando.trim();
+      if (limpo !== '') await pg.exec(limpo);
+    }
+  }
+}
+
+export async function criaBancoDeTeste(): Promise<ConexaoRdo> {
+  const pg = new PGlite();
+  await aplicaMigrations(pg);
+
+  const db = drizzle(pg, { schema });
+  const conexao: ConexaoRdo = {
+    db,
+    executa: async (comando: string) => {
+      await pg.exec(comando);
+    },
+    fecha: async () => {
+      await pg.close();
+    },
+  };
+
+  await semeiaTaxonomias(db, '2026-01-01T00:00:00.000Z');
   return conexao;
 }
 
@@ -59,23 +107,19 @@ export function relogioMovel(iso: string): {
  * coluna `e_engenheiro` da conta. O padrão é desligado, que é o de toda conta
  * nascida na web — não há cadastro público, e convite só cria encarregado.
  */
-export function insereUsuario(
+export async function insereUsuario(
   conexao: ConexaoRdo,
   nome: string,
   email: string,
   opcoes: { readonly criadoEm?: Instante; readonly eEngenheiro?: boolean } = {},
-): UsuarioId {
+): Promise<UsuarioId> {
   const id = geraId<'usuario'>();
-  conexao.sqlite
-    .prepare(
-      `INSERT INTO usuario (id, nome, email, criado_em, e_engenheiro) VALUES (?, ?, ?, ?, ?)`,
-    )
-    .run(
-      id,
-      nome,
-      email,
-      opcoes.criadoEm ?? '2026-01-01T00:00:00.000Z',
-      opcoes.eEngenheiro === true ? 1 : 0,
-    );
+  await conexao.db.insert(schema.usuario).values({
+    id,
+    nome,
+    email,
+    criadoEm: opcoes.criadoEm ?? '2026-01-01T00:00:00.000Z',
+    eEngenheiro: opcoes.eEngenheiro === true ? 1 : 0,
+  });
   return id;
 }

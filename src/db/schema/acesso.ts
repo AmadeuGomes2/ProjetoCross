@@ -11,7 +11,7 @@
  */
 
 import { sql } from 'drizzle-orm';
-import { check, index, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { check, index, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core';
 
 import type { AcessoId, ConviteId, ObraId, SessaoId, UsuarioId } from '../../shared/id';
 import {
@@ -25,7 +25,7 @@ import { colunaAutor, colunaAutorOpcional, usuario } from './usuario';
 
 export type Perfil = 'engenheiro' | 'encarregado';
 
-export const acesso = sqliteTable(
+export const acesso = pgTable(
   'acesso',
   {
     id: text('id').$type<AcessoId>().primaryKey(),
@@ -59,7 +59,7 @@ export const acesso = sqliteTable(
   ],
 );
 
-export const convite = sqliteTable(
+export const convite = pgTable(
   'convite',
   {
     id: text('id').$type<ConviteId>().primaryKey(),
@@ -98,7 +98,7 @@ export const convite = sqliteTable(
   ],
 );
 
-export const sessao = sqliteTable(
+export const sessao = pgTable(
   'sessao',
   {
     id: text('id').$type<SessaoId>().primaryKey(),

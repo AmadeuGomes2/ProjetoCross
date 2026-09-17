@@ -1,72 +1,92 @@
 /**
  * Conexão com o banco.
  *
- * docs/arquitetura/v1.md, seção 0: os PRAGMAs desta função valem para produção
- * e para teste de integração, porque o better-sqlite3 não faz nada disto
- * sozinho.
+ * ## Por que deixou de ser SQLite, em 17/09/2026
  *
- * **`PRAGMA foreign_keys = ON` é o item que não pode faltar.** Sem ele o SQLite
- * ignora chave estrangeira em silêncio, e todo o RESTRICT do esquema — que é o
- * que impede apagar uma obra e levar junto o histórico de RDO — vira
- * decoração. Por isso ele é ligado aqui, em UMA função, e não em quem chama.
+ * O banco era arquivo em disco, e **serverless não tem disco persistente**: na
+ * Vercel cada invocação começa com o sistema de arquivos zerado, então a
+ * aplicação não subia — não era lentidão nem configuração, era impossível. O
+ * destino é o Neon, que é Postgres gerenciado.
+ *
+ * ## Dois drivers, um dialeto
+ *
+ * - **produção**: `@neondatabase/serverless` por WebSocket.
+ *   **`neon-http` foi recusado** e o motivo é concreto: ele **não suporta
+ *   transação** (`No transactions support in neon-http driver`), e o módulo
+ *   `lancamento` depende de `executaEmTransacao` para que um lançamento
+ *   recusado não deixe o dia criado para trás;
+ * - **teste**: PGlite, que é o Postgres compilado para WebAssembly e roda dentro
+ *   do processo. É Postgres de verdade — mesmo dialeto, mesmas restrições,
+ *   mesmas migrations —, sem servidor para subir. O teste passa a provar o que
+ *   roda em produção, que é o que um banco em memória de outro dialeto não faz.
+ *
+ * O que **não** muda para quem chama: o tipo `BancoRdo` continua sendo o
+ * `drizzle` com o mesmo esquema, e `DiaPuro` continua sendo `AAAA-MM-DD`.
+ *
+ * ## O que sumiu, e o que ficou no lugar
+ *
+ * Os PRAGMAs do SQLite não existem aqui, e nem precisam: no Postgres a chave
+ * estrangeira é sempre verificada — não há o `foreign_keys = OFF` silencioso
+ * que fazia todo `RESTRICT` do esquema virar decoração.
  */
 
-import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
-
-import Database from 'better-sqlite3';
-import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { neonConfig, Pool } from '@neondatabase/serverless';
+import { drizzle as drizzleNeon } from 'drizzle-orm/neon-serverless';
+import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
+import ws from 'ws';
 
 import * as schema from './schema';
 
-export const VARIAVEL_DE_CAMINHO = 'RDO_BANCO_CAMINHO';
+export const VARIAVEL_DE_CONEXAO = 'DATABASE_URL';
 
 /**
- * Padrão local. Fica em `tmp/`, que o `.gitignore` já bloqueia: banco de
- * desenvolvimento tem dado de obra e dado pessoal, e não se versiona
- * (CLAUDE.md, Segurança).
+ * O supertipo comum de Neon e PGlite.
+ *
+ * Os dois drivers estendem `PgDatabase`, e é por aqui que o teste roda contra
+ * **o mesmo dialeto** da produção. Amarrar o tipo a `NeonDatabase` obrigaria o
+ * teste a mentir sobre o que usa.
  */
-export const CAMINHO_PADRAO = 'tmp/rdo.sqlite';
-
-/** Banco em memória, para teste. Não toca o sistema de arquivos. */
-export const EM_MEMORIA = ':memory:';
-
-export function caminhoDoBanco(ambiente: NodeJS.ProcessEnv = process.env): string {
-  const bruto = ambiente[VARIAVEL_DE_CAMINHO]?.trim();
-  return bruto === undefined || bruto === '' ? CAMINHO_PADRAO : bruto;
-}
-
-export type BancoRdo = BetterSQLite3Database<typeof schema>;
+export type BancoRdo = PgDatabase<PgQueryResultHKT, typeof schema>;
 
 export interface ConexaoRdo {
   readonly db: BancoRdo;
-  /** Acesso cru, para migration e para PRAGMA. Não use para consulta de domínio. */
-  readonly sqlite: Database.Database;
-  fecha(): void;
+  /** Execução crua, para migration. Não use para consulta de domínio. */
+  executa(sql: string): Promise<void>;
+  fecha(): Promise<void>;
 }
 
-export function criaBanco(caminho: string = caminhoDoBanco()): ConexaoRdo {
-  const emMemoria = caminho === EM_MEMORIA;
-  if (!emMemoria) {
-    mkdirSync(dirname(caminho), { recursive: true });
+export function urlDoBanco(ambiente: NodeJS.ProcessEnv = process.env): string {
+  const bruto = ambiente[VARIAVEL_DE_CONEXAO]?.trim();
+  if (bruto === undefined || bruto === '') {
+    throw new Error(
+      `${VARIAVEL_DE_CONEXAO} não está definida. Copie \`.env.example\` para ` +
+        '`.env.local` e preencha com a string de conexão do Neon.',
+    );
   }
+  return bruto;
+}
 
-  const sqlite = new Database(caminho);
+/**
+ * Conexão de produção, contra o Neon.
+ *
+ * O `Pool` é do `@neondatabase/serverless` e fala WebSocket; em Node ele precisa
+ * de uma implementação de WebSocket, que o `ws` fornece. No runtime de borda da
+ * Vercel o WebSocket é nativo e esta linha não faz nada.
+ */
+export function criaBanco(url: string = urlDoBanco()): ConexaoRdo {
+  // Em Node não existe `WebSocket` global; o `ws` entra no lugar. A atribuição
+  // é idempotente e barata, então não vale um `if` que esconde o motivo.
+  neonConfig.webSocketConstructor = ws;
 
-  // A ordem importa: `foreign_keys` precisa estar ligado antes de qualquer
-  // transação, e não pode ser alterado dentro de uma.
-  sqlite.pragma('foreign_keys = ON');
-  if (!emMemoria) {
-    // WAL não se aplica a banco em memória e ali só produziria ruído.
-    sqlite.pragma('journal_mode = WAL');
-  }
-  sqlite.pragma('busy_timeout = 5000');
-  sqlite.pragma('synchronous = NORMAL');
-
+  const pool = new Pool({ connectionString: url });
   return {
-    db: drizzle(sqlite, { schema }),
-    sqlite,
-    fecha: () => sqlite.close(),
+    db: drizzleNeon(pool, { schema }),
+    executa: async (comando: string) => {
+      await pool.query(comando);
+    },
+    fecha: async () => {
+      await pool.end();
+    },
   };
 }
 
@@ -75,8 +95,8 @@ let conexaoDoProcesso: ConexaoRdo | null = null;
 /**
  * Conexão única do processo, aberta na primeira chamada.
  *
- * É preguiçosa de propósito: abrir arquivo no topo do módulo faria `import`
- * ter efeito colateral, e teste que só quer o esquema criaria banco em disco.
+ * É preguiçosa de propósito: conectar no topo do módulo faria `import` ter
+ * efeito colateral, e teste que só quer o esquema abriria conexão de rede.
  */
 export function obtemConexao(): ConexaoRdo {
   conexaoDoProcesso ??= criaBanco();
@@ -85,6 +105,10 @@ export function obtemConexao(): ConexaoRdo {
 
 export function obtemBanco(): BancoRdo {
   return obtemConexao().db;
+}
+
+export function defineConexaoDoProcesso(conexao: ConexaoRdo | null): void {
+  conexaoDoProcesso = conexao;
 }
 
 export { schema };

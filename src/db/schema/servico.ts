@@ -14,10 +14,11 @@ import { desc } from 'drizzle-orm';
 import {
   foreignKey,
   index,
-  sqliteTable,
+  pgTable,
   text,
+  unique,
   uniqueIndex,
-} from 'drizzle-orm/sqlite-core';
+} from 'drizzle-orm/pg-core';
 
 import type {
   ObraId,
@@ -37,7 +38,7 @@ import {
 import { obra } from './obra';
 import { colunaAutor } from './usuario';
 
-export const servicoControlado = sqliteTable(
+export const servicoControlado = pgTable(
   'servico_controlado',
   {
     id: text('id').$type<ServicoControladoId>().primaryKey(),
@@ -57,14 +58,17 @@ export const servicoControlado = sqliteTable(
     uniqueIndex('ux_servico_ordem').on(t.obraId, t.ordem),
     // Alvo das FK compostas de `quantidade_projeto_versao` e de
     // `lancamento_producao`: nenhuma produção aponta para serviço de outra obra.
-    uniqueIndex('ux_servico_id_obra').on(t.id, t.obraId),
+    // Restrição de tabela, e não índice: o Postgres exige que o alvo da chave
+    // estrangeira composta exista quando o `ALTER TABLE` roda, e o gerador
+    // escreve os índices DEPOIS dos ALTERs.
+    unique('ux_servico_id_obra').on(t.id, t.obraId),
     checkTextoNaoVazio('ck_servico_nome', t.nome),
     checkTextoNaoVazio('ck_servico_normalizado', t.nomeNormalizado),
     checkBooleano('ck_servico_ativo', t.ativo),
   ],
 );
 
-export const quantidadeProjetoVersao = sqliteTable(
+export const quantidadeProjetoVersao = pgTable(
   'quantidade_projeto_versao',
   {
     id: text('id').$type<QuantidadeProjetoVersaoId>().primaryKey(),

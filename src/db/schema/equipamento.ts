@@ -12,10 +12,11 @@
 import {
   foreignKey,
   index,
-  sqliteTable,
+  pgTable,
   text,
+  unique,
   uniqueIndex,
-} from 'drizzle-orm/sqlite-core';
+} from 'drizzle-orm/pg-core';
 
 import type {
   EquipamentoId,
@@ -24,8 +25,6 @@ import type {
   TipoEquipamentoId,
 } from '../../shared/id';
 import {
-  checkDia,
-  checkDiaOpcional,
   checkInstante,
   checkSaidaNaoAntesDaEntrada,
   checkTextoNaoVazio,
@@ -37,7 +36,7 @@ import { obra } from './obra';
 import { tipoEquipamento } from './taxonomia';
 import { colunaAutor } from './usuario';
 
-export const equipamento = sqliteTable(
+export const equipamento = pgTable(
   'equipamento',
   {
     id: text('id').$type<EquipamentoId>().primaryKey(),
@@ -60,13 +59,16 @@ export const equipamento = sqliteTable(
   (t) => [
     uniqueIndex('ux_equipamento_identificador').on(t.obraId, t.identificador),
     // Alvo da FK composta de `passagem_equipamento`.
-    uniqueIndex('ux_equipamento_id_obra').on(t.id, t.obraId),
+    // Restrição de tabela, e não índice: o Postgres exige que o alvo da chave
+    // estrangeira composta exista quando o `ALTER TABLE` roda, e o gerador
+    // escreve os índices DEPOIS dos ALTERs.
+    unique('ux_equipamento_id_obra').on(t.id, t.obraId),
     checkTextoNaoVazio('ck_equipamento_identificador', t.identificador),
     checkInstante('ck_equipamento_criado_em', t.criadoEm),
   ],
 );
 
-export const passagemEquipamento = sqliteTable(
+export const passagemEquipamento = pgTable(
   'passagem_equipamento',
   {
     id: text('id').$type<PassagemEquipamentoId>().primaryKey(),
@@ -87,8 +89,6 @@ export const passagemEquipamento = sqliteTable(
       .onUpdate('restrict'),
     index('idx_passagem_equipamento_dia').on(t.obraId, t.entrada, t.saida),
     index('idx_passagem_equipamento_equipamento').on(t.equipamentoId),
-    checkDia('ck_passagem_equipamento_entrada', t.entrada),
-    checkDiaOpcional('ck_passagem_equipamento_saida', t.saida),
     checkSaidaNaoAntesDaEntrada('ck_passagem_equipamento_intervalo', t.saida, t.entrada),
     checkInstante('ck_passagem_equipamento_registrado_em', t.registradoEm),
   ],

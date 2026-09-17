@@ -15,7 +15,7 @@
  * no código (caso de teste obrigatório 13).
  */
 
-import { sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core';
 
 import type {
   FuncaoId,
@@ -41,7 +41,7 @@ import {
  * (arquitetura, decisão 6 da seção 7).
  */
 function tabelaDeTaxonomia<T extends string>(nomeDaTabela: string, prefixo: string) {
-  return sqliteTable(
+  return pgTable(
     nomeDaTabela,
     {
       id: text('id').$type<T>().primaryKey(),
@@ -89,7 +89,7 @@ export const statusAtividade = tabelaDeTaxonomia<StatusAtividadeId>(
  *
  * `condicao_tempo` não existe, em nenhuma forma (2.1).
  */
-export const sugestaoMotivoParada = sqliteTable(
+export const sugestaoMotivoParada = pgTable(
   'sugestao_motivo_parada',
   {
     id: text('id').$type<SugestaoMotivoId>().primaryKey(),

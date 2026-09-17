@@ -16,15 +16,14 @@ import {
   check,
   integer,
   primaryKey,
-  sqliteTable,
+  pgTable,
   text,
   uniqueIndex,
-} from 'drizzle-orm/sqlite-core';
+} from 'drizzle-orm/pg-core';
 
 import type { EstadoDoDia } from '../../shared/taxonomia';
 import type { ObraId } from '../../shared/id';
 import {
-  checkDia,
   checkInstante,
   checkInstanteOpcional,
   colunaDia,
@@ -34,7 +33,7 @@ import {
 import { obra } from './obra';
 import { colunaAutor, colunaAutorOpcional } from './usuario';
 
-export const diaDeObra = sqliteTable(
+export const diaDeObra = pgTable(
   'dia_de_obra',
   {
     obraId: text('obra_id')
@@ -77,7 +76,6 @@ export const diaDeObra = sqliteTable(
     // verificável (arquitetura, decisão 12 da seção 7).
     primaryKey({ columns: [t.obraId, t.data] }),
     uniqueIndex('ux_dia_de_obra_estado').on(t.obraId, t.data, t.estado),
-    checkDia('ck_dia_de_obra_data', t.data),
     // Decisão 4.2: são dois valores gravados; o terceiro estado é a ausência
     // de linha.
     check('ck_dia_de_obra_estado', sql`${t.estado} IN ('trabalhado', 'parado')`),

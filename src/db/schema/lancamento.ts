@@ -26,10 +26,11 @@ import {
   check,
   foreignKey,
   index,
-  sqliteTable,
+  pgTable,
   text,
+  unique,
   uniqueIndex,
-} from 'drizzle-orm/sqlite-core';
+} from 'drizzle-orm/pg-core';
 
 import type {
   LancamentoId,
@@ -39,7 +40,6 @@ import type {
 } from '../../shared/id';
 import type { LetraDeTurno } from '../../shared/taxonomia';
 import {
-  checkDia,
   checkExclusao,
   checkInstante,
   checkInstanteOpcional,
@@ -98,7 +98,7 @@ function colunasComuns() {
   };
 }
 
-export const lancamentoAtividade = sqliteTable(
+export const lancamentoAtividade = pgTable(
   'lancamento_atividade',
   {
     ...colunasComuns(),
@@ -113,7 +113,11 @@ export const lancamentoAtividade = sqliteTable(
       }),
   },
   (t) => [
-    uniqueIndex('ux_atividade_id_obra_data').on(t.id, t.obraId, t.data),
+    // Restrição de tabela, e não índice: o Postgres exige que o alvo da chave
+    // estrangeira composta já exista quando o `ALTER TABLE` roda, e o gerador
+    // escreve os índices DEPOIS dos ALTERs. Como índice, a migration falhava
+    // com `transformFkeyCheckAttrs`.
+    unique('ux_atividade_id_obra_data').on(t.id, t.obraId, t.data),
     foreignKey({
       columns: [t.obraId, t.data],
       foreignColumns: [diaDeObra.obraId, diaDeObra.data],
@@ -133,7 +137,6 @@ export const lancamentoAtividade = sqliteTable(
     // Ordem do bloco 8: raiz.registrado_em, raiz.id.
     index('idx_atividade_dia').on(t.obraId, t.data, t.registradoEm),
     index('idx_atividade_raiz').on(t.raizId),
-    checkDia('ck_atividade_data', t.data),
     checkTextoNaoVazio('ck_atividade_descricao', t.descricao),
     checkInstante('ck_atividade_registrado_em', t.registradoEm),
     checkInstanteOpcional('ck_atividade_atualizado_em', t.atualizadoEm),
@@ -142,7 +145,7 @@ export const lancamentoAtividade = sqliteTable(
   ],
 );
 
-export const lancamentoProducao = sqliteTable(
+export const lancamentoProducao = pgTable(
   'lancamento_producao',
   {
     ...colunasComuns(),
@@ -151,7 +154,11 @@ export const lancamentoProducao = sqliteTable(
     quantidadeMilesimos: colunaMilesimos('quantidade_milesimos'),
   },
   (t) => [
-    uniqueIndex('ux_producao_id_obra_data').on(t.id, t.obraId, t.data),
+    // Restrição de tabela, e não índice: o Postgres exige que o alvo da chave
+    // estrangeira composta já exista quando o `ALTER TABLE` roda, e o gerador
+    // escreve os índices DEPOIS dos ALTERs. Como índice, a migration falhava
+    // com `transformFkeyCheckAttrs`.
+    unique('ux_producao_id_obra_data').on(t.id, t.obraId, t.data),
     foreignKey({
       columns: [t.obraId, t.data],
       foreignColumns: [diaDeObra.obraId, diaDeObra.data],
@@ -181,7 +188,6 @@ export const lancamentoProducao = sqliteTable(
     // acumulado: a resposta para o custo é este índice, nunca duplicação.
     index('idx_producao_acumulado').on(t.obraId, t.servicoId, t.data),
     index('idx_producao_raiz').on(t.raizId),
-    checkDia('ck_producao_data', t.data),
     checkMilesimosPositivo('ck_producao_quantidade', t.quantidadeMilesimos),
     checkInstante('ck_producao_registrado_em', t.registradoEm),
     checkInstanteOpcional('ck_producao_atualizado_em', t.atualizadoEm),
@@ -190,7 +196,7 @@ export const lancamentoProducao = sqliteTable(
   ],
 );
 
-export const lancamentoPluviometria = sqliteTable(
+export const lancamentoPluviometria = pgTable(
   'lancamento_pluviometria',
   {
     ...colunasComuns(),
@@ -202,7 +208,11 @@ export const lancamentoPluviometria = sqliteTable(
     indiceMmMilesimos: colunaMilesimos('indice_mm_milesimos'),
   },
   (t) => [
-    uniqueIndex('ux_pluviometria_id_obra_data').on(t.id, t.obraId, t.data),
+    // Restrição de tabela, e não índice: o Postgres exige que o alvo da chave
+    // estrangeira composta já exista quando o `ALTER TABLE` roda, e o gerador
+    // escreve os índices DEPOIS dos ALTERs. Como índice, a migration falhava
+    // com `transformFkeyCheckAttrs`.
+    unique('ux_pluviometria_id_obra_data').on(t.id, t.obraId, t.data),
     foreignKey({
       columns: [t.obraId, t.data],
       foreignColumns: [diaDeObra.obraId, diaDeObra.data],
@@ -228,7 +238,6 @@ export const lancamentoPluviometria = sqliteTable(
       .on(t.obraId, t.data)
       .where(sql`${t.retificaId} IS NULL AND ${t.excluidoEm} IS NULL`),
     index('idx_pluviometria_raiz').on(t.raizId),
-    checkDia('ck_pluviometria_data', t.data),
     // A letra `N`, que a macro VBA pintava, não existe: a árvore do resumo do
     // dia não a conhece e nenhuma outra parte da planilha a aceitava.
     check(
@@ -261,7 +270,7 @@ export const lancamentoPluviometria = sqliteTable(
   ],
 );
 
-export const lancamentoObservacao = sqliteTable(
+export const lancamentoObservacao = pgTable(
   'lancamento_observacao',
   {
     ...colunasComuns(),
@@ -275,7 +284,11 @@ export const lancamentoObservacao = sqliteTable(
     texto: text('texto').notNull(),
   },
   (t) => [
-    uniqueIndex('ux_observacao_id_obra_data').on(t.id, t.obraId, t.data),
+    // Restrição de tabela, e não índice: o Postgres exige que o alvo da chave
+    // estrangeira composta já exista quando o `ALTER TABLE` roda, e o gerador
+    // escreve os índices DEPOIS dos ALTERs. Como índice, a migration falhava
+    // com `transformFkeyCheckAttrs`.
+    unique('ux_observacao_id_obra_data').on(t.id, t.obraId, t.data),
     foreignKey({
       columns: [t.obraId, t.data],
       foreignColumns: [diaDeObra.obraId, diaDeObra.data],
@@ -294,7 +307,6 @@ export const lancamentoObservacao = sqliteTable(
     uniqueIndex('ux_observacao_rascunho').on(t.autorId, t.chaveDeRascunho),
     index('idx_observacao_dia').on(t.obraId, t.data, t.lado, t.registradoEm),
     index('idx_observacao_raiz').on(t.raizId),
-    checkDia('ck_observacao_data', t.data),
     check('ck_observacao_lado', sql`${t.lado} = 'CROS'`),
     checkTextoNaoVazio('ck_observacao_texto', t.texto),
     checkInstante('ck_observacao_registrado_em', t.registradoEm),
