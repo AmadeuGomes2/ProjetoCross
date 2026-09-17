@@ -9,6 +9,10 @@
  * CT-049 tem duas metades. A daqui é a que esta frente responde: o porta de
  * efetivo **não devolve o tipo**, então o bloco 6 não tem como imprimi-lo. A
  * outra metade, o PDF, é da frente C.
+ *
+ * O banco é Postgres desde 17/09/2026: o cenário e os casos de uso são
+ * assíncronos, e `conexao.sqlite` não existe mais — a liberação de acesso
+ * passa pelo Drizzle.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -20,6 +24,7 @@ import {
   listaEquipamentosProtegida,
   registraPassagemDeEquipamentoProtegida,
 } from '../../app/_composicao/cadastro';
+import { acesso } from '../../db/schema';
 import { CODIGO_ERRO } from '../../shared/result';
 import {
   criaObraDoPrd,
@@ -29,24 +34,24 @@ import {
 } from '../../../test/fixtures/cenario-de-cadastro';
 import { criaObraProtegida } from '../../app/_composicao/cadastro';
 import type { Ator } from '../../modules/acesso';
-import type { ObraId } from '../../shared/id';
+import { idConfiavel, type ObraId } from '../../shared/id';
 import { listaEquipamentosDaObra } from './casos-de-uso';
 
 let cenario: Cenario;
 let e1: Ator;
 let obraId: ObraId;
 
-beforeEach(() => {
-  cenario = montaCenario();
-  e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-  obraId = criaObraDoPrd(e1, cenario.amb);
+beforeEach(async () => {
+  cenario = await montaCenario();
+  e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+  obraId = await criaObraDoPrd(e1, cenario.amb);
 });
 
-afterEach(() => {
-  cenario.fecha();
+afterEach(async () => {
+  await cenario.fecha();
 });
 
-function cadastra(
+async function cadastra(
   identificador: string,
   tipo: string,
   entrada: string,
@@ -54,7 +59,7 @@ function cadastra(
   obra: ObraId = obraId,
   ator: Ator = e1,
 ) {
-  return cadastraEquipamentoProtegido(
+  return await cadastraEquipamentoProtegido(
     ator,
     obra,
     saida === undefined
@@ -64,11 +69,24 @@ function cadastra(
   );
 }
 
-describe('F2.2 — cadastro de equipamento e passagens', () => {
-  it('CT-041 cadastra o equipamento por identificador, com passagem em aberto', () => {
-    expect(cadastra('CF-29', 'PATROL', '2026-02-05').ok).toBe(true);
+/** Liberação de encarregado direto na tabela: o convite tem teste próprio. */
+async function daAcessoDeEncarregado(ator: Ator, acessoId: string): Promise<Ator> {
+  await cenario.conexao.db.insert(acesso).values({
+    id: idConfiavel<'acesso'>(acessoId),
+    obraId,
+    usuarioId: ator.usuarioId,
+    perfil: 'encarregado',
+    liberadoPor: e1.usuarioId,
+    liberadoEm: '2026-09-16T12:00:00.000Z',
+  });
+  return ator;
+}
 
-    const lista = listaEquipamentosProtegida(e1, obraId, cenario.amb);
+describe('F2.2 — cadastro de equipamento e passagens', () => {
+  it('CT-041 cadastra o equipamento por identificador, com passagem em aberto', async () => {
+    expect((await cadastra('CF-29', 'PATROL', '2026-02-05')).ok).toBe(true);
+
+    const lista = await listaEquipamentosProtegida(e1, obraId, cenario.amb);
     expect(lista.ok).toBe(true);
     if (!lista.ok) return;
 
@@ -78,9 +96,9 @@ describe('F2.2 — cadastro de equipamento e passagens', () => {
     ]);
   });
 
-  it('CT-042 recusa identificador repetido na mesma obra e diz o motivo', () => {
-    expect(cadastra('CF-29', 'PATROL', '2026-02-05').ok).toBe(true);
-    const resultado = cadastra('CF-29', 'RETRO', '2026-03-01');
+  it('CT-042 recusa identificador repetido na mesma obra e diz o motivo', async () => {
+    expect((await cadastra('CF-29', 'PATROL', '2026-02-05')).ok).toBe(true);
+    const resultado = await cadastra('CF-29', 'RETRO', '2026-03-01');
 
     expect(resultado.ok).toBe(false);
     if (resultado.ok) return;
@@ -89,11 +107,11 @@ describe('F2.2 — cadastro de equipamento e passagens', () => {
     );
   });
 
-  it('CT-043 aceita o mesmo identificador em outra obra: a frota circula', () => {
-    expect(cadastra('CF-29', 'PATROL', '2026-02-05').ok).toBe(true);
+  it('CT-043 aceita o mesmo identificador em outra obra: a frota circula', async () => {
+    expect((await cadastra('CF-29', 'PATROL', '2026-02-05')).ok).toBe(true);
 
     // A segunda obra é criada por quem já é engenheiro da primeira (25.1).
-    const outra = criaObraProtegida(
+    const outra = await criaObraProtegida(
       e1,
       { ...DADOS_DA_OBRA, contrato: 'P0999/01-25 - OUTRA' },
       cenario.amb,
@@ -101,17 +119,17 @@ describe('F2.2 — cadastro de equipamento e passagens', () => {
     expect(outra.ok).toBe(true);
     if (!outra.ok) return;
 
-    expect(cadastra('CF-29', 'PATROL', '2026-02-05', undefined, outra.valor, e1).ok).toBe(
-      true,
-    );
+    expect(
+      (await cadastra('CF-29', 'PATROL', '2026-02-05', undefined, outra.valor, e1)).ok,
+    ).toBe(true);
   });
 
-  it('CT-044 equipamento que sai e volta tem duas passagens e um só cadastro', () => {
-    const criado = cadastra('MT-26', 'BASCULA', '2026-02-05', '2026-02-18');
+  it('CT-044 equipamento que sai e volta tem duas passagens e um só cadastro', async () => {
+    const criado = await cadastra('MT-26', 'BASCULA', '2026-02-05', '2026-02-18');
     expect(criado.ok).toBe(true);
     if (!criado.ok) return;
 
-    const segunda = registraPassagemDeEquipamentoProtegida(
+    const segunda = await registraPassagemDeEquipamentoProtegida(
       e1,
       obraId,
       { equipamentoId: criado.valor, entrada: '2026-03-01' },
@@ -119,28 +137,28 @@ describe('F2.2 — cadastro de equipamento e passagens', () => {
     );
     expect(segunda.ok).toBe(true);
 
-    const lista = listaEquipamentosDaObra(obraId, paraEquipamento(cenario.amb));
+    const lista = await listaEquipamentosDaObra(obraId, paraEquipamento(cenario.amb));
     expect(lista.ok && lista.valor).toHaveLength(1);
     expect(lista.ok && lista.valor[0]?.passagens).toHaveLength(2);
   });
 
-  it('CT-045 recusa saída anterior à entrada', () => {
-    const resultado = cadastra('RE-17', 'RETRO', '2026-02-05', '2026-02-04');
+  it('CT-045 recusa saída anterior à entrada', async () => {
+    const resultado = await cadastra('RE-17', 'RETRO', '2026-02-05', '2026-02-04');
 
     expect(resultado.ok).toBe(false);
     if (resultado.ok) return;
     expect(resultado.erro.codigo).toBe(CODIGO_ERRO.DATA_FINAL_ANTES_DA_INICIAL);
   });
 
-  it('recusa a passagem sobreposta com o código de sobreposição, e não com o de ordem invertida', () => {
+  it('recusa a passagem sobreposta com o código de sobreposição, e não com o de ordem invertida', async () => {
     // Mesma origem do teste irmão em `pessoal`: `src/shared/result`,
     // CODIGO_ERRO.INTERVALO_SOBREPOSTO. Um intervalo invertido e dois
     // intervalos que brigam são defeitos diferentes e não compartilham código.
-    const criado = cadastra('MT-27', 'BASCULA', '2026-02-05', '2026-02-18');
+    const criado = await cadastra('MT-27', 'BASCULA', '2026-02-05', '2026-02-18');
     expect(criado.ok).toBe(true);
     if (!criado.ok) return;
 
-    const segunda = registraPassagemDeEquipamentoProtegida(
+    const segunda = await registraPassagemDeEquipamentoProtegida(
       e1,
       obraId,
       { equipamentoId: criado.valor, entrada: '2026-02-10' },
@@ -155,10 +173,10 @@ describe('F2.2 — cadastro de equipamento e passagens', () => {
     );
   });
 
-  it('CT-046 aceita saída no mesmo dia da entrada', () => {
-    expect(cadastra('RE-18', 'RETRO', '2026-02-05', '2026-02-05').ok).toBe(true);
+  it('CT-046 aceita saída no mesmo dia da entrada', async () => {
+    expect((await cadastra('RE-18', 'RETRO', '2026-02-05', '2026-02-05')).ok).toBe(true);
 
-    const lista = listaEquipamentosDaObra(obraId, paraEquipamento(cenario.amb));
+    const lista = await listaEquipamentosDaObra(obraId, paraEquipamento(cenario.amb));
     expect(lista.ok && lista.valor[0]?.passagens[0]).toEqual({
       id: expect.any(String),
       entrada: '2026-02-05',
@@ -175,32 +193,30 @@ describe('F2.2 — cadastro de equipamento e passagens', () => {
    * Encerrar passagem continua sendo do engenheiro: desmobilizar muda o
    * efetivo de todo dia seguinte, e não é ato de campo.
    */
-  it('CT-047 deixa o encarregado cadastrar equipamento na obra dele', () => {
-    const c1 = cenario.novoAtor('c1@exemplo.invalido');
-    cenario.conexao.sqlite
-      .prepare(
-        `INSERT INTO acesso (id, obra_id, usuario_id, perfil, liberado_por, liberado_em)
-         VALUES (?, ?, ?, 'encarregado', ?, ?)`,
-      )
-      .run(
-        '77777777-7777-4777-8777-777777777777',
-        obraId,
-        c1.usuarioId,
-        e1.usuarioId,
-        '2026-09-16T12:00:00.000Z',
-      );
+  it('CT-047 deixa o encarregado cadastrar equipamento na obra dele', async () => {
+    const c1 = await daAcessoDeEncarregado(
+      await cenario.novoAtor('c1@exemplo.invalido'),
+      '77777777-7777-4777-8777-777777777777',
+    );
 
-    const resultado = cadastra('TP-41', 'TRATOR', '2026-02-05', undefined, obraId, c1);
+    const resultado = await cadastra(
+      'TP-41',
+      'TRATOR',
+      '2026-02-05',
+      undefined,
+      obraId,
+      c1,
+    );
 
     expect(resultado.ok).toBe(true);
-    const lista = listaEquipamentosDaObra(obraId, paraEquipamento(cenario.amb));
+    const lista = await listaEquipamentosDaObra(obraId, paraEquipamento(cenario.amb));
     expect(lista.ok && lista.valor).toHaveLength(1);
   });
 
-  it('CT-047b recusa o cadastro de equipamento a quem não tem acesso à obra', () => {
-    const estranho = cenario.novoAtor('estranho@exemplo.invalido');
+  it('CT-047b recusa o cadastro de equipamento a quem não tem acesso à obra', async () => {
+    const estranho = await cenario.novoAtor('estranho@exemplo.invalido');
 
-    const resultado = cadastra(
+    const resultado = await cadastra(
       'TP-99',
       'TRATOR',
       '2026-02-05',
@@ -210,27 +226,31 @@ describe('F2.2 — cadastro de equipamento e passagens', () => {
     );
 
     expect(resultado.ok).toBe(false);
-    const lista = listaEquipamentosDaObra(obraId, paraEquipamento(cenario.amb));
+    const lista = await listaEquipamentosDaObra(obraId, paraEquipamento(cenario.amb));
     expect(lista.ok && lista.valor).toHaveLength(0);
   });
 
-  it('CT-048 aceita o identificador real "CARRO LOC.", sem placa', () => {
-    expect(cadastra('CARRO LOC.', 'CARRO', '2026-02-05').ok).toBe(true);
+  it('CT-048 aceita o identificador real "CARRO LOC.", sem placa', async () => {
+    expect((await cadastra('CARRO LOC.', 'CARRO', '2026-02-05')).ok).toBe(true);
 
-    const lista = listaEquipamentosDaObra(obraId, paraEquipamento(cenario.amb));
+    const lista = await listaEquipamentosDaObra(obraId, paraEquipamento(cenario.amb));
     expect(lista.ok && lista.valor[0]?.identificador).toBe('CARRO LOC.');
   });
 
-  it('CT-049 a mobilização devolve o identificador e nunca o tipo', () => {
+  it('CT-049 a mobilização devolve o identificador e nunca o tipo', async () => {
     // O bloco 6 imprime `CF-29`, nunca `PATROL`: o tipo é cadastro interno e
     // imprimi-lo é divergência de layout. O tipo não sai do módulo.
     //
     // A CONTAGEM não está aqui: `equipamento` entrega passagens cruas e quem
     // conta é `src/modules/rdo/efetivo.ts`. As fronteiras da regra 1.2 contra o
     // cadastro de verdade estão em `test/efetivo-do-rdo.test.ts`.
-    expect(cadastra('CF-29', 'PATROL', '2026-02-05').ok).toBe(true);
+    expect((await cadastra('CF-29', 'PATROL', '2026-02-05')).ok).toBe(true);
 
-    const mobilizacao = listaMobilizacaoDeEquipamentoProtegida(e1, obraId, cenario.amb);
+    const mobilizacao = await listaMobilizacaoDeEquipamentoProtegida(
+      e1,
+      obraId,
+      cenario.amb,
+    );
     expect(mobilizacao.ok).toBe(true);
     if (!mobilizacao.ok) return;
 
@@ -246,8 +266,8 @@ describe('F2.2 — cadastro de equipamento e passagens', () => {
     expect(JSON.stringify(mobilizacao.valor)).not.toContain('PATROL');
   });
 
-  it('recusa tipo de equipamento fora da taxonomia', () => {
-    const resultado = cadastra('XX-01', 'GUINDASTE', '2026-02-05');
+  it('recusa tipo de equipamento fora da taxonomia', async () => {
+    const resultado = await cadastra('XX-01', 'GUINDASTE', '2026-02-05');
     expect(resultado.ok).toBe(false);
   });
 });

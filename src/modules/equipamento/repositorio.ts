@@ -1,6 +1,17 @@
 /**
  * Acesso ao banco do módulo `equipamento`. Possui `equipamento` e
  * `passagem_equipamento`. Toda consulta filtra por obra.
+ *
+ * ## Assíncrono desde 17/09/2026
+ *
+ * Mesma conversão de `pessoal`: o Postgres não tem `.run()`, `.get()` nem
+ * `.all()`, que eram do `better-sqlite3`. O construtor de consulta do Drizzle é
+ * `thenable`, então `await` é o que executa; onde havia `.get()` entra
+ * `limit(1)` mais a primeira linha, que diz no SQL o que antes ficava
+ * subentendido no dialeto.
+ *
+ * `entrada` e `saida` são `DATE` agora, e não `TEXT`: a leitura continua
+ * devolvendo `AAAA-MM-DD`, e o `ORDER BY` passou a ser de calendário.
  */
 
 import { and, asc, eq } from 'drizzle-orm';
@@ -23,7 +34,13 @@ export interface LinhaDeEquipamento {
   readonly tipoEquipamentoId: TipoEquipamentoId;
 }
 
-export function insereEquipamento(
+const CAMPOS_DO_EQUIPAMENTO = {
+  id: equipamento.id,
+  identificador: equipamento.identificador,
+  tipoEquipamentoId: equipamento.tipoEquipamentoId,
+} as const;
+
+export async function insereEquipamento(
   db: BancoRdo,
   dados: {
     readonly id: EquipamentoId;
@@ -33,26 +50,21 @@ export function insereEquipamento(
     readonly criadoPor: UsuarioId;
     readonly criadoEm: Instante;
   },
-): void {
-  db.insert(equipamento).values(dados).run();
+): Promise<void> {
+  await db.insert(equipamento).values(dados);
 }
 
-export function buscaEquipamento(
+export async function buscaEquipamento(
   db: BancoRdo,
   obraId: ObraId,
   equipamentoId: EquipamentoId,
-): LinhaDeEquipamento | null {
-  return (
-    db
-      .select({
-        id: equipamento.id,
-        identificador: equipamento.identificador,
-        tipoEquipamentoId: equipamento.tipoEquipamentoId,
-      })
-      .from(equipamento)
-      .where(and(eq(equipamento.obraId, obraId), eq(equipamento.id, equipamentoId)))
-      .get() ?? null
-  );
+): Promise<LinhaDeEquipamento | null> {
+  const [linha] = await db
+    .select(CAMPOS_DO_EQUIPAMENTO)
+    .from(equipamento)
+    .where(and(eq(equipamento.obraId, obraId), eq(equipamento.id, equipamentoId)))
+    .limit(1);
+  return linha ?? null;
 }
 
 /**
@@ -62,24 +74,19 @@ export function buscaEquipamento(
  * sabe qual é qual. O `UNIQUE (obra_id, identificador)` do banco é a rede;
  * esta consulta é o que produz a mensagem em português.
  */
-export function buscaPorIdentificador(
+export async function buscaPorIdentificador(
   db: BancoRdo,
   obraId: ObraId,
   identificador: string,
-): LinhaDeEquipamento | null {
-  return (
-    db
-      .select({
-        id: equipamento.id,
-        identificador: equipamento.identificador,
-        tipoEquipamentoId: equipamento.tipoEquipamentoId,
-      })
-      .from(equipamento)
-      .where(
-        and(eq(equipamento.obraId, obraId), eq(equipamento.identificador, identificador)),
-      )
-      .get() ?? null
-  );
+): Promise<LinhaDeEquipamento | null> {
+  const [linha] = await db
+    .select(CAMPOS_DO_EQUIPAMENTO)
+    .from(equipamento)
+    .where(
+      and(eq(equipamento.obraId, obraId), eq(equipamento.identificador, identificador)),
+    )
+    .limit(1);
+  return linha ?? null;
 }
 
 export interface LinhaDePassagemDeEquipamento {
@@ -89,7 +96,14 @@ export interface LinhaDePassagemDeEquipamento {
   readonly saida: DiaPuro | null;
 }
 
-export function inserePassagem(
+const CAMPOS_DA_PASSAGEM = {
+  id: passagemEquipamento.id,
+  equipamentoId: passagemEquipamento.equipamentoId,
+  entrada: passagemEquipamento.entrada,
+  saida: passagemEquipamento.saida,
+} as const;
+
+export async function inserePassagem(
   db: BancoRdo,
   dados: {
     readonly id: PassagemEquipamentoId;
@@ -100,22 +114,17 @@ export function inserePassagem(
     readonly registradoPor: UsuarioId;
     readonly registradoEm: Instante;
   },
-): void {
-  db.insert(passagemEquipamento).values(dados).run();
+): Promise<void> {
+  await db.insert(passagemEquipamento).values(dados);
 }
 
-export function listaPassagensDoEquipamento(
+export async function listaPassagensDoEquipamento(
   db: BancoRdo,
   obraId: ObraId,
   equipamentoId: EquipamentoId,
-): LinhaDePassagemDeEquipamento[] {
-  return db
-    .select({
-      id: passagemEquipamento.id,
-      equipamentoId: passagemEquipamento.equipamentoId,
-      entrada: passagemEquipamento.entrada,
-      saida: passagemEquipamento.saida,
-    })
+): Promise<LinhaDePassagemDeEquipamento[]> {
+  return await db
+    .select(CAMPOS_DA_PASSAGEM)
     .from(passagemEquipamento)
     .where(
       and(
@@ -123,46 +132,36 @@ export function listaPassagensDoEquipamento(
         eq(passagemEquipamento.equipamentoId, equipamentoId),
       ),
     )
-    .orderBy(asc(passagemEquipamento.entrada))
-    .all();
+    .orderBy(asc(passagemEquipamento.entrada));
 }
 
-export function buscaPassagem(
+export async function buscaPassagem(
   db: BancoRdo,
   obraId: ObraId,
   passagemId: PassagemEquipamentoId,
-): LinhaDePassagemDeEquipamento | null {
-  return (
-    db
-      .select({
-        id: passagemEquipamento.id,
-        equipamentoId: passagemEquipamento.equipamentoId,
-        entrada: passagemEquipamento.entrada,
-        saida: passagemEquipamento.saida,
-      })
-      .from(passagemEquipamento)
-      .where(
-        and(
-          eq(passagemEquipamento.obraId, obraId),
-          eq(passagemEquipamento.id, passagemId),
-        ),
-      )
-      .get() ?? null
-  );
+): Promise<LinhaDePassagemDeEquipamento | null> {
+  const [linha] = await db
+    .select(CAMPOS_DA_PASSAGEM)
+    .from(passagemEquipamento)
+    .where(
+      and(eq(passagemEquipamento.obraId, obraId), eq(passagemEquipamento.id, passagemId)),
+    )
+    .limit(1);
+  return linha ?? null;
 }
 
-export function atualizaSaida(
+export async function atualizaSaida(
   db: BancoRdo,
   obraId: ObraId,
   passagemId: PassagemEquipamentoId,
   saida: DiaPuro,
-): void {
-  db.update(passagemEquipamento)
+): Promise<void> {
+  await db
+    .update(passagemEquipamento)
     .set({ saida })
     .where(
       and(eq(passagemEquipamento.obraId, obraId), eq(passagemEquipamento.id, passagemId)),
-    )
-    .run();
+    );
 }
 
 export interface LinhaDeEfetivoDeEquipamento {
@@ -176,12 +175,15 @@ export interface LinhaDeEfetivoDeEquipamento {
  * Todas as passagens da obra. Sem filtro de data em SQL: quem decide se a
  * passagem cobre o dia é `intervaloCobreODia`, e a regra tem uma implementação
  * só no sistema (decisão 1.2 igualou pessoa e equipamento).
+ *
+ * **Uma consulta só**: o `innerJoin` já traz o identificador, que é o que o
+ * bloco 6 imprime. Este é caminho quente do RDO.
  */
-export function listaPassagensDaObra(
+export async function listaPassagensDaObra(
   db: BancoRdo,
   obraId: ObraId,
-): LinhaDeEfetivoDeEquipamento[] {
-  return db
+): Promise<LinhaDeEfetivoDeEquipamento[]> {
+  return await db
     .select({
       equipamentoId: passagemEquipamento.equipamentoId,
       identificador: equipamento.identificador,
@@ -190,8 +192,7 @@ export function listaPassagensDaObra(
     })
     .from(passagemEquipamento)
     .innerJoin(equipamento, eq(equipamento.id, passagemEquipamento.equipamentoId))
-    .where(eq(passagemEquipamento.obraId, obraId))
-    .all();
+    .where(eq(passagemEquipamento.obraId, obraId));
 }
 
 export interface LinhaDeEquipamentoComTipo {
@@ -201,11 +202,11 @@ export interface LinhaDeEquipamentoComTipo {
   readonly tipoTermo: string;
 }
 
-export function listaEquipamentosComTipo(
+export async function listaEquipamentosComTipo(
   db: BancoRdo,
   obraId: ObraId,
-): LinhaDeEquipamentoComTipo[] {
-  return db
+): Promise<LinhaDeEquipamentoComTipo[]> {
+  return await db
     .select({
       id: equipamento.id,
       identificador: equipamento.identificador,
@@ -215,23 +216,16 @@ export function listaEquipamentosComTipo(
     .from(equipamento)
     .innerJoin(tipoEquipamento, eq(tipoEquipamento.id, equipamento.tipoEquipamentoId))
     .where(eq(equipamento.obraId, obraId))
-    .orderBy(asc(equipamento.identificador))
-    .all();
+    .orderBy(asc(equipamento.identificador));
 }
 
-export function listaTodasAsPassagens(
+export async function listaTodasAsPassagens(
   db: BancoRdo,
   obraId: ObraId,
-): LinhaDePassagemDeEquipamento[] {
-  return db
-    .select({
-      id: passagemEquipamento.id,
-      equipamentoId: passagemEquipamento.equipamentoId,
-      entrada: passagemEquipamento.entrada,
-      saida: passagemEquipamento.saida,
-    })
+): Promise<LinhaDePassagemDeEquipamento[]> {
+  return await db
+    .select(CAMPOS_DA_PASSAGEM)
     .from(passagemEquipamento)
     .where(eq(passagemEquipamento.obraId, obraId))
-    .orderBy(asc(passagemEquipamento.entrada))
-    .all();
+    .orderBy(asc(passagemEquipamento.entrada));
 }
