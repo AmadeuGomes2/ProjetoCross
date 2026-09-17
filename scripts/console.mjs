@@ -42,6 +42,7 @@ async function main() {
     [`/obras/${ctx.obra}/pessoal`, 'eng'],
     [`/obras/${ctx.obra}/nao-existe-esta-rota`, 'eng'],
     [`/rdo/${ctx.obra}/${ctx.dia}`, 'eng'],
+    [`/pluviometria/${ctx.obra}/${ctx.dia.slice(0, 7)}`, 'eng'],
     [`/lancamento/${ctx.obra}/${ctx.dia}`, 'enc'],
     [`/lancamento/${ctx.obra}/${ctx.dia}/dia`, 'enc'],
     [`/lancamento/${ctx.obra}/${ctx.dia}/atividades`, 'enc'],

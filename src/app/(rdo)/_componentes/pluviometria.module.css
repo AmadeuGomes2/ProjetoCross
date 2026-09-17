@@ -1,0 +1,327 @@
+/*
+ * Controle pluviométrico do mês — a aba `PLUVIOMETRIA` da planilha.
+ *
+ * É a única tela do sistema que usa `<table>`. As outras trocaram tabela por
+ * lista porque o dado não era tabular de verdade; aqui é: 31 linhas iguais em
+ * estrutura, cuja comparação entre si é o próprio uso.
+ *
+ * A regra do projeto que vale é "nada de rolagem horizontal", e não "nada de
+ * tabela". Abaixo de 48rem cada `<tr>` vira um cartão e cada `<td>` mostra o
+ * rótulo que carrega em `data-rotulo`. A estrutura semântica continua sendo
+ * tabela para quem usa leitor de tela; o que muda é a pintura.
+ *
+ * Todas as cores saem dos tokens de `globals.css`, então a tela existe no tema
+ * escuro sem nenhuma regra própria.
+ */
+
+.pagina {
+  margin: 0 auto;
+  max-width: 64rem;
+  padding: var(--e4) var(--e4) var(--e7);
+  color: var(--tinta);
+}
+
+.titulo {
+  margin: 0 0 var(--e4);
+  font-size: 1.25rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* ---- painel do mês ---- */
+
+.painel {
+  display: grid;
+  /* `auto-fit` com mínimo: cinco medidas no desktop, duas no celular. */
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--e2);
+  margin-bottom: var(--e5);
+}
+
+.medida {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e1);
+  padding: var(--e3);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--papel-recuo);
+}
+
+.rotuloDaMedida {
+  font-size: 0.75rem;
+  color: var(--tinta-tenue);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.valorDaMedida {
+  font-family: var(--fonte-numero);
+  font-size: 1.35rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- a tabela ---- */
+
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.tabela th {
+  padding: var(--e2) var(--e2);
+  border-bottom: 2px solid var(--borda-forte);
+  font-size: 0.7rem;
+  font-weight: 650;
+  color: var(--tinta-fraca);
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.tabela td {
+  padding: var(--e2);
+  border-bottom: 1px solid var(--borda);
+  vertical-align: middle;
+}
+
+.tabela tbody tr:hover {
+  background: var(--papel-recuo);
+}
+
+/*
+ * Dia sem lançamento nenhum fica apagado, e não escondido. É o dia sobre o qual
+ * o fiscal pergunta: ele precisa estar visível e precisa parecer diferente.
+ */
+.linhaSemLeitura {
+  color: var(--tinta-tenue);
+}
+
+.data {
+  font-family: var(--fonte-numero);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.semana {
+  color: var(--tinta-fraca);
+  white-space: nowrap;
+}
+
+.resumo {
+  white-space: nowrap;
+}
+
+.numero {
+  font-family: var(--fonte-numero);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ---- as letras dos turnos ---- */
+
+/*
+ * `B`, `C` e `I` ganham cor, como a formatação condicional da planilha fazia em
+ * `C2:F1048576`. A letra continua escrita: cor sozinha não é informação para
+ * quem não a distingue, e o `abbr` dá o nome por extenso no toque e no leitor
+ * de tela.
+ */
+.letra {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--raio-pequeno);
+  font-weight: 650;
+  font-size: 0.85rem;
+}
+
+.letra abbr {
+  text-decoration: none;
+  cursor: help;
+}
+
+.letraB {
+  background: var(--ok-tenue);
+  color: var(--ok);
+}
+
+.letraC {
+  background: var(--aviso-tenue);
+  color: var(--aviso);
+}
+
+.letraI {
+  background: var(--alerta-tenue);
+  color: var(--alerta);
+}
+
+.semLetra {
+  color: var(--tinta-tenue);
+}
+
+.nota {
+  margin-top: var(--e4);
+  font-size: 0.85rem;
+  color: var(--tinta-tenue);
+  max-width: var(--largura-texto);
+}
+
+/* ---- celular: a tabela vira um cartão por dia ---- */
+
+@media (max-width: 48rem) {
+  .tabela thead {
+    /*
+     * `clip` e não `display: none`: o cabeçalho some da pintura mas continua
+     * ligado às células para o leitor de tela.
+     */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /*
+   * Seis colunas, e não duas.
+   *
+   * Com duas, os três turnos caíam em linha e meia e a TARDE ficava sozinha
+   * embaixo — a leitura mais importante do cartão, que é comparar os turnos do
+   * dia, virava um quebra-cabeça. Seis divide por 2 e por 3, então cabem os
+   * três turnos lado a lado e ainda o par índice/acumulado meio a meio.
+   */
+  .tabela tbody tr {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: var(--e2) var(--e2);
+    margin-bottom: var(--e3);
+    padding: var(--e3);
+    border: 1px solid var(--borda);
+    border-radius: var(--raio);
+    background: var(--papel);
+  }
+
+  .tabela td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--e2);
+    padding: 0;
+    border: 0;
+    text-align: left;
+  }
+
+  /* O rótulo que o `<thead>` daria, agora dentro da célula. */
+  .tabela td::before {
+    content: attr(data-rotulo);
+    font-size: 0.65rem;
+    font-weight: 650;
+    color: var(--tinta-tenue);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  /* Data e dia da semana são o cabeçalho do cartão, lado a lado. */
+  .data {
+    grid-column: span 3;
+    font-size: 1rem;
+    font-weight: 650;
+  }
+
+  .semana {
+    grid-column: span 3;
+    justify-content: flex-end;
+  }
+
+  .data::before,
+  .semana::before {
+    display: none;
+  }
+
+  /*
+   * Os três turnos: rótulo em cima, letra embaixo, centralizados. Lado a lado
+   * eles se leem como a linha da planilha, que é o que se quer comparar.
+   *
+   * O rótulo vai a 0.6rem e pode quebrar: `NOITE ANTERIOR` não cabe em um terço
+   * de 390px sem isso, e o que acontecia era o texto transbordar a célula e
+   * arrastar a letra para a esquerda, desalinhando as três.
+   */
+  /*
+   * `.tabela td.turno`, e não `.turno`: a regra base `.tabela td` define
+   * `align-items: baseline` e tem especificidade maior que uma classe sozinha.
+   * Com `baseline` num flex em coluna, o eixo cruzado é o horizontal e os itens
+   * encostam à esquerda — as três letras saíam desalinhadas entre si, e só
+   * olhando a captura no celular isso apareceu.
+   */
+  .tabela td.turno {
+    grid-column: span 2;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--e1);
+    padding-top: var(--e2);
+    border-top: 1px solid var(--borda);
+    text-align: center;
+  }
+
+  .turno::before {
+    font-size: 0.6rem;
+    line-height: 1.2;
+    white-space: normal;
+  }
+
+  /* O resumo é a resposta do dia: linha inteira, sem dividir com o índice. */
+  .resumo {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    gap: var(--e2);
+  }
+
+  /* Índice e acumulado dividem a última linha, meio a meio. */
+  .numero {
+    grid-column: span 3;
+  }
+}
+
+/* ---- impressão ---- */
+
+/*
+ * A planilha tem área de impressão `A1:H33`, e o engenheiro imprime este
+ * controle para anexar à justificativa de atraso. No papel a tabela volta a ser
+ * tabela, em qualquer largura.
+ */
+@media print {
+  .tabela thead {
+    position: static;
+    width: auto;
+    height: auto;
+    clip-path: none;
+  }
+
+  .tabela tbody tr {
+    display: table-row;
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
+
+  .tabela td {
+    display: table-cell;
+    padding: 0.2rem 0.3rem;
+    border-bottom: 1px solid #ccc;
+  }
+
+  .tabela td::before {
+    display: none;
+  }
+
+  .nota {
+    display: none;
+  }
+}

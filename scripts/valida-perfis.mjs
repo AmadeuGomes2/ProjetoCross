@@ -207,6 +207,56 @@ function regras(ctx) {
         return texto.includes('Confirmar o dia') ? null : 'não abriu o hub';
       },
     },
+
+    // ----------------------------------------------- controle pluviométrico
+    {
+      perfil: 'eng',
+      nome: 'engenheiro vê o controle pluviométrico do mês',
+      url: `/pluviometria/${obra}/${dia.slice(0, 7)}`,
+      prova: async (p) => {
+        const texto = await p.locator('body').innerText();
+        // `INDICE ACUMUALDO` é o erro de digitação herdado da planilha, e ele
+        // sai exatamente assim de propósito: é o rótulo que o fiscal conhece.
+        if (!texto.includes('INDICE ACUMUALDO')) return 'sem o rótulo herdado';
+        const linhas = await p.locator('tbody tr').count();
+        // O mês inteiro, e não só os dias lançados: o dia que ninguém mediu é
+        // justamente o que o fiscal pergunta.
+        return linhas >= 28 ? null : `só ${linhas} dias na tabela`;
+      },
+    },
+    {
+      perfil: 'enc',
+      nome: 'encarregado é recusado no controle pluviométrico',
+      url: `/pluviometria/${obra}/${dia.slice(0, 7)}`,
+      prova: async (p) => {
+        const texto = await p.locator('body').innerText();
+        return texto.includes('INDICE ACUMUALDO') ? 'viu o controle' : null;
+      },
+    },
+    {
+      perfil: 'enc',
+      nome: 'encarregado não vê a aba Pluviometria',
+      url: `/obras/${obra}`,
+      prova: async (p) => {
+        const abas = await p.locator('a.aba').allInnerTexts();
+        return abas.some((t) => t.includes('Pluviometria')) ? 'a aba apareceu' : null;
+      },
+    },
+    {
+      perfil: 'eng',
+      nome: 'engenheiro chega à pluviometria pela aba da obra',
+      url: `/obras/${obra}`,
+      prova: async (p) => {
+        const aba = p.locator('a.aba', { hasText: 'Pluviometria' });
+        if ((await aba.count()) === 0) return 'a aba não apareceu';
+        // O link leva o mês no endereço: a rota sem mês foi removida por ser
+        // página recebendo obraId sem verificar acesso.
+        const href = await aba.first().getAttribute('href');
+        return /^\/pluviometria\/[0-9a-f-]{36}\/\d{4}-\d{2}$/.test(href ?? '')
+          ? null
+          : `link estranho: ${href}`;
+      },
+    },
   ];
 }
 
