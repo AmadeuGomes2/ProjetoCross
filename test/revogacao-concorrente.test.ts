@@ -26,7 +26,7 @@ import {
   revogaAcesso,
   type Ator,
 } from '../src/modules/acesso';
-import type { ObraId } from '../src/shared/id';
+import type { AcessoId, ObraId } from '../src/shared/id';
 import {
   AGORA,
   criaObraDoPrd,
@@ -48,11 +48,32 @@ afterEach(async () => {
   await cenario.fecha();
 });
 
-/** A lista já devolve só os ativos: revogado sai da consulta. */
-async function engenheirosAtivos() {
+/**
+ * Conta direto no banco, e não pela leitura protegida.
+ *
+ * A primeira versão usava `listaAcessosDaObra` com a engenheira que criou a
+ * obra — e quebrou, por um motivo que vale registrar: **uma das duas revogações
+ * concorrentes pode ser a dela**. Quando era, ela perdia o acesso de engenheiro
+ * e deixava de poder listar, e o teste falhava por permissão em vez de medir a
+ * invariante.
+ *
+ * O que se quer saber aqui é um fato do banco — "sobrou linha de engenheiro
+ * ativo?" —, e não o que alguém consegue ver.
+ */
+async function engenheirosAtivos(): Promise<number> {
+  const linhas = await cenario.conexao.consulta<{ n: number }>(
+    `SELECT count(*)::int AS n FROM acesso
+      WHERE obra_id = $1 AND perfil = 'engenheiro' AND revogado_em IS NULL`,
+    [obraId],
+  );
+  return linhas[0]?.n ?? -1;
+}
+
+/** Os ids dos acessos de engenheiro, para revogar. */
+async function idsDeEngenheiro(): Promise<AcessoId[]> {
   const lista = await listaAcessosDaObra(obraId, primeira, cenario.amb);
   if (!lista.ok) throw new Error('não listei os acessos');
-  return lista.valor.filter((a) => a.perfil === 'engenheiro');
+  return lista.valor.filter((a) => a.perfil === 'engenheiro').map((a) => a.id);
 }
 
 describe('revogação concorrente de engenheiro', () => {
@@ -60,9 +81,8 @@ describe('revogação concorrente de engenheiro', () => {
     const segunda = await cenario.novoEngenheiro('eng2@exemplo.invalido');
     await concedeAcessoDeEngenheiro(cenario.amb.db, obraId, segunda.usuarioId, AGORA);
 
-    const engenheiros = await engenheirosAtivos();
-    expect(engenheiros).toHaveLength(2);
-    const [a, b] = engenheiros;
+    expect(await engenheirosAtivos()).toBe(2);
+    const [a, b] = await idsDeEngenheiro();
     if (a === undefined || b === undefined) throw new Error('faltou engenheiro');
 
     /*
@@ -70,22 +90,22 @@ describe('revogação concorrente de engenheiro', () => {
      * corrida: sem o bloqueio de linha, as duas contam 2 e as duas revogam.
      */
     const [uma, outra] = await Promise.all([
-      revogaAcesso(a.id, primeira, cenario.amb),
-      revogaAcesso(b.id, primeira, cenario.amb),
+      revogaAcesso(a, primeira, cenario.amb),
+      revogaAcesso(b, primeira, cenario.amb),
     ]);
 
     // Uma passa e a outra é recusada — nunca as duas.
     expect([uma.ok, outra.ok].filter(Boolean)).toHaveLength(1);
-    expect(await engenheirosAtivos()).toHaveLength(1);
+    expect(await engenheirosAtivos()).toBe(1);
   });
 
   it('com um engenheiro só, revogar é recusado', async () => {
-    const [unico] = await engenheirosAtivos();
+    const [unico] = await idsDeEngenheiro();
     if (unico === undefined) throw new Error('faltou o engenheiro da criação');
 
-    const r = await revogaAcesso(unico.id, primeira, cenario.amb);
+    const r = await revogaAcesso(unico, primeira, cenario.amb);
 
     expect(r.ok).toBe(false);
-    expect(await engenheirosAtivos()).toHaveLength(1);
+    expect(await engenheirosAtivos()).toBe(1);
   });
 });

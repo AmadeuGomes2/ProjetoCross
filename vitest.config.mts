@@ -31,10 +31,10 @@ export default defineConfig({
      * verdade. Sem teto, o Vitest abre um por núcleo e a máquina passa a
      * trocar memória com o disco — o que aparece como prazo esgotado, e não
      * como falta de memória.
+     *
+     * `maxWorkers`, e não `poolOptions`: este último saiu no Vitest 4, e aqui
+     * roda o 5. Escrevi `poolOptions` primeiro e o `tsc` acusou.
      */
-    poolOptions: {
-      threads: { maxThreads: 4 },
-      forks: { maxForks: 4 },
-    },
+    maxWorkers: 4,
   },
 });
