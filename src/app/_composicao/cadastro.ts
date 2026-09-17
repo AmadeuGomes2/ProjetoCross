@@ -110,25 +110,25 @@ function idDePassagemDeEquipamento(valor: string): PassagemEquipamentoId {
 }
 
 /** Toda operação protegida começa por aqui. Sem exceção. */
-function autoriza(
+async function autoriza(
   ator: Ator,
   obraId: ObraId,
   perfilMinimo: 'engenheiro' | 'encarregado',
   amb: Amb,
-): Result<void, ErroConhecido> {
-  const permitido = exigeAcessoNaObra(ator, obraId, perfilMinimo, paraAcesso(amb));
+): Promise<Result<void, ErroConhecido>> {
+  const permitido = await exigeAcessoNaObra(ator, obraId, perfilMinimo, paraAcesso(amb));
   if (!permitido.ok) return erro(permitido.erro);
   return ok(undefined);
 }
 
 // ---------------------------------------------------------------- passo 1
 
-export function criaObraProtegida(
+export async function criaObraProtegida(
   ator: Ator,
   bruto: unknown,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<ObraId> {
-  const permitido = exigePermissaoParaCriarObra(ator, paraAcesso(amb));
+): Promise<Resposta<ObraId>> {
+  const permitido = await exigePermissaoParaCriarObra(ator, paraAcesso(amb));
   if (!permitido.ok) return erro(permitido.erro);
 
   const cmd = analisaCriarObra(bruto);
@@ -139,12 +139,12 @@ export function criaObraProtegida(
   return ok(criada.valor);
 }
 
-export function obtemCabecalhoProtegido(
+export async function obtemCabecalhoProtegido(
   ator: Ator,
   obraId: ObraId,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<CabecalhoDaObra> {
-  const permitido = autoriza(ator, obraId, 'encarregado', amb);
+): Promise<Resposta<CabecalhoDaObra>> {
+  const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const cabecalho = obtemCabecalhoDaObra(obraId, paraObra(amb));
@@ -152,7 +152,7 @@ export function obtemCabecalhoProtegido(
   return ok(cabecalho.valor);
 }
 
-export function defineResponsavelTecnicoProtegido(
+export async function defineResponsavelTecnicoProtegido(
   ator: Ator,
   obraId: ObraId,
   bruto: {
@@ -161,8 +161,8 @@ export function defineResponsavelTecnicoProtegido(
     respTecnicoCrea?: unknown;
   },
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<void> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+): Promise<Resposta<void>> {
+  const permitido = await autoriza(ator, obraId, 'engenheiro', amb);
   if (!permitido.ok) return permitido;
 
   const resp = analisaResponsavelTecnico(bruto);
@@ -173,13 +173,13 @@ export function defineResponsavelTecnicoProtegido(
   return ok(undefined);
 }
 
-export function cadastraPeriodoBmsProtegido(
+export async function cadastraPeriodoBmsProtegido(
   ator: Ator,
   obraId: ObraId,
   bruto: Record<string, unknown>,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<string> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+): Promise<Resposta<string>> {
+  const permitido = await autoriza(ator, obraId, 'engenheiro', amb);
   if (!permitido.ok) return permitido;
 
   const cmd = analisaPeriodoBms({ ...bruto, obraId });
@@ -190,12 +190,12 @@ export function cadastraPeriodoBmsProtegido(
   return ok(criado.valor);
 }
 
-export function listaPeriodosBmsProtegida(
+export async function listaPeriodosBmsProtegida(
   ator: Ator,
   obraId: ObraId,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<PeriodoBms[]> {
-  const permitido = autoriza(ator, obraId, 'encarregado', amb);
+): Promise<Resposta<PeriodoBms[]>> {
+  const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const lista = listaPeriodosBms(obraId, paraObra(amb));
@@ -203,13 +203,13 @@ export function listaPeriodosBmsProtegida(
   return ok(lista.valor);
 }
 
-export function resolveBmsDoDiaProtegido(
+export async function resolveBmsDoDiaProtegido(
   ator: Ator,
   obraId: ObraId,
   dia: DiaPuro,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<number | null> {
-  const permitido = autoriza(ator, obraId, 'encarregado', amb);
+): Promise<Resposta<number | null>> {
+  const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const bms = resolveBmsDoDia(obraId, dia, paraObra(amb));
@@ -219,36 +219,36 @@ export function resolveBmsDoDiaProtegido(
 
 // ---------------------------------------------------------------- passo 2
 
-export function cadastraPessoaProtegida(
+export async function cadastraPessoaProtegida(
   ator: Ator,
   obraId: ObraId,
   bruto: Record<string, unknown>,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<string> {
-  const permitido = autoriza(ator, obraId, 'encarregado', amb);
+): Promise<Resposta<string>> {
+  const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const cmd = analisaCadastrarPessoa({ ...bruto, obraId });
   if (!cmd.ok) return erro(cmd.erro);
 
-  const criada = cadastraPessoa(cmd.valor, ator, paraPessoal(amb));
+  const criada = await cadastraPessoa(cmd.valor, ator, paraPessoal(amb));
   if (!criada.ok) return erro(criada.erro);
   return ok(criada.valor);
 }
 
-export function registraPassagemProtegida(
+export async function registraPassagemProtegida(
   ator: Ator,
   obraId: ObraId,
   bruto: Record<string, unknown>,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<string> {
-  const permitido = autoriza(ator, obraId, 'encarregado', amb);
+): Promise<Resposta<string>> {
+  const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const cmd = analisaPassagem({ ...bruto, obraId });
   if (!cmd.ok) return erro(cmd.erro);
 
-  const criada = registraPassagem(cmd.valor, ator, paraPessoal(amb));
+  const criada = await registraPassagem(cmd.valor, ator, paraPessoal(amb));
   if (!criada.ok) return erro(criada.erro);
   return ok(criada.valor);
 }
@@ -259,19 +259,19 @@ export function registraPassagemProtegida(
  * **Os dois perfis escrevem**, como todo o cadastro de pessoal desde a decisão
  * do dono do produto de 17/09/2026. Devolve o id da passagem nova.
  */
-export function trocaFuncaoProtegida(
+export async function trocaFuncaoProtegida(
   ator: Ator,
   obraId: ObraId,
   bruto: Record<string, unknown>,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<string> {
-  const permitido = autoriza(ator, obraId, 'encarregado', amb);
+): Promise<Resposta<string>> {
+  const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const cmd = analisaTrocarFuncao({ ...bruto, obraId });
   if (!cmd.ok) return erro(cmd.erro);
 
-  const trocada = trocaFuncao(cmd.valor, ator, paraPessoal(amb));
+  const trocada = await trocaFuncao(cmd.valor, ator, paraPessoal(amb));
   if (!trocada.ok) return erro(trocada.erro);
   return ok(trocada.valor);
 }
@@ -288,15 +288,15 @@ export function trocaFuncaoProtegida(
  * A fronteira que não se moveu é a da **obra**: quem não tem acesso continua
  * recebendo a recusa genérica, sem nome nenhum.
  */
-export function listaPessoalProtegida(
+export async function listaPessoalProtegida(
   ator: Ator,
   obraId: ObraId,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<PessoaComPassagens[]> {
-  const permitido = autoriza(ator, obraId, 'encarregado', amb);
+): Promise<Resposta<PessoaComPassagens[]>> {
+  const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
-  const lista = listaPessoalDaObra(obraId, paraPessoal(amb));
+  const lista = await listaPessoalDaObra(obraId, paraPessoal(amb));
   if (!lista.ok) return erro(lista.erro);
   return ok(lista.valor);
 }
@@ -308,91 +308,95 @@ export function listaPessoalProtegida(
  * quem conta é `src/modules/rdo/efetivo.ts`, que é quem conhece o estado do dia
  * (5.1) e o formato do bloco 5. Havia duas agregações no sistema; sobrou uma.
  */
-export function listaMobilizacaoDePessoalProtegida(
+export async function listaMobilizacaoDePessoalProtegida(
   ator: Ator,
   obraId: ObraId,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<PessoaMobilizada[]> {
-  const permitido = autoriza(ator, obraId, 'encarregado', amb);
+): Promise<Resposta<PessoaMobilizada[]>> {
+  const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
-  const mobilizacao = listaMobilizacaoDePessoal(obraId, paraPessoal(amb));
+  const mobilizacao = await listaMobilizacaoDePessoal(obraId, paraPessoal(amb));
   if (!mobilizacao.ok) return erro(mobilizacao.erro);
   return ok(mobilizacao.valor);
 }
 
-export function cadastraEquipamentoProtegido(
+export async function cadastraEquipamentoProtegido(
   ator: Ator,
   obraId: ObraId,
   bruto: Record<string, unknown>,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<string> {
-  const permitido = autoriza(ator, obraId, 'encarregado', amb);
+): Promise<Resposta<string>> {
+  const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const cmd = analisaCadastrarEquipamento({ ...bruto, obraId });
   if (!cmd.ok) return erro(cmd.erro);
 
-  const criado = cadastraEquipamento(cmd.valor, ator, paraEquipamento(amb));
+  const criado = await cadastraEquipamento(cmd.valor, ator, paraEquipamento(amb));
   if (!criado.ok) return erro(criado.erro);
   return ok(criado.valor);
 }
 
-export function registraPassagemDeEquipamentoProtegida(
+export async function registraPassagemDeEquipamentoProtegida(
   ator: Ator,
   obraId: ObraId,
   bruto: Record<string, unknown>,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<string> {
-  const permitido = autoriza(ator, obraId, 'encarregado', amb);
+): Promise<Resposta<string>> {
+  const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const cmd = analisaPassagemDeEquipamento({ ...bruto, obraId });
   if (!cmd.ok) return erro(cmd.erro);
 
-  const criada = registraPassagemDeEquipamento(cmd.valor, ator, paraEquipamento(amb));
+  const criada = await registraPassagemDeEquipamento(
+    cmd.valor,
+    ator,
+    paraEquipamento(amb),
+  );
   if (!criada.ok) return erro(criada.erro);
   return ok(criada.valor);
 }
 
-export function listaEquipamentosProtegida(
+export async function listaEquipamentosProtegida(
   ator: Ator,
   obraId: ObraId,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<EquipamentoComPassagens[]> {
-  const permitido = autoriza(ator, obraId, 'encarregado', amb);
+): Promise<Resposta<EquipamentoComPassagens[]>> {
+  const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
-  const lista = listaEquipamentosDaObra(obraId, paraEquipamento(amb));
+  const lista = await listaEquipamentosDaObra(obraId, paraEquipamento(amb));
   if (!lista.ok) return erro(lista.erro);
   return ok(lista.valor);
 }
 
 /** Como em `pessoal`: mobilização crua, e a contagem do bloco 6 é do `rdo`. */
-export function listaMobilizacaoDeEquipamentoProtegida(
+export async function listaMobilizacaoDeEquipamentoProtegida(
   ator: Ator,
   obraId: ObraId,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<EquipamentoMobilizado[]> {
-  const permitido = autoriza(ator, obraId, 'encarregado', amb);
+): Promise<Resposta<EquipamentoMobilizado[]>> {
+  const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
-  const mobilizacao = listaMobilizacaoDeEquipamento(obraId, paraEquipamento(amb));
+  const mobilizacao = await listaMobilizacaoDeEquipamento(obraId, paraEquipamento(amb));
   if (!mobilizacao.ok) return erro(mobilizacao.erro);
   return ok(mobilizacao.valor);
 }
 
-export function encerraPassagemDeEquipamentoProtegida(
+export async function encerraPassagemDeEquipamentoProtegida(
   ator: Ator,
   obraId: ObraId,
   passagemId: string,
   saida: DiaPuro,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<void> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+): Promise<Resposta<void>> {
+  const permitido = await autoriza(ator, obraId, 'engenheiro', amb);
   if (!permitido.ok) return permitido;
 
-  const encerrada = encerraPassagemDeEquipamento(
+  const encerrada = await encerraPassagemDeEquipamento(
     { obraId, passagemId: idDePassagemDeEquipamento(passagemId), saida },
     paraEquipamento(amb),
   );
@@ -402,14 +406,14 @@ export function encerraPassagemDeEquipamentoProtegida(
 
 // ---------------------------------------------------------------- serviços
 
-export function defineQuantidadeDeProjetoProtegida(
+export async function defineQuantidadeDeProjetoProtegida(
   ator: Ator,
   obraId: ObraId,
   servicoId: ServicoControladoId,
   quantidade: unknown,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<void> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+): Promise<Resposta<void>> {
+  const permitido = await autoriza(ator, obraId, 'engenheiro', amb);
   if (!permitido.ok) return permitido;
 
   const cmd = analisaQuantidadeDeProjeto({ obraId, servicoId, quantidade });
@@ -420,12 +424,12 @@ export function defineQuantidadeDeProjetoProtegida(
   return ok(undefined);
 }
 
-export function listaServicosProtegida(
+export async function listaServicosProtegida(
   ator: Ator,
   obraId: ObraId,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<ServicoControladoComProjeto[]> {
-  const permitido = autoriza(ator, obraId, 'encarregado', amb);
+): Promise<Resposta<ServicoControladoComProjeto[]>> {
+  const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const lista = listaServicosControlados(obraId, paraObra(amb));
@@ -433,13 +437,13 @@ export function listaServicosProtegida(
   return ok(lista.valor);
 }
 
-export function listaHistoricoDeQuantidadeProtegido(
+export async function listaHistoricoDeQuantidadeProtegido(
   ator: Ator,
   obraId: ObraId,
   servicoId: ServicoControladoId,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<VersaoDeQuantidade[]> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+): Promise<Resposta<VersaoDeQuantidade[]>> {
+  const permitido = await autoriza(ator, obraId, 'engenheiro', amb);
   if (!permitido.ok) return permitido;
 
   const historico = listaHistoricoDeQuantidade(obraId, servicoId, paraObra(amb));
@@ -454,14 +458,14 @@ export function listaHistoricoDeQuantidadeProtegido(
  * engenheiro **em alguma obra**: é de lá que a tela chama. O efeito é global
  * (CT-068); a permissão é local (CT-070).
  */
-export function acrescentaTermoProtegido(
+export async function acrescentaTermoProtegido(
   ator: Ator,
   obraId: ObraId,
   tipo: TipoDeTaxonomia,
   termo: string,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<string> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+): Promise<Resposta<string>> {
+  const permitido = await autoriza(ator, obraId, 'engenheiro', amb);
   if (!permitido.ok) return permitido;
 
   const criado = acrescentaTermo(tipo, termo, paraTaxonomia(amb));
@@ -470,13 +474,13 @@ export function acrescentaTermoProtegido(
 }
 
 /** Leitura é dos dois perfis: o encarregado precisa da lista para lançar. */
-export function listaTermosProtegida(
+export async function listaTermosProtegida(
   ator: Ator,
   obraId: ObraId,
   tipo: TipoDeTaxonomia,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<Termo[]> {
-  const permitido = autoriza(ator, obraId, 'encarregado', amb);
+): Promise<Resposta<Termo[]>> {
+  const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const lista = listaTermosAtivos(tipo, paraTaxonomia(amb));
@@ -484,12 +488,12 @@ export function listaTermosProtegida(
   return ok(lista.valor);
 }
 
-export function listaSugestoesDeMotivoProtegida(
+export async function listaSugestoesDeMotivoProtegida(
   ator: Ator,
   obraId: ObraId,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<string[]> {
-  const permitido = autoriza(ator, obraId, 'encarregado', amb);
+): Promise<Resposta<string[]>> {
+  const permitido = await autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const lista = listaSugestoesDeMotivo(paraTaxonomia(amb));
@@ -507,13 +511,13 @@ export function listaSugestoesDeMotivoProtegida(
  * para dentro. Quem convida continua tendo de ser engenheiro **daquela obra**,
  * e quem confere isso é `geraConvite`, contra a tabela `acesso`.
  */
-export function geraConviteProtegido(
+export async function geraConviteProtegido(
   ator: Ator,
   obraId: ObraId,
   perfil: Perfil,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<ConviteGerado> {
-  const gerado = geraConvite(obraId, perfil, ator, paraAcesso(amb));
+): Promise<Resposta<ConviteGerado>> {
+  const gerado = await geraConvite(obraId, perfil, ator, paraAcesso(amb));
   if (!gerado.ok) return erro(gerado.erro);
   return ok(gerado.valor);
 }
@@ -526,34 +530,34 @@ export function geraConviteProtegido(
  * página não precise conhecer duas convenções diferentes. Duas camadas, como
  * manda a 5.2.
  */
-export function listaAcessosDaObraProtegida(
+export async function listaAcessosDaObraProtegida(
   ator: Ator,
   obraId: ObraId,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<AcessoDaObra[]> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+): Promise<Resposta<AcessoDaObra[]>> {
+  const permitido = await autoriza(ator, obraId, 'engenheiro', amb);
   if (!permitido.ok) return permitido;
 
-  const lista = listaAcessosDaObra(obraId, ator, paraAcesso(amb));
+  const lista = await listaAcessosDaObra(obraId, ator, paraAcesso(amb));
   if (!lista.ok) return erro(lista.erro);
   return ok(lista.valor);
 }
 
-export function revogaAcessoProtegido(
+export async function revogaAcessoProtegido(
   ator: Ator,
   acessoId: AcessoId,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<void> {
-  const revogado = revogaAcesso(acessoId, ator, paraAcesso(amb));
+): Promise<Resposta<void>> {
+  const revogado = await revogaAcesso(acessoId, ator, paraAcesso(amb));
   if (!revogado.ok) return erro(revogado.erro);
   return ok(undefined);
 }
 
-export function listaObrasDoUsuarioProtegida(
+export async function listaObrasDoUsuarioProtegida(
   usuarioId: UsuarioId,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<ObraResumo[]> {
-  const lista = listaObrasDoUsuario(usuarioId, paraAcesso(amb));
+): Promise<Resposta<ObraResumo[]>> {
+  const lista = await listaObrasDoUsuario(usuarioId, paraAcesso(amb));
   if (!lista.ok) return erro(lista.erro);
   return ok(lista.valor);
 }
@@ -569,13 +573,13 @@ export function listaObrasDoUsuarioProtegida(
  * Por isso a tela mostra o tamanho disso antes de salvar
  * (`_composicao/impacto.ts`), e `registro_exportacao` guarda o que já saiu.
  */
-export function editaCadastroDaObraProtegida(
+export async function editaCadastroDaObraProtegida(
   ator: Ator,
   obraId: ObraId,
   bruto: Record<string, unknown>,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<void> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+): Promise<Resposta<void>> {
+  const permitido = await autoriza(ator, obraId, 'engenheiro', amb);
   if (!permitido.ok) return permitido;
 
   const cmd = analisaEditarObra(bruto);
@@ -586,14 +590,14 @@ export function editaCadastroDaObraProtegida(
   return ok(undefined);
 }
 
-export function atualizaPeriodoBmsProtegido(
+export async function atualizaPeriodoBmsProtegido(
   ator: Ator,
   obraId: ObraId,
   periodoId: string,
   bruto: Record<string, unknown>,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<void> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+): Promise<Resposta<void>> {
+  const permitido = await autoriza(ator, obraId, 'engenheiro', amb);
   if (!permitido.ok) return permitido;
 
   const cmd = analisaPeriodoBms({ ...bruto, obraId });
@@ -614,13 +618,13 @@ export function atualizaPeriodoBmsProtegido(
  * `BM'S` do RDO passa a sair vazio com aviso (decisão 21.1). A tela mostra
  * quantos dias isso alcança antes de confirmar.
  */
-export function excluiPeriodoBmsProtegido(
+export async function excluiPeriodoBmsProtegido(
   ator: Ator,
   obraId: ObraId,
   periodoId: string,
   amb: Amb = ambienteDeCadastroPadrao(),
-): Resposta<void> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+): Promise<Resposta<void>> {
+  const permitido = await autoriza(ator, obraId, 'engenheiro', amb);
   if (!permitido.ok) return permitido;
 
   const excluido = excluiPeriodoBms(
