@@ -34,20 +34,33 @@ As duas terminam em `?sslmode=require`. Sem isso a conexão é recusada.
 
 ## 2. Aplicar o esquema no Neon
 
-Rode da sua máquina, **uma vez**, com a string **direta**:
+Crie um arquivo `.env.local` na raiz do projeto com a string **direta**, a sem
+`-pooler`:
 
-```bash
-DATABASE_URL="postgres://...sem-pooler.../neondb?sslmode=require" npm run db:migrate
+```
+DATABASE_URL=postgres://USUARIO:SENHA@ep-xxxx.sa-east-1.aws.neon.tech/neondb?sslmode=require
 ```
 
-Depois, a carga inicial das taxonomias — as 12 funções, os 14 status, os 8 tipos
-de equipamento e as 8 sugestões de motivo:
+**Sem aspas e sem espaço em volta do `=`.** O arquivo é bloqueado pelo
+`.gitignore` e nunca vai para o repositório.
+
+Depois, da raiz do projeto:
 
 ```bash
-DATABASE_URL="postgres://...sem-pooler.../neondb?sslmode=require" npm run db:seed
+npm run db:preparar
 ```
 
-Os dois são idempotentes: rodar de novo não duplica nada.
+Isso aplica as migrations e carrega as taxonomias — as 12 funções, os 14 status,
+os 8 tipos de equipamento e as 8 sugestões de motivo. Os dois passos são
+idempotentes: rodar de novo não duplica nada.
+
+> **Por que um arquivo, e não `DATABASE_URL=... npm run ...` na frente do
+> comando.** Aquela forma é sintaxe do shell do Unix. No Windows o npm executa os
+> scripts por `cmd.exe`, onde ela não funciona — e o erro que aparece não diz
+> isso. Com o arquivo, o comando é o mesmo nos três sistemas.
+>
+> Os comandos de linha passaram a ler `.env.local` em 17/09/2026. Antes disso não
+> liam, apesar de a mensagem de erro mandar preencher esse arquivo.
 
 ### Criar o primeiro engenheiro
 
@@ -55,8 +68,11 @@ Não há cadastro público, e convite só nasce de dentro. A primeira conta sai 
 comando (decisão 25.1):
 
 ```bash
-DATABASE_URL="..." npm run criar-engenheiro
+npm run criar-engenheiro -- --email "voce@exemplo.com" --nome "Seu Nome"
 ```
+
+Ele pede a senha por prompt, sem ecoar na tela. **Use a mesma `.env.local` do
+passo acima**, com a string direta.
 
 ---
 

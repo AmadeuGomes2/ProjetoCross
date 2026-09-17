@@ -35,6 +35,7 @@ import {
   registraUsuario,
 } from '../src/modules/acesso/autenticacao';
 import type { Ator } from '../src/modules/acesso';
+import { carregaAmbienteLocal } from '../src/db/ambiente-local';
 import { ambienteDaComposicao } from '../src/app/_composicao/ambiente';
 import { ligaBancoLocalSeConfigurado } from '../src/db/pglite-local';
 import { paraAcesso } from '../src/app/_composicao/ambiente-de-cadastro';
@@ -291,6 +292,7 @@ async function preparaOBasico(): Promise<{ eng: Ator; enc: Ator; obraId: ObraId 
 async function main(): Promise<void> {
   // Antes de qualquer leitura do ambiente: `ambienteDaComposicao()` abre a
   // conexão na primeira chamada, e depois disso trocá-la não adianta.
+  carregaAmbienteLocal();
   await ligaBancoLocalSeConfigurado();
 
   const { eng, enc, obraId } = await preparaOBasico();

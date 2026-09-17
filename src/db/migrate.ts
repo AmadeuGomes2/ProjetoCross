@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 
 import { migrate } from 'drizzle-orm/neon-serverless/migrator';
 
+import { carregaAmbienteLocal } from './ambiente-local';
 import { criaBanco } from './index';
 
 export const PASTA_DE_MIGRATIONS = fileURLToPath(
@@ -25,6 +26,8 @@ export const PASTA_DE_MIGRATIONS = fileURLToPath(
 );
 
 export async function aplicaMigrations(url?: string): Promise<void> {
+  // Antes de `criaBanco()`, que lê `DATABASE_URL` do ambiente.
+  carregaAmbienteLocal();
   const conexao = url === undefined ? criaBanco() : criaBanco(url);
   try {
     // O migrator do Neon pede o `db`; o `ConexaoRdo` tipa o supertipo comum

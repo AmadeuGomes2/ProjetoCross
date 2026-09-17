@@ -37,6 +37,7 @@ import {
   type ErroDeEntrada,
   type Result,
 } from '../shared/result';
+import { carregaAmbienteLocal } from './ambiente-local';
 import { criaBanco, type ConexaoRdo } from './index';
 
 export interface OpcoesDoComando {
@@ -225,6 +226,7 @@ export async function executa(
   // o erro vira mensagem genérica com identificador, e não rastro de pilha.
   let conexao: ConexaoRdo | null = null;
   try {
+    carregaAmbienteLocal();
     conexao = criaBanco();
     const resultado = await criaContaDeEngenheiroDeInstalacao(
       {

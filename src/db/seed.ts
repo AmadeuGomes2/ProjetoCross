@@ -30,6 +30,7 @@ import {
   SUGESTOES_MOTIVO_PARADA,
   TIPOS_EQUIPAMENTO_INICIAIS,
 } from '../shared/taxonomia';
+import { carregaAmbienteLocal } from './ambiente-local';
 import { criaBanco, type BancoRdo } from './index';
 import { funcao, statusAtividade, sugestaoMotivoParada, tipoEquipamento } from './schema';
 
@@ -96,6 +97,7 @@ export async function semeiaTaxonomias(
  * o teste usa `semeiaTaxonomias` com um banco em memória.
  */
 export async function semeiaBancoConfigurado(): Promise<void> {
+  carregaAmbienteLocal();
   const conexao = criaBanco();
   try {
     await semeiaTaxonomias(conexao.db);
