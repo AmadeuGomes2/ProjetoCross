@@ -10,6 +10,16 @@
  * `EQUIPAMENTO!M2` da planilha é uma nota solta registrando um equipamento
  * fora da tabela, justamente porque o modelo de intervalo único não comporta
  * ida e volta. Aqui a passagem é entidade própria (caso de teste obrigatório 8).
+ *
+ * ## Assíncrono desde 17/09/2026
+ *
+ * O banco é Postgres e o driver é assíncrono: o que toca o banco devolve
+ * `Promise<Result<...>>`, a validação pura continua síncrona.
+ *
+ * `cadastraEquipamento` grava equipamento e primeira passagem, e as duas vão na
+ * **mesma transação**. Com o driver síncrono não havia como parar entre elas;
+ * agora há, e equipamento sem passagem nenhuma é uma coluna do bloco 6 que
+ * nunca aparece em RDO nenhum, sem ninguém descobrir por quê.
  */
 
 import type { DiaPuro } from '../../shared/date/dia';
@@ -94,11 +104,11 @@ function validaSobreposicaoDePassagens(
   return ok(undefined);
 }
 
-export function cadastraEquipamento(
+export async function cadastraEquipamento(
   cmd: ComandoCadastrarEquipamento,
   ator: AtorDeEquipamento,
   amb: Ambiente,
-): Result<EquipamentoId, ErroDeDominio> {
+): Promise<Result<EquipamentoId, ErroDeDominio>> {
   // Normaliza só as pontas (decisão 17.1). `CARRO LOC.` tem ponto e espaço no
   // meio e continua exatamente assim: é o valor real de `EQUIPAMENTO!B7`.
   const identificador = normalizaTermo(cmd.identificador);
@@ -118,7 +128,9 @@ export function cadastraEquipamento(
     );
   }
 
-  if (repositorio.buscaPorIdentificador(amb.db, cmd.obraId, identificador) !== null) {
+  if (
+    (await repositorio.buscaPorIdentificador(amb.db, cmd.obraId, identificador)) !== null
+  ) {
     return erro(
       erroDeDominio(
         CODIGO_ERRO.JA_EXISTE,
@@ -133,8 +145,10 @@ export function cadastraEquipamento(
   const equipamentoId = geraId<'equipamento'>();
   const em = instanteAgora(amb.relogio);
 
-  amb.db.transaction((tx) => {
-    repositorio.insereEquipamento(tx, {
+  // Equipamento e primeira passagem são uma coisa só: meia gravação deixa uma
+  // coluna do bloco 6 que nunca aparece em RDO nenhum.
+  await amb.db.transaction(async (tx) => {
+    await repositorio.insereEquipamento(tx, {
       id: equipamentoId,
       obraId: cmd.obraId,
       identificador,
@@ -142,7 +156,7 @@ export function cadastraEquipamento(
       criadoPor: ator.usuarioId,
       criadoEm: em,
     });
-    repositorio.inserePassagem(tx, {
+    await repositorio.inserePassagem(tx, {
       id: geraId<'passagem_equipamento'>(),
       obraId: cmd.obraId,
       equipamentoId,
@@ -160,12 +174,14 @@ export function cadastraEquipamento(
   return ok(equipamentoId);
 }
 
-export function registraPassagem(
+export async function registraPassagem(
   cmd: ComandoPassagemDeEquipamento,
   ator: AtorDeEquipamento,
   amb: Ambiente,
-): Result<PassagemEquipamentoId, ErroDeDominio> {
-  if (repositorio.buscaEquipamento(amb.db, cmd.obraId, cmd.equipamentoId) === null) {
+): Promise<Result<PassagemEquipamentoId, ErroDeDominio>> {
+  if (
+    (await repositorio.buscaEquipamento(amb.db, cmd.obraId, cmd.equipamentoId)) === null
+  ) {
     return erro(
       erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Equipamento não encontrado nesta obra.'),
     );
@@ -174,7 +190,7 @@ export function registraPassagem(
   const intervalo = validaOrdemDasDatas(cmd.entrada, cmd.saida);
   if (!intervalo.ok) return intervalo;
 
-  const existentes = repositorio.listaPassagensDoEquipamento(
+  const existentes = await repositorio.listaPassagensDoEquipamento(
     amb.db,
     cmd.obraId,
     cmd.equipamentoId,
@@ -183,7 +199,7 @@ export function registraPassagem(
   if (!sobreposicao.ok) return sobreposicao;
 
   const id = geraId<'passagem_equipamento'>();
-  repositorio.inserePassagem(amb.db, {
+  await repositorio.inserePassagem(amb.db, {
     id,
     obraId: cmd.obraId,
     equipamentoId: cmd.equipamentoId,
@@ -195,11 +211,11 @@ export function registraPassagem(
   return ok(id);
 }
 
-export function encerraPassagem(
+export async function encerraPassagem(
   cmd: ComandoEncerrarPassagemDeEquipamento,
   amb: Ambiente,
-): Result<void, ErroDeDominio> {
-  const passagem = repositorio.buscaPassagem(amb.db, cmd.obraId, cmd.passagemId);
+): Promise<Result<void, ErroDeDominio>> {
+  const passagem = await repositorio.buscaPassagem(amb.db, cmd.obraId, cmd.passagemId);
   if (passagem === null) {
     return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Passagem não encontrada.'));
   }
@@ -207,23 +223,32 @@ export function encerraPassagem(
   const intervalo = validaOrdemDasDatas(passagem.entrada, cmd.saida);
   if (!intervalo.ok) return intervalo;
 
-  const outras = repositorio
-    .listaPassagensDoEquipamento(amb.db, cmd.obraId, passagem.equipamentoId)
-    .filter((p) => p.id !== cmd.passagemId);
+  const outras = (
+    await repositorio.listaPassagensDoEquipamento(
+      amb.db,
+      cmd.obraId,
+      passagem.equipamentoId,
+    )
+  ).filter((p) => p.id !== cmd.passagemId);
   const sobreposicao = validaSobreposicaoDePassagens(outras, passagem.entrada, cmd.saida);
   if (!sobreposicao.ok) return sobreposicao;
 
-  repositorio.atualizaSaida(amb.db, cmd.obraId, cmd.passagemId, cmd.saida);
+  await repositorio.atualizaSaida(amb.db, cmd.obraId, cmd.passagemId, cmd.saida);
   return ok(undefined);
 }
 
-export function listaEquipamentosDaObra(
+export async function listaEquipamentosDaObra(
   obraId: ObraId,
   amb: Ambiente,
-): Result<EquipamentoComPassagens[], ErroDeDominio> {
-  const passagens = repositorio.listaTodasAsPassagens(amb.db, obraId);
+): Promise<Result<EquipamentoComPassagens[], ErroDeDominio>> {
+  // Duas leituras independentes, sem uma esperar a outra: em série seriam dois
+  // tempos de resposta do banco empilhados à toa.
+  const [passagens, equipamentos] = await Promise.all([
+    repositorio.listaTodasAsPassagens(amb.db, obraId),
+    repositorio.listaEquipamentosComTipo(amb.db, obraId),
+  ]);
   return ok(
-    repositorio.listaEquipamentosComTipo(amb.db, obraId).map((e) => ({
+    equipamentos.map((e) => ({
       equipamentoId: e.id,
       identificador: e.identificador,
       tipoId: e.tipoId,
@@ -254,19 +279,27 @@ export function listaEquipamentosDaObra(
  * O tipo do equipamento **não sai daqui**: o bloco 6 imprime `CF-29`, nunca
  * `PATROL` (CT-049).
  */
-export function listaMobilizacao(
+export async function listaMobilizacao(
   obraId: ObraId,
   amb: Ambiente,
-): Result<EquipamentoMobilizado[], ErroDeDominio> {
+): Promise<Result<EquipamentoMobilizado[], ErroDeDominio>> {
+  // **Duas consultas, em paralelo, e nenhuma dentro de laço.** Este é o caminho
+  // quente do RDO: uma ida ao banco por equipamento multiplicaria a latência
+  // pelo tamanho da frota.
+  const [linhasDePassagem, equipamentos] = await Promise.all([
+    repositorio.listaPassagensDaObra(amb.db, obraId),
+    repositorio.listaEquipamentosComTipo(amb.db, obraId),
+  ]);
+
   const passagensPorEquipamento = new Map<EquipamentoId, PassagemMobilizada[]>();
-  for (const linha of repositorio.listaPassagensDaObra(amb.db, obraId)) {
+  for (const linha of linhasDePassagem) {
     const atual = passagensPorEquipamento.get(linha.equipamentoId) ?? [];
     atual.push({ entrada: linha.entrada, saida: linha.saida });
     passagensPorEquipamento.set(linha.equipamentoId, atual);
   }
 
   return ok(
-    repositorio.listaEquipamentosComTipo(amb.db, obraId).map((e, indice) => ({
+    equipamentos.map((e, indice) => ({
       equipamentoId: e.id,
       identificador: e.identificador,
       ordem: indice + 1,

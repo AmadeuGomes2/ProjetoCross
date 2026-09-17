@@ -3,6 +3,18 @@
  *
  * Toda consulta recebe `obraId`: é a segunda camada da fronteira de confiança
  * (docs/arquitetura/v1.md, 5.2, item 2). Não existe leitura sem filtro de obra.
+ *
+ * ## Assíncrono desde 17/09/2026
+ *
+ * O driver deixou de ser o `better-sqlite3` síncrono e passou a ser Postgres.
+ * Sumiram `.run()`, `.get()` e `.all()`, que eram do dialeto do SQLite; o
+ * construtor de consulta do Drizzle para Postgres é o próprio `thenable`, então
+ * `await` na consulta é o que a executa. No lugar de `.get()` entra
+ * `limit(1)` mais a primeira linha: uma linha ou nenhuma, dito no SQL.
+ *
+ * `entrada` e `saida` agora são `DATE` de verdade, e não `TEXT`. A leitura
+ * continua devolvendo `AAAA-MM-DD`, mas o `ORDER BY` passou a ser ordenação de
+ * calendário em vez de coincidência lexicográfica.
  */
 
 import { and, asc, eq } from 'drizzle-orm';
@@ -25,7 +37,7 @@ export interface LinhaDePessoa {
   readonly nome: string;
 }
 
-export function inserePessoa(
+export async function inserePessoa(
   db: BancoRdo,
   dados: {
     readonly id: PessoaId;
@@ -34,27 +46,29 @@ export function inserePessoa(
     readonly criadoPor: UsuarioId;
     readonly criadoEm: Instante;
   },
-): void {
-  db.insert(pessoa).values(dados).run();
+): Promise<void> {
+  await db.insert(pessoa).values(dados);
 }
 
-export function buscaPessoa(
+export async function buscaPessoa(
   db: BancoRdo,
   obraId: ObraId,
   pessoaId: PessoaId,
-): LinhaDePessoa | null {
-  return (
-    db
-      .select({ id: pessoa.id, nome: pessoa.nome })
-      .from(pessoa)
-      .where(and(eq(pessoa.obraId, obraId), eq(pessoa.id, pessoaId)))
-      .get() ?? null
-  );
+): Promise<LinhaDePessoa | null> {
+  const [linha] = await db
+    .select({ id: pessoa.id, nome: pessoa.nome })
+    .from(pessoa)
+    .where(and(eq(pessoa.obraId, obraId), eq(pessoa.id, pessoaId)))
+    .limit(1);
+  return linha ?? null;
 }
 
-export function contaPessoas(db: BancoRdo, obraId: ObraId): number {
-  return db.select({ id: pessoa.id }).from(pessoa).where(eq(pessoa.obraId, obraId)).all()
-    .length;
+export async function contaPessoas(db: BancoRdo, obraId: ObraId): Promise<number> {
+  const linhas = await db
+    .select({ id: pessoa.id })
+    .from(pessoa)
+    .where(eq(pessoa.obraId, obraId));
+  return linhas.length;
 }
 
 export interface LinhaDePassagem {
@@ -65,7 +79,7 @@ export interface LinhaDePassagem {
   readonly saida: DiaPuro | null;
 }
 
-export function inserePassagem(
+export async function inserePassagem(
   db: BancoRdo,
   dados: {
     readonly id: PassagemPessoaId;
@@ -77,8 +91,8 @@ export function inserePassagem(
     readonly registradoPor: UsuarioId;
     readonly registradoEm: Instante;
   },
-): void {
-  db.insert(passagemPessoa).values(dados).run();
+): Promise<void> {
+  await db.insert(passagemPessoa).values(dados);
 }
 
 const CAMPOS_DA_PASSAGEM = {
@@ -89,43 +103,41 @@ const CAMPOS_DA_PASSAGEM = {
   saida: passagemPessoa.saida,
 } as const;
 
-export function listaPassagensDaPessoa(
+export async function listaPassagensDaPessoa(
   db: BancoRdo,
   obraId: ObraId,
   pessoaId: PessoaId,
-): LinhaDePassagem[] {
-  return db
+): Promise<LinhaDePassagem[]> {
+  return await db
     .select(CAMPOS_DA_PASSAGEM)
     .from(passagemPessoa)
     .where(and(eq(passagemPessoa.obraId, obraId), eq(passagemPessoa.pessoaId, pessoaId)))
-    .orderBy(asc(passagemPessoa.entrada))
-    .all();
+    .orderBy(asc(passagemPessoa.entrada));
 }
 
-export function buscaPassagem(
+export async function buscaPassagem(
   db: BancoRdo,
   obraId: ObraId,
   passagemId: PassagemPessoaId,
-): LinhaDePassagem | null {
-  return (
-    db
-      .select(CAMPOS_DA_PASSAGEM)
-      .from(passagemPessoa)
-      .where(and(eq(passagemPessoa.obraId, obraId), eq(passagemPessoa.id, passagemId)))
-      .get() ?? null
-  );
+): Promise<LinhaDePassagem | null> {
+  const [linha] = await db
+    .select(CAMPOS_DA_PASSAGEM)
+    .from(passagemPessoa)
+    .where(and(eq(passagemPessoa.obraId, obraId), eq(passagemPessoa.id, passagemId)))
+    .limit(1);
+  return linha ?? null;
 }
 
-export function atualizaSaida(
+export async function atualizaSaida(
   db: BancoRdo,
   obraId: ObraId,
   passagemId: PassagemPessoaId,
   saida: DiaPuro,
-): void {
-  db.update(passagemPessoa)
+): Promise<void> {
+  await db
+    .update(passagemPessoa)
     .set({ saida })
-    .where(and(eq(passagemPessoa.obraId, obraId), eq(passagemPessoa.id, passagemId)))
-    .run();
+    .where(and(eq(passagemPessoa.obraId, obraId), eq(passagemPessoa.id, passagemId)));
 }
 
 export interface LinhaDeEfetivo {
@@ -147,9 +159,16 @@ export interface LinhaDeEfetivo {
  * planilha provou ser cara (regras-extraidas §1.1).
  *
  * O volume é de dezenas de linhas por obra; o custo não justifica o risco.
+ *
+ * **Uma consulta só**, e é de propósito: esta é a leitura do caminho quente do
+ * RDO. O `innerJoin` traz a função junto; buscar o termo por passagem faria uma
+ * ida ao banco por pessoa, que com o banco na rede custa caro.
  */
-export function listaPassagensDaObra(db: BancoRdo, obraId: ObraId): LinhaDeEfetivo[] {
-  return db
+export async function listaPassagensDaObra(
+  db: BancoRdo,
+  obraId: ObraId,
+): Promise<LinhaDeEfetivo[]> {
+  return await db
     .select({
       pessoaId: passagemPessoa.pessoaId,
       funcaoId: passagemPessoa.funcaoId,
@@ -160,32 +179,32 @@ export function listaPassagensDaObra(db: BancoRdo, obraId: ObraId): LinhaDeEfeti
     })
     .from(passagemPessoa)
     .innerJoin(funcao, eq(funcao.id, passagemPessoa.funcaoId))
-    .where(eq(passagemPessoa.obraId, obraId))
-    .all();
+    .where(eq(passagemPessoa.obraId, obraId));
 }
 
-export function listaPessoas(db: BancoRdo, obraId: ObraId): LinhaDePessoa[] {
-  return db
+export async function listaPessoas(
+  db: BancoRdo,
+  obraId: ObraId,
+): Promise<LinhaDePessoa[]> {
+  return await db
     .select({ id: pessoa.id, nome: pessoa.nome })
     .from(pessoa)
     .where(eq(pessoa.obraId, obraId))
-    .orderBy(asc(pessoa.nome))
-    .all();
+    .orderBy(asc(pessoa.nome));
 }
 
 export interface LinhaDePassagemComTermo extends LinhaDePassagem {
   readonly funcaoTermo: string;
 }
 
-export function listaTodasAsPassagens(
+export async function listaTodasAsPassagens(
   db: BancoRdo,
   obraId: ObraId,
-): LinhaDePassagemComTermo[] {
-  return db
+): Promise<LinhaDePassagemComTermo[]> {
+  return await db
     .select({ ...CAMPOS_DA_PASSAGEM, funcaoTermo: funcao.termo })
     .from(passagemPessoa)
     .innerJoin(funcao, eq(funcao.id, passagemPessoa.funcaoId))
     .where(eq(passagemPessoa.obraId, obraId))
-    .orderBy(asc(passagemPessoa.entrada))
-    .all();
+    .orderBy(asc(passagemPessoa.entrada));
 }

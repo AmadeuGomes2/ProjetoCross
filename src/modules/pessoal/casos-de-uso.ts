@@ -14,6 +14,20 @@
  * pergunta "qual é a função dela": pergunta a função da passagem que está
  * sendo aberta. Trocar de função encerra a passagem vigente e abre outra, em
  * `trocaFuncao`, e por isso o RDO já emitido não muda.
+ *
+ * ## Assíncrono desde 17/09/2026
+ *
+ * O banco passou a ser Postgres, e o driver é assíncrono. Todo caso de uso que
+ * toca o banco devolve `Promise<Result<...>>`; a validação pura — ordem das
+ * datas, sobreposição, resolução do termo — continua síncrona, porque não
+ * depende do banco e assincronia sem motivo só esconde onde está a espera.
+ *
+ * **As transações deixaram de ser de graça.** No `better-sqlite3` síncrono,
+ * duas escritas seguidas não tinham como ser interrompidas no meio. Agora há
+ * `await` entre elas, então `cadastraPessoa` e `trocaFuncao` abrem transação
+ * explícita: cada uma é **uma** mudança de cadastro contada em duas linhas, e
+ * meia mudança gravada deixa a pessoa sem função num dia — efetivo errado no
+ * RDO entregue ao fiscal.
  */
 
 import { instanteAgora } from '../../shared/date/fuso';
@@ -131,11 +145,11 @@ function resolveFuncaoOuErro(
   return ok(funcao);
 }
 
-export function cadastraPessoa(
+export async function cadastraPessoa(
   cmd: ComandoCadastrarPessoa,
   ator: AtorDePessoal,
   amb: Ambiente,
-): Result<PessoaId, ErroDeDominio> {
+): Promise<Result<PessoaId, ErroDeDominio>> {
   const nome = cmd.nome.trim();
   if (nome === '') {
     return erro(erroDeDominio(CODIGO_ERRO.TERMO_VAZIO, 'Informe o nome da pessoa.'));
@@ -152,15 +166,19 @@ export function cadastraPessoa(
   const pessoaId = geraId<'pessoa'>();
   const em = instanteAgora(amb.relogio);
 
-  amb.db.transaction((tx) => {
-    repositorio.inserePessoa(tx, {
+  // Pessoa e primeira passagem são **uma** coisa só (decisão 29.1): pessoa sem
+  // passagem nenhuma não aparece em RDO nenhum e ninguém descobre por quê. No
+  // driver síncrono as duas escritas não tinham como ser cortadas ao meio; com
+  // `await` entre elas, têm — daí a transação explícita.
+  await amb.db.transaction(async (tx) => {
+    await repositorio.inserePessoa(tx, {
       id: pessoaId,
       obraId: cmd.obraId,
       nome,
       criadoPor: ator.usuarioId,
       criadoEm: em,
     });
-    repositorio.inserePassagem(tx, {
+    await repositorio.inserePassagem(tx, {
       id: geraId<'passagem_pessoa'>(),
       obraId: cmd.obraId,
       pessoaId,
@@ -186,12 +204,12 @@ export function cadastraPessoa(
  * Pede função porque quem volta à obra pode voltar em outra (decisão 29.1), e
  * a passagem antiga continua dizendo a função antiga.
  */
-export function registraPassagem(
+export async function registraPassagem(
   cmd: ComandoPassagem,
   ator: AtorDePessoal,
   amb: Ambiente,
-): Result<PassagemPessoaId, ErroDeDominio> {
-  if (repositorio.buscaPessoa(amb.db, cmd.obraId, cmd.pessoaId) === null) {
+): Promise<Result<PassagemPessoaId, ErroDeDominio>> {
+  if ((await repositorio.buscaPessoa(amb.db, cmd.obraId, cmd.pessoaId)) === null) {
     return erro(
       erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Pessoa não encontrada nesta obra.'),
     );
@@ -203,12 +221,16 @@ export function registraPassagem(
   const intervalo = validaOrdemDasDatas(cmd.entrada, cmd.saida);
   if (!intervalo.ok) return intervalo;
 
-  const existentes = repositorio.listaPassagensDaPessoa(amb.db, cmd.obraId, cmd.pessoaId);
+  const existentes = await repositorio.listaPassagensDaPessoa(
+    amb.db,
+    cmd.obraId,
+    cmd.pessoaId,
+  );
   const sobreposicao = validaSobreposicaoDePassagens(existentes, cmd.entrada, cmd.saida);
   if (!sobreposicao.ok) return sobreposicao;
 
   const id = geraId<'passagem_pessoa'>();
-  repositorio.inserePassagem(amb.db, {
+  await repositorio.inserePassagem(amb.db, {
     id,
     obraId: cmd.obraId,
     pessoaId: cmd.pessoaId,
@@ -236,12 +258,12 @@ export function registraPassagem(
  * As duas escritas vão na **mesma transação**: recusa que grava metade deixaria
  * a pessoa fora da obra entre a véspera e o dia do corte.
  */
-export function trocaFuncao(
+export async function trocaFuncao(
   cmd: ComandoTrocarFuncao,
   ator: AtorDePessoal,
   amb: Ambiente,
-): Result<PassagemPessoaId, ErroDeDominio> {
-  if (repositorio.buscaPessoa(amb.db, cmd.obraId, cmd.pessoaId) === null) {
+): Promise<Result<PassagemPessoaId, ErroDeDominio>> {
+  if ((await repositorio.buscaPessoa(amb.db, cmd.obraId, cmd.pessoaId)) === null) {
     return erro(
       erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Pessoa não encontrada nesta obra.'),
     );
@@ -250,7 +272,11 @@ export function trocaFuncao(
   const funcao = resolveFuncaoOuErro(cmd.funcaoTermo, amb);
   if (!funcao.ok) return funcao;
 
-  const passagens = repositorio.listaPassagensDaPessoa(amb.db, cmd.obraId, cmd.pessoaId);
+  const passagens = await repositorio.listaPassagensDaPessoa(
+    amb.db,
+    cmd.obraId,
+    cmd.pessoaId,
+  );
   // Quem decide se a passagem cobre o dia é `shared/date/intervalo`, a única
   // implementação da regra no sistema. Reescrevê-la aqui criaria a segunda
   // verdade que a divergência da planilha provou ser cara.
@@ -288,9 +314,9 @@ export function trocaFuncao(
   if (!sobreposicao.ok) return sobreposicao;
 
   const id = geraId<'passagem_pessoa'>();
-  amb.db.transaction((tx) => {
-    repositorio.atualizaSaida(tx, cmd.obraId, vigente.id, vespera);
-    repositorio.inserePassagem(tx, {
+  await amb.db.transaction(async (tx) => {
+    await repositorio.atualizaSaida(tx, cmd.obraId, vigente.id, vespera);
+    await repositorio.inserePassagem(tx, {
       id,
       obraId: cmd.obraId,
       pessoaId: cmd.pessoaId,
@@ -312,11 +338,11 @@ export function trocaFuncao(
   return ok(id);
 }
 
-export function encerraPassagem(
+export async function encerraPassagem(
   cmd: ComandoEncerrarPassagem,
   amb: Ambiente,
-): Result<void, ErroDeDominio> {
-  const passagem = repositorio.buscaPassagem(amb.db, cmd.obraId, cmd.passagemId);
+): Promise<Result<void, ErroDeDominio>> {
+  const passagem = await repositorio.buscaPassagem(amb.db, cmd.obraId, cmd.passagemId);
   if (passagem === null) {
     return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Passagem não encontrada.'));
   }
@@ -324,13 +350,13 @@ export function encerraPassagem(
   const intervalo = validaOrdemDasDatas(passagem.entrada, cmd.saida);
   if (!intervalo.ok) return intervalo;
 
-  const outras = repositorio
-    .listaPassagensDaPessoa(amb.db, cmd.obraId, passagem.pessoaId)
-    .filter((p) => p.id !== cmd.passagemId);
+  const outras = (
+    await repositorio.listaPassagensDaPessoa(amb.db, cmd.obraId, passagem.pessoaId)
+  ).filter((p) => p.id !== cmd.passagemId);
   const sobreposicao = validaSobreposicaoDePassagens(outras, passagem.entrada, cmd.saida);
   if (!sobreposicao.ok) return sobreposicao;
 
-  repositorio.atualizaSaida(amb.db, cmd.obraId, cmd.passagemId, cmd.saida);
+  await repositorio.atualizaSaida(amb.db, cmd.obraId, cmd.passagemId, cmd.saida);
   return ok(undefined);
 }
 
@@ -339,13 +365,18 @@ export function encerraPassagem(
  * usa"; CT-034). A verificação mora na rota; este tipo carrega nome e por isso
  * não pode ser devolvido ao encarregado.
  */
-export function listaPessoalDaObra(
+export async function listaPessoalDaObra(
   obraId: ObraId,
   amb: Ambiente,
-): Result<PessoaComPassagens[], ErroDeDominio> {
-  const passagens = repositorio.listaTodasAsPassagens(amb.db, obraId);
+): Promise<Result<PessoaComPassagens[], ErroDeDominio>> {
+  // Duas leituras independentes, uma ida de rede só: em série seriam dois
+  // tempos de resposta do Neon empilhados sem que uma dependa da outra.
+  const [passagens, pessoas] = await Promise.all([
+    repositorio.listaTodasAsPassagens(amb.db, obraId),
+    repositorio.listaPessoas(amb.db, obraId),
+  ]);
   return ok(
-    repositorio.listaPessoas(amb.db, obraId).map((p) => ({
+    pessoas.map((p) => ({
       pessoaId: p.id,
       nome: p.nome,
       // A função sai por passagem, e não uma só no topo: depois de uma troca
@@ -379,13 +410,16 @@ export function listaPessoalDaObra(
  * O tipo não tem campo de nome. O vazamento do cadastro mais sensível do
  * sistema fica impossível pelo tipo, não por disciplina de quem escreve a tela.
  */
-export function listaMobilizacao(
+export async function listaMobilizacao(
   obraId: ObraId,
   amb: Ambiente,
-): Result<PessoaMobilizada[], ErroDeDominio> {
+): Promise<Result<PessoaMobilizada[], ErroDeDominio>> {
   const porPessoa = new Map<PessoaId, PassagemMobilizada[]>();
 
-  for (const linha of repositorio.listaPassagensDaObra(amb.db, obraId)) {
+  // **Uma consulta**, e o agrupamento em memória. Este é o caminho quente do
+  // RDO: uma ida ao banco por pessoa multiplicaria a latência pelo tamanho do
+  // efetivo.
+  for (const linha of await repositorio.listaPassagensDaObra(amb.db, obraId)) {
     const passagens = porPessoa.get(linha.pessoaId) ?? [];
     // Uma pessoa, várias passagens: é o que impede contar duas vezes quem sai
     // e volta (R3, caso obrigatório 8). Cada passagem leva a SUA função
