@@ -22,7 +22,8 @@
     "db:preparar": "npm run db:migrate && npm run db:seed",
     "telas": "node scripts/telas.mjs",
     "console": "node scripts/console.mjs",
-    "demonstracao": "tsx scripts/demonstracao.ts"
+    "demonstracao": "tsx scripts/demonstracao.ts",
+    "perfis": "node scripts/valida-perfis.mjs"
   },
   "overrides": {
     "uuid": "^11.1.1",

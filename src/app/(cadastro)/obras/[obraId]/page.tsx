@@ -241,65 +241,61 @@ export default async function Obra({
                     <span className="rotulo">BM&apos;S {periodo.numero}</span>
                     {formataBr(periodo.dataInicial)} a {formataBr(periodo.dataFinal)}
                   </span>
-                  <span className="linhaDeAcoes linhaDeAcoes--compacta">
-                    <span className="etiqueta etiqueta--neutra">{periodo.dias} dias</span>
-                    {ehEngenheiro && (
-                      <details className="gaveta gaveta--solta">
-                        <summary>Alterar</summary>
-                        <AvisoDeImpacto
-                          impacto={impacto}
-                          oQueMuda="Mudar as datas muda qual número de BM'S sai no
+                  <span className="etiqueta etiqueta--neutra">{periodo.dias} dias</span>
+                  {ehEngenheiro && (
+                    <details className="gaveta gaveta--solta">
+                      <summary>Alterar</summary>
+                      <AvisoDeImpacto
+                        impacto={impacto}
+                        oQueMuda="Mudar as datas muda qual número de BM'S sai no
                             cabeçalho dos RDOs desses dias."
-                          oQueNaoMuda={NAO_MEXE_NO_QUE_JA_FOI_LANCADO}
-                        />
-                        <form action={editarPeriodoAction}>
-                          <input type="hidden" name="obraId" value={obraId} />
-                          <input type="hidden" name="periodoId" value={periodo.id} />
-                          <div className="grade grade--tripla">
-                            <Campo
-                              nome="numero"
-                              rotulo="Número"
-                              tipo="number"
-                              obrigatorio
-                              valorInicial={String(periodo.numero)}
-                            />
-                            <Campo
-                              nome="dataInicial"
-                              rotulo="Data inicial"
-                              tipo="date"
-                              obrigatorio
-                              valorInicial={periodo.dataInicial}
-                            />
-                            <Campo
-                              nome="dataFinal"
-                              rotulo="Data final"
-                              tipo="date"
-                              obrigatorio
-                              valorInicial={periodo.dataFinal}
-                            />
-                          </div>
-                          <div className="linhaDeAcoes">
-                            <BotaoDeEnvio enviando="Salvando…">
-                              Salvar período
-                            </BotaoDeEnvio>
-                          </div>
-                        </form>
+                        oQueNaoMuda={NAO_MEXE_NO_QUE_JA_FOI_LANCADO}
+                      />
+                      <form action={editarPeriodoAction}>
+                        <input type="hidden" name="obraId" value={obraId} />
+                        <input type="hidden" name="periodoId" value={periodo.id} />
+                        <div className="grade grade--tripla">
+                          <Campo
+                            nome="numero"
+                            rotulo="Número"
+                            tipo="number"
+                            obrigatorio
+                            valorInicial={String(periodo.numero)}
+                          />
+                          <Campo
+                            nome="dataInicial"
+                            rotulo="Data inicial"
+                            tipo="date"
+                            obrigatorio
+                            valorInicial={periodo.dataInicial}
+                          />
+                          <Campo
+                            nome="dataFinal"
+                            rotulo="Data final"
+                            tipo="date"
+                            obrigatorio
+                            valorInicial={periodo.dataFinal}
+                          />
+                        </div>
+                        <div className="linhaDeAcoes">
+                          <BotaoDeEnvio enviando="Salvando…">Salvar período</BotaoDeEnvio>
+                        </div>
+                      </form>
 
-                        {/*
+                      {/*
                           Excluir não bloqueia por haver dia lançado dentro: o
                           dia continua lançado e o campo BM'S do RDO passa a
                           sair vazio com aviso (decisão 21.1).
                         */}
-                        <form action={excluirPeriodoAction} className="afastado">
-                          <input type="hidden" name="obraId" value={obraId} />
-                          <input type="hidden" name="periodoId" value={periodo.id} />
-                          <BotaoDeEnvio variante="perigo" enviando="Excluindo…">
-                            Excluir este período
-                          </BotaoDeEnvio>
-                        </form>
-                      </details>
-                    )}
-                  </span>
+                      <form action={excluirPeriodoAction} className="afastado">
+                        <input type="hidden" name="obraId" value={obraId} />
+                        <input type="hidden" name="periodoId" value={periodo.id} />
+                        <BotaoDeEnvio variante="perigo" enviando="Excluindo…">
+                          Excluir este período
+                        </BotaoDeEnvio>
+                      </form>
+                    </details>
+                  )}
                 </li>
               );
             })}

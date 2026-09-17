@@ -1338,16 +1338,17 @@ tbody tr:last-child td {
   border-style: dashed;
 }
 
-/* Acoes compactas dentro de um item de lista. */
-.linhaDeAcoes--compacta {
-  margin-top: 0;
-  align-items: center;
-  gap: var(--e3);
-}
-
-/* Gaveta dentro de uma linha: sem a regua de cima, que ali separaria nada. */
+/*
+ * Gaveta dentro de um item de lista.
+ *
+ * `flex-basis: 100%` e o que importa: `.itemDeLista` e um flex com
+ * `flex-wrap`, e sem isto o formulario aberto disputava a linha com o rotulo
+ * e com a etiqueta — o BM'S 8 abria ao LADO do proprio nome. Ocupando a
+ * largura inteira, a gaveta sempre cai na linha de baixo.
+ */
 .gaveta--solta {
-  margin-top: 0;
+  flex-basis: 100%;
+  margin-top: var(--e2);
   border-top: 0;
   padding-top: 0;
 }
