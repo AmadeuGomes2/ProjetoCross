@@ -1,0 +1,133 @@
+# Subir o RDO digital na Vercel, com banco no Neon
+
+Escrito para quem vai fazer o deploy pela primeira vez. Cada passo diz **por que**
+existe, porque a maior parte dos erros de deploy vem de pular um deles.
+
+---
+
+## Antes de começar
+
+Você precisa de três coisas:
+
+1. um projeto no **Neon** com um banco criado;
+2. um projeto na **Vercel** ligado a este repositório;
+3. a string de conexão do Neon, do painel, em **Connection string**.
+
+---
+
+## 1. As duas strings de conexão do Neon
+
+O Neon dá duas, e **a diferença importa**:
+
+| String   | Host                  | Use em            |
+| -------- | --------------------- | ----------------- |
+| com pool | tem `-pooler` no host | **a aplicação**   |
+| direta   | sem `-pooler`         | **as migrations** |
+
+A aplicação usa a com pool porque serverless abre e fecha conexão o tempo todo, e
+sem pool o Neon esgota o limite. As migrations usam a direta porque o pooler
+recusa alguns comandos de DDL.
+
+As duas terminam em `?sslmode=require`. Sem isso a conexão é recusada.
+
+---
+
+## 2. Aplicar o esquema no Neon
+
+Rode da sua máquina, **uma vez**, com a string **direta**:
+
+```bash
+DATABASE_URL="postgres://...sem-pooler.../neondb?sslmode=require" npm run db:migrate
+```
+
+Depois, a carga inicial das taxonomias — as 12 funções, os 14 status, os 8 tipos
+de equipamento e as 8 sugestões de motivo:
+
+```bash
+DATABASE_URL="postgres://...sem-pooler.../neondb?sslmode=require" npm run db:seed
+```
+
+Os dois são idempotentes: rodar de novo não duplica nada.
+
+### Criar o primeiro engenheiro
+
+Não há cadastro público, e convite só nasce de dentro. A primeira conta sai por
+comando (decisão 25.1):
+
+```bash
+DATABASE_URL="..." npm run criar-engenheiro
+```
+
+---
+
+## 3. As variáveis na Vercel
+
+Em **Settings → Environment Variables**, para `Production` e `Preview`:
+
+| Variável       | Valor                                             |
+| -------------- | ------------------------------------------------- |
+| `DATABASE_URL` | a string **com pool**                             |
+| `AUTH_SECRET`  | veja abaixo                                       |
+| `AUTH_URL`     | o endereço público, ex. `https://rdo.exemplo.com` |
+
+Gere o segredo assim, e **não reaproveite o de outro ambiente**:
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
+```
+
+Trocar `AUTH_SECRET` invalida toda sessão aberta. É o comportamento certo se ele
+vazar, e é por isso que produção e prévia não compartilham o mesmo.
+
+> Se o projeto da Vercel já está **conectado ao Neon** pela integração oficial,
+> `DATABASE_URL` pode já estar preenchida. Confira qual das duas strings ela
+> traz: a integração costuma trazer a com pool, que é a certa para a aplicação.
+
+---
+
+## 4. O deploy
+
+Com o repositório conectado, **cada `push` no branch principal publica**. Não há
+passo manual.
+
+O build roda `next build`. Ele **não** aplica migrations — de propósito: migration
+no build roda a cada deploy de prévia e concorre consigo mesma. Esquema é passo
+separado, feito por quem sabe o que está mudando.
+
+---
+
+## 5. Conferir que subiu de pé
+
+Em ordem, porque cada um depende do anterior:
+
+1. **abre?** Acesse a URL. A porta de entrada não toca o banco: se ela falhar, é
+   build ou variável, não banco.
+2. **o banco responde?** Vá a `/entrar` e tente entrar com a conta de engenheiro.
+   Erro aqui é `DATABASE_URL`.
+3. **o RDO monta?** Abra uma obra e um dia lançado.
+4. **o PDF sai?** Exporte. É o caminho mais longo: lê tudo, monta o documento e
+   grava a trilha.
+
+---
+
+## Quando der errado
+
+| Sintoma                          | Causa provável                                                     |
+| -------------------------------- | ------------------------------------------------------------------ |
+| `DATABASE_URL não está definida` | a variável não foi salva para o ambiente certo                     |
+| `relation "obra" does not exist` | faltou o passo 2, as migrations                                    |
+| erro de conexão sob carga        | está usando a string **direta** na aplicação; troque pela com pool |
+| `password authentication failed` | a string foi copiada sem `?sslmode=require`                        |
+| a primeira requisição demora     | o Neon hiberna o banco ocioso e acorda em alguns segundos          |
+
+---
+
+## O que **não** está resolvido aqui
+
+- **Backup.** O Neon tem retenção própria, com janela conforme o plano. O RDO é
+  documento contratual: confira a janela antes de depender dela.
+- **Domínio próprio.** Enquanto não houver, `AUTH_URL` aponta para o endereço da
+  Vercel, que muda entre projetos.
+- **Dado pessoal em prévia.** Cada branch gera um ambiente de prévia. Se ele
+  apontar para o banco de produção, um link de prévia dá acesso a nome de
+  trabalhador. Use **banco separado** para prévia, ou desligue a prévia.
