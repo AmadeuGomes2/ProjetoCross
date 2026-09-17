@@ -14,3 +14,8 @@ src/db/migrations/meta/
 
 # Rascunho e banco de desenvolvimento.
 tmp/
+
+# Instantaneos do drizzle-kit: artefato de ferramenta, nao fonte.
+# Os do historico sao do dialeto antigo e nao sao mais reformatados.
+src/db/migrations/meta/
+docs/historico/

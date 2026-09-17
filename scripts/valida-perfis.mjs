@@ -93,14 +93,16 @@ function regras(ctx) {
     // ------------------------------------------------------- pessoal e frota
     {
       perfil: 'enc',
-      nome: 'encarregado lê o pessoal, sem formulário de cadastro',
+      nome: 'encarregado lê o pessoal e vê o formulário de cadastro',
       url: `/obras/${obra}/pessoal`,
       prova: async (p) => {
+        // 17/09/2026: o encarregado passou a criar e editar pessoal. A troca de
+        // função não é conferida aqui porque o bloco só existe com pelo menos
+        // uma pessoa cadastrada, e esta varredura não semeia dado.
         const texto = await p.locator('body').innerText();
         const erros = [];
         if (!texto.includes('Pessoal cadastrado')) erros.push('não leu a lista');
-        if (texto.includes('Cadastrar pessoa')) erros.push('viu o formulário');
-        if (texto.includes('Trocar de função')) erros.push('viu a troca de função');
+        if (!texto.includes('Cadastrar pessoa')) erros.push('não viu o formulário');
         return erros.length > 0 ? erros.join('; ') : null;
       },
     },

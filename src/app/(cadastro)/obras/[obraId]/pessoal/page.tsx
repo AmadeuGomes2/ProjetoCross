@@ -1,12 +1,13 @@
 /**
  * Passo 2 — pessoal da obra.
  *
- * **Quem vê e quem escreve** (decisão de 17/09/2026, que mudou o CT-034):
- * o encarregado **lê** a lista e o engenheiro **escreve**. A lista é nominal, e
+ * **Quem vê e quem escreve** (decisões de 17/09/2026, que mudaram o CT-034 e o
+ * CT-035): os dois perfis **leem** e os dois **escrevem**. A lista é nominal, e
  * nome de trabalhador é dado pessoal sob a LGPD, mas o encarregado convive com
- * essas pessoas todo dia e precisa conferir quem está mobilizado. A fronteira
- * que não se move é a da OBRA: quem não tem acesso recebe a frase genérica de
- * sempre, sem nenhum nome.
+ * essas pessoas todo dia, é quem vê chegar e sair do canteiro, e mandar o
+ * movimento pelo engenheiro recria a transcrição que o produto veio acabar. A
+ * fronteira que não se move é a da OBRA: quem não tem acesso recebe a frase
+ * genérica de sempre, sem nenhum nome.
  *
  * A função vem de lista, nunca de texto livre (R13): é o que impede `Servente `
  * com espaço no fim virar uma função diferente.
@@ -63,9 +64,9 @@ export default async function Pessoal({
   }
 
   /*
-   * O encarregado LÊ a lista (decisão de 17/09/2026) mas não escreve. O
-   * servidor recusa de qualquer forma; esconder o formulário tira o beco sem
-   * saída de preencher e levar erro.
+   * Os dois perfis leem e escrevem o pessoal (17/09/2026), e por isso nenhum
+   * formulário desta página depende do perfil. O que ainda depende é a barra de
+   * abas: a aba Acesso continua só do engenheiro.
    */
   const ehEngenheiro = perfilNaObraProtegido(ator, obraId) === 'engenheiro';
 
@@ -91,29 +92,27 @@ export default async function Pessoal({
 
       <Erro mensagem={erro} />
 
-      {ehEngenheiro && (
-        <Bloco titulo="Cadastrar pessoa">
-          <form action={cadastrarPessoaAction}>
-            <input type="hidden" name="obraId" value={obraId} />
-            <Campo nome="nome" rotulo="Nome" obrigatorio />
-            <Escolha
-              nome="funcao"
-              rotulo="Função nesta passagem"
-              opcoes={opcoes}
-              obrigatorio
-            />
-            <div className="grade grade--dupla">
-              <Campo nome="entrada" rotulo="Entrada" tipo="date" obrigatorio />
-              <Campo nome="saida" rotulo="Saída (deixe vazio se continua)" tipo="date" />
-            </div>
-            <div className="linhaDeAcoes">
-              <BotaoDeEnvio>Cadastrar</BotaoDeEnvio>
-            </div>
-          </form>
-        </Bloco>
-      )}
+      <Bloco titulo="Cadastrar pessoa">
+        <form action={cadastrarPessoaAction}>
+          <input type="hidden" name="obraId" value={obraId} />
+          <Campo nome="nome" rotulo="Nome" obrigatorio />
+          <Escolha
+            nome="funcao"
+            rotulo="Função nesta passagem"
+            opcoes={opcoes}
+            obrigatorio
+          />
+          <div className="grade grade--dupla">
+            <Campo nome="entrada" rotulo="Entrada" tipo="date" obrigatorio />
+            <Campo nome="saida" rotulo="Saída (deixe vazio se continua)" tipo="date" />
+          </div>
+          <div className="linhaDeAcoes">
+            <BotaoDeEnvio>Cadastrar</BotaoDeEnvio>
+          </div>
+        </form>
+      </Bloco>
 
-      {ehEngenheiro && pessoal.valor.length > 0 ? (
+      {pessoal.valor.length > 0 ? (
         <Bloco titulo="Trocar de função">
           <form action={trocarFuncaoAction}>
             <input type="hidden" name="obraId" value={obraId} />

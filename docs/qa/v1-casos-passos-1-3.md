@@ -114,11 +114,14 @@ Convenções de origem e contexto comum: idem. Todo nome é sintético.
 **CT-033 · feliz · caso obrigatório 8 · F2.1 c."segunda passagem da mesma pessoa"**
 **Dado** "P1" com passagem de 10/02/2026 a 28/02/2026. **Quando** "E1" registra nova passagem de "P1" com entrada 15/03/2026. **Então** "P1" continua sendo uma pessoa, com duas passagens, e o cadastro não ganha uma segunda pessoa. **Por que existe:** o modelo de intervalo único da planilha conta quem sai e volta como duas pessoas; o efetivo do RDO sairia dobrado.
 
-**CT-034 · negativo · F2.1 c."encarregado não vê o cadastro de pessoal"**
-**Dado** "C1" encarregado de "B02". **Quando** "C1" pede ao servidor a lista de pessoal. **Então** o pedido é recusado no servidor e a resposta não contém nome de pessoa. **Por que existe:** são 19 nomes completos com função e admissão; é dado pessoal sob LGPD e o encarregado não precisa dele para lançar.
+**CT-034 · positivo · decisão do dono do produto, 17/09/2026**
+**Dado** "C1" encarregado de "B02". **Quando** "C1" pede ao servidor a lista de pessoal. **Então** a lista é devolvida. **Por que existe:** a versão anterior recusava, por LGPD; o dono do produto decidiu que o encarregado convive com essas pessoas todo dia e precisa conferir quem está mobilizado. **CT-034b** guarda a fronteira que não se moveu: quem não tem acesso à obra é recusado, e a recusa não traz nome.
 
-**CT-035 · negativo · F2.1 c."encarregado não cadastra pessoa"**
-**Dado** "C1" encarregado. **Quando** "C1" envia o cadastro de "P9". **Então** o pedido é recusado no servidor e "P9" não existe. **Por que existe:** R19, verificado no servidor.
+**CT-035 · positivo · decisão do dono do produto, 17/09/2026 (tarde)**
+**Dado** "C1" encarregado de "B02". **Quando** "C1" envia o cadastro de "P9". **Então** "P9" é cadastrada. **Por que existe:** a versão anterior recusava, por R19. Quem vê chegar e sair do canteiro é o encarregado, e fazer o movimento passar pelo engenheiro recria a transcrição que o produto veio acabar. Vale igual para abrir segunda passagem (**CT-035c**) e para trocar de função.
+
+**CT-035b · negativo · arquitetura 5.2**
+**Dado** "X" sem acesso nenhum a "B02". **Quando** "X" envia o cadastro de "P9". **Então** o pedido é recusado no servidor, "P9" não existe e a recusa não contém "P9". **Por que existe:** nenhuma decisão de perfil move a fronteira da OBRA, e o nome enviado é dado pessoal que não pode voltar em mensagem nem em log.
 
 **CT-036 · inválido · R2, R13**
 **Dado** "B02". **Quando** "E1" cadastra "P6" sem função. **Então** o cadastro é rejeitado. **Por que existe:** o bloco 5 agrega por função; pessoa sem função não tem coluna e some do RDO em silêncio.
