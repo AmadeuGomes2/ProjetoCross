@@ -45,27 +45,39 @@ function linhasDeTermo<T extends string>(termos: readonly string[], criadoEm: In
   }));
 }
 
+/**
+ * **Todo `insert` leva `await`.** O construtor do Drizzle é preguiçoso: ele só
+ * manda a consulta quando alguém espera a promessa. Sem o `await` a função
+ * termina, a transação fecha e **nada é gravado, sem erro nenhum** — foi o que
+ * aconteceu na conversão para Postgres de 17/09/2026, e a semente passou a
+ * devolver zero linhas em silêncio. No `better-sqlite3` o `.run()` executava na
+ * hora e a diferença não existia.
+ */
 export async function semeiaTaxonomias(
   db: BancoRdo,
   criadoEm: Instante = instanteAgora(),
 ): Promise<void> {
   await db.transaction(async (tx) => {
-    tx.insert(funcao)
+    await tx
+      .insert(funcao)
       .values(linhasDeTermo<'funcao'>(FUNCOES_INICIAIS, criadoEm))
       .onConflictDoNothing();
 
-    tx.insert(tipoEquipamento)
+    await tx
+      .insert(tipoEquipamento)
       .values(linhasDeTermo<'tipo_equipamento'>(TIPOS_EQUIPAMENTO_INICIAIS, criadoEm))
       .onConflictDoNothing();
 
-    tx.insert(statusAtividade)
+    await tx
+      .insert(statusAtividade)
       .values(linhasDeTermo<'status_atividade'>(STATUS_ATIVIDADE_INICIAIS, criadoEm))
       .onConflictDoNothing();
 
     // As oito sugestões de motivo de dia parado. NÃO são taxonomia fechada
     // (decisão 20.1): só preenchem um campo de texto livre, e por isso nenhuma
     // chave estrangeira aponta para esta tabela.
-    tx.insert(sugestaoMotivoParada)
+    await tx
+      .insert(sugestaoMotivoParada)
       .values(
         SUGESTOES_MOTIVO_PARADA.map((texto, indice) => ({
           id: geraId<'sugestao_motivo_parada'>(),
@@ -83,10 +95,10 @@ export async function semeiaTaxonomias(
  * Semeia o banco configurado por ambiente. Ponto de entrada para a instalação;
  * o teste usa `semeiaTaxonomias` com um banco em memória.
  */
-export function semeiaBancoConfigurado(): void {
+export async function semeiaBancoConfigurado(): Promise<void> {
   const conexao = criaBanco();
   try {
-    semeiaTaxonomias(conexao.db);
+    await semeiaTaxonomias(conexao.db);
   } finally {
     conexao.fecha();
   }
