@@ -29,23 +29,23 @@ import {
 import type { EventoDeExportacao } from './portas';
 import type { EventoDeExportacaoDePeriodo } from './periodo/portas';
 
-export function registraExportacaoNoBanco(
+export async function registraExportacaoNoBanco(
   db: BancoRdo,
   evento: EventoDeExportacao,
-): Result<void, ErroDeDominio> {
+): Promise<Result<void, ErroDeDominio>> {
   const id: RegistroExportacaoId = geraId();
   try {
-    db.insert(registroExportacao)
-      .values({
-        id,
-        obraId: evento.obraId,
-        usuarioId: evento.usuarioId,
-        momento: evento.momento,
-        dataRdo: evento.dataRdo,
-        formato: evento.formato,
-        loteId: null,
-      })
-      .run();
+    // `await` DENTRO do `try`: sem ele a rejeição escaparia do `catch` abaixo e
+    // a trilha falharia em silêncio, que é o oposto do que R20 pede.
+    await db.insert(registroExportacao).values({
+      id,
+      obraId: evento.obraId,
+      usuarioId: evento.usuarioId,
+      momento: evento.momento,
+      dataRdo: evento.dataRdo,
+      formato: evento.formato,
+      loteId: null,
+    });
     return ok(undefined);
   } catch (causa) {
     const correlacaoId: CorrelacaoId = geraId();
@@ -75,30 +75,31 @@ export function registraExportacaoNoBanco(
  * Grava tudo numa transação: trilha pela metade é pior que trilha nenhuma,
  * porque parece completa.
  */
-export function registraExportacaoDePeriodoNoBanco(
+export async function registraExportacaoDePeriodoNoBanco(
   db: BancoRdo,
   eventos: readonly EventoDeExportacaoDePeriodo[],
-): Result<void, ErroDeDominio> {
+): Promise<Result<void, ErroDeDominio>> {
   // Guarda e estreitamento numa linha só: o log abaixo não aceita `undefined`
   // (`ContextoDeLog` só recebe id), e conjunto vazio não tem o que registrar.
   const primeiro = eventos[0];
   if (primeiro === undefined) return ok(undefined);
 
   try {
-    db.transaction((tx) => {
+    // Toda escrita passa pelo `tx`, nunca pelo `db` de fora: no Postgres o `db`
+    // sai por outra conexão do pool, e o que ele gravar fica fora da transação —
+    // trilha pela metade sobrevivendo ao `ROLLBACK`.
+    await db.transaction(async (tx) => {
       for (const evento of eventos) {
         const id: RegistroExportacaoId = geraId();
-        tx.insert(registroExportacao)
-          .values({
-            id,
-            obraId: evento.obraId,
-            usuarioId: evento.usuarioId,
-            momento: evento.momento,
-            dataRdo: evento.dia,
-            formato: evento.formato,
-            loteId: evento.loteId,
-          })
-          .run();
+        await tx.insert(registroExportacao).values({
+          id,
+          obraId: evento.obraId,
+          usuarioId: evento.usuarioId,
+          momento: evento.momento,
+          dataRdo: evento.dia,
+          formato: evento.formato,
+          loteId: evento.loteId,
+        });
       }
     });
     return ok(undefined);

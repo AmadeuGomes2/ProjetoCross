@@ -13,6 +13,8 @@
  * `Decimal`, o banco guarda `INTEGER` em milésimos.
  */
 
+import { AsyncLocalStorage } from 'node:async_hooks';
+
 import { and, asc, desc, eq, gte, inArray, lte } from 'drizzle-orm';
 
 import { diaPuroConfiavel, type DiaPuro } from '../../shared/date/dia';
@@ -23,7 +25,7 @@ import {
   type ObraId,
   type UsuarioId,
 } from '../../shared/id';
-import type { ConexaoRdo } from '../../db';
+import type { BancoRdo, ConexaoRdo } from '../../db';
 import {
   diaDeObra as tabelaDia,
   lancamentoAtividade,
@@ -125,13 +127,58 @@ function conjuntoVazio(datas: readonly DiaPuro[]): boolean {
   return datas.length === 0;
 }
 
+/**
+ * A transação em curso, se houver, e o banco a que ela pertence.
+ *
+ * ## Por que existe, desde 17/09/2026
+ *
+ * No `better-sqlite3` a transação era `BEGIN`/`COMMIT` **na conexão**, então
+ * toda consulta feita durante ela já estava dentro dela, sem ninguém precisar
+ * saber. No Postgres não é assim: `db.transaction()` entrega um objeto `tx`
+ * amarrado a UMA conexão do pool, e o que for escrito pelo `db` de fora sai por
+ * outra conexão — ou seja, **fora da transação**. O `ROLLBACK` não alcança essa
+ * escrita, e o dia criado por um lançamento recusado ficaria gravado, que é
+ * exatamente o estado que `executaEmTransacao` existe para impedir
+ * (`repositorio.ts`, e arquitetura 4.1).
+ *
+ * ## Por que `AsyncLocalStorage`, e não uma variável
+ *
+ * Porque a operação é assíncrona e duas podem correr entrelaçadas no mesmo
+ * processo. Uma variável de módulo mandaria a escrita de uma requisição para a
+ * transação de outra — defeito que só aparece sob carga, e que corrompe o
+ * documento de um dia com o lançamento de outro. O contexto assíncrono
+ * acompanha cada `await` da operação e de mais ninguém.
+ *
+ * O `db` é guardado junto com o `tx` de propósito: o repositório de uma
+ * conexão nunca escreve na transação de outra, e o teste abre um banco por
+ * caso.
+ */
+const transacaoEmCurso = new AsyncLocalStorage<{
+  readonly db: BancoRdo;
+  readonly tx: BancoRdo;
+}>();
+
+/**
+ * O alvo de TODA consulta do repositório: o `tx` enquanto há transação em
+ * curso, o `db` fora dela.
+ *
+ * Nenhum método deste arquivo fala com `conexao.db` direto. É essa ausência —
+ * e não a disciplina de quem escreve — que garante que a escrita de dentro da
+ * transação não escape por fora dela.
+ */
+function alvoDaConsulta(db: BancoRdo): BancoRdo {
+  const emCurso = transacaoEmCurso.getStore();
+  return emCurso !== undefined && emCurso.db === db ? emCurso.tx : db;
+}
+
 export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancamento {
-  const { db, sqlite } = conexao;
+  const banco = conexao.db;
+  const db = () => alvoDaConsulta(banco);
 
   const atividades: Colecao<LinhaDeAtividade> = {
     doDia: async (obraId, data) =>
       (
-        await db
+        await db()
           .select()
           .from(lancamentoAtividade)
           .where(
@@ -145,7 +192,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
       conjuntoVazio(datas)
         ? []
         : (
-            await db
+            await db()
               .select()
               .from(lancamentoAtividade)
               .where(
@@ -157,7 +204,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
               .orderBy(asc(lancamentoAtividade.data))
           ).map(atividadeDoBanco),
     porId: async (obraId, id) => {
-      const achadas = await db
+      const achadas = await db()
         .select()
         .from(lancamentoAtividade)
         .where(
@@ -169,7 +216,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
     },
     cadeia: async (obraId, raizId) =>
       (
-        await db
+        await db()
           .select()
           .from(lancamentoAtividade)
           .where(
@@ -180,7 +227,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
           )
       ).map(atividadeDoBanco),
     porRascunho: async (autorId, chave) => {
-      const achadas = await db
+      const achadas = await db()
         .select()
         .from(lancamentoAtividade)
         .where(
@@ -194,14 +241,16 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
       return primeira === undefined ? null : atividadeDoBanco(primeira);
     },
     grava: async (linha) => {
-      await db.insert(lancamentoAtividade).values({
-        ...comumParaOBanco(linha),
-        descricao: linha.descricao,
-        statusId: linha.statusId,
-      });
+      await db()
+        .insert(lancamentoAtividade)
+        .values({
+          ...comumParaOBanco(linha),
+          descricao: linha.descricao,
+          statusId: linha.statusId,
+        });
     },
     atualiza: async (linha) => {
-      await db
+      await db()
         .update(lancamentoAtividade)
         .set({
           descricao: linha.descricao,
@@ -218,7 +267,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
     },
     // `UPDATE`, nunca `DELETE`: a linha do lançamento excluído fica (30.1).
     marcaExcluido: async (obraId, id, exclusao) => {
-      await db
+      await db()
         .update(lancamentoAtividade)
         .set(colunasDaExclusao(exclusao))
         .where(
@@ -230,7 +279,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
   const producao: ColecaoDeProducao = {
     doDia: async (obraId, data) =>
       (
-        await db
+        await db()
           .select()
           .from(lancamentoProducao)
           .where(
@@ -241,7 +290,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
       conjuntoVazio(datas)
         ? []
         : (
-            await db
+            await db()
               .select()
               .from(lancamentoProducao)
               .where(
@@ -254,7 +303,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
           ).map(producaoDoBanco),
     ate: async (obraId, ate) =>
       (
-        await db
+        await db()
           .select()
           .from(lancamentoProducao)
           .where(
@@ -262,7 +311,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
           )
       ).map(producaoDoBanco),
     porId: async (obraId, id) => {
-      const achadas = await db
+      const achadas = await db()
         .select()
         .from(lancamentoProducao)
         .where(and(eq(lancamentoProducao.obraId, obraId), eq(lancamentoProducao.id, id)))
@@ -272,7 +321,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
     },
     cadeia: async (obraId, raizId) =>
       (
-        await db
+        await db()
           .select()
           .from(lancamentoProducao)
           .where(
@@ -283,7 +332,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
           )
       ).map(producaoDoBanco),
     porRascunho: async (autorId, chave) => {
-      const achadas = await db
+      const achadas = await db()
         .select()
         .from(lancamentoProducao)
         .where(
@@ -297,14 +346,16 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
       return primeira === undefined ? null : producaoDoBanco(primeira);
     },
     grava: async (linha) => {
-      await db.insert(lancamentoProducao).values({
-        ...comumParaOBanco(linha),
-        servicoId: linha.servicoId,
-        quantidadeMilesimos: paraMilesimos(linha.quantidade),
-      });
+      await db()
+        .insert(lancamentoProducao)
+        .values({
+          ...comumParaOBanco(linha),
+          servicoId: linha.servicoId,
+          quantidadeMilesimos: paraMilesimos(linha.quantidade),
+        });
     },
     atualiza: async (linha) => {
-      await db
+      await db()
         .update(lancamentoProducao)
         .set({
           servicoId: linha.servicoId,
@@ -320,7 +371,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
         );
     },
     marcaExcluido: async (obraId, id, exclusao) => {
-      await db
+      await db()
         .update(lancamentoProducao)
         .set(colunasDaExclusao(exclusao))
         .where(and(eq(lancamentoProducao.obraId, obraId), eq(lancamentoProducao.id, id)));
@@ -330,7 +381,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
   const pluviometria: Colecao<LinhaDePluviometria> = {
     doDia: async (obraId, data) =>
       (
-        await db
+        await db()
           .select()
           .from(lancamentoPluviometria)
           .where(
@@ -344,7 +395,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
       conjuntoVazio(datas)
         ? []
         : (
-            await db
+            await db()
               .select()
               .from(lancamentoPluviometria)
               .where(
@@ -356,7 +407,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
               .orderBy(asc(lancamentoPluviometria.data))
           ).map(pluviometriaDoBanco),
     porId: async (obraId, id) => {
-      const achadas = await db
+      const achadas = await db()
         .select()
         .from(lancamentoPluviometria)
         .where(
@@ -371,7 +422,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
     },
     cadeia: async (obraId, raizId) =>
       (
-        await db
+        await db()
           .select()
           .from(lancamentoPluviometria)
           .where(
@@ -382,7 +433,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
           )
       ).map(pluviometriaDoBanco),
     porRascunho: async (autorId, chave) => {
-      const achadas = await db
+      const achadas = await db()
         .select()
         .from(lancamentoPluviometria)
         .where(
@@ -396,16 +447,18 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
       return primeira === undefined ? null : pluviometriaDoBanco(primeira);
     },
     grava: async (linha) => {
-      await db.insert(lancamentoPluviometria).values({
-        ...comumParaOBanco(linha),
-        noiteAnterior: linha.noiteAnterior,
-        manha: linha.manha,
-        tarde: linha.tarde,
-        indiceMmMilesimos: paraMilesimos(linha.indiceMm),
-      });
+      await db()
+        .insert(lancamentoPluviometria)
+        .values({
+          ...comumParaOBanco(linha),
+          noiteAnterior: linha.noiteAnterior,
+          manha: linha.manha,
+          tarde: linha.tarde,
+          indiceMmMilesimos: paraMilesimos(linha.indiceMm),
+        });
     },
     atualiza: async (linha) => {
-      await db
+      await db()
         .update(lancamentoPluviometria)
         .set({
           noiteAnterior: linha.noiteAnterior,
@@ -423,7 +476,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
         );
     },
     marcaExcluido: async (obraId, id, exclusao) => {
-      await db
+      await db()
         .update(lancamentoPluviometria)
         .set(colunasDaExclusao(exclusao))
         .where(
@@ -438,7 +491,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
   const observacoes: Colecao<LinhaDeObservacao> = {
     doDia: async (obraId, data) =>
       (
-        await db
+        await db()
           .select()
           .from(lancamentoObservacao)
           .where(
@@ -452,7 +505,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
       conjuntoVazio(datas)
         ? []
         : (
-            await db
+            await db()
               .select()
               .from(lancamentoObservacao)
               .where(
@@ -464,7 +517,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
               .orderBy(asc(lancamentoObservacao.data))
           ).map(observacaoDoBanco),
     porId: async (obraId, id) => {
-      const achadas = await db
+      const achadas = await db()
         .select()
         .from(lancamentoObservacao)
         .where(
@@ -476,7 +529,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
     },
     cadeia: async (obraId, raizId) =>
       (
-        await db
+        await db()
           .select()
           .from(lancamentoObservacao)
           .where(
@@ -487,7 +540,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
           )
       ).map(observacaoDoBanco),
     porRascunho: async (autorId, chave) => {
-      const achadas = await db
+      const achadas = await db()
         .select()
         .from(lancamentoObservacao)
         .where(
@@ -501,12 +554,12 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
       return primeira === undefined ? null : observacaoDoBanco(primeira);
     },
     grava: async (linha) => {
-      await db
+      await db()
         .insert(lancamentoObservacao)
         .values({ ...comumParaOBanco(linha), lado: linha.lado, texto: linha.texto });
     },
     atualiza: async (linha) => {
-      await db
+      await db()
         .update(lancamentoObservacao)
         .set({
           texto: linha.texto,
@@ -521,7 +574,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
         );
     },
     marcaExcluido: async (obraId, id, exclusao) => {
-      await db
+      await db()
         .update(lancamentoObservacao)
         .set(colunasDaExclusao(exclusao))
         .where(
@@ -533,7 +586,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
   return {
     dia: {
       obtem: async (obraId, data) => {
-        const achados = await db
+        const achados = await db()
           .select()
           .from(tabelaDia)
           .where(and(eq(tabelaDia.obraId, obraId), eq(tabelaDia.data, data)))
@@ -543,7 +596,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
         return diaDoBanco(primeiro);
       },
       naJanela: async (obraId, de, ate) => {
-        const achados = await db
+        const achados = await db()
           .select()
           .from(tabelaDia)
           .where(
@@ -558,7 +611,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
       },
       nosDias: async (obraId, datas) => {
         if (conjuntoVazio(datas)) return [];
-        const achados = await db
+        const achados = await db()
           .select()
           .from(tabelaDia)
           .where(and(eq(tabelaDia.obraId, obraId), inArray(tabelaDia.data, [...datas])))
@@ -567,7 +620,7 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
       },
       salva: async (dia: DiaDeObra) => {
         // PK natural `(obra_id, data)`: o mesmo dia nunca vira duas linhas.
-        await db
+        await db()
           .insert(tabelaDia)
           .values({
             obraId: dia.obraId,
@@ -601,24 +654,28 @@ export function criaRepositorioDrizzle(conexao: ConexaoRdo): RepositorioDeLancam
     pluviometria,
     observacoes,
     /**
-     * Transação explícita.
+     * Transação explícita. Tudo ou nada.
      *
-     * O `better-sqlite3` é síncrono: entre o `BEGIN` e o `COMMIT` este módulo
-     * não espera por nada além do próprio banco, então não há ponto de
-     * interleaving real. A transação existe para que um lançamento recusado
-     * depois da criação do dia não deixe um `dia_de_obra` que ninguém declarou.
+     * Existe para que um lançamento recusado **depois** de o dia ter sido criado
+     * não deixe um `dia_de_obra` que ninguém declarou. Decisão 4.2: `não
+     * lançado` é a ausência de linha, e um dia que sobra passa a dizer ao
+     * engenheiro que houve trabalho onde não houve.
+     *
+     * O `BEGIN`/`COMMIT` na conexão foi trocado por `transaction` do Drizzle: no
+     * Postgres a transação é um objeto próprio, e o que não passar por ele grava
+     * fora dela. A operação corre dentro do contexto assíncrono que aponta o
+     * `tx` — é assim que TODA consulta feita por ela, inclusive as das quatro
+     * coleções, cai dentro da transação sem que quem chama precise saber disso.
+     *
+     * Aninhar é seguro: `alvoDaConsulta` já devolve o `tx` de fora, e
+     * `tx.transaction()` abre um SAVEPOINT em vez de uma segunda transação — que
+     * numa segunda conexão do pool travaria esperando a primeira.
+     *
+     * O driver `neon-http` não serve aqui: ele não suporta transação. Ver
+     * `src/db/index.ts`.
      */
-    executaEmTransacao: async (operacao) => {
-      sqlite.exec('BEGIN IMMEDIATE');
-      try {
-        const resultado = await operacao();
-        sqlite.exec('COMMIT');
-        return resultado;
-      } catch (e) {
-        sqlite.exec('ROLLBACK');
-        throw e;
-      }
-    },
+    executaEmTransacao: (operacao) =>
+      db().transaction(async (tx) => transacaoEmCurso.run({ db: banco, tx }, operacao)),
   };
 }
 
