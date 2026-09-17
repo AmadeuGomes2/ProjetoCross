@@ -21,6 +21,7 @@ import { idConfiavel } from '../../../../../shared/id';
 import { definirQuantidadeAction } from '../../../acoes';
 import { Aviso, Bloco, Campo, Erro, Vazio } from '../../../componentes';
 import { Trilha } from '../../../../_componentes/casca';
+import { perfilNaObraProtegido } from '../../../../_composicao/rdo-diario';
 import { AbasDaObra } from '../abas';
 import { atorDaRequisicao } from '../../../sessao';
 
@@ -58,6 +59,8 @@ export default async function Servicos({
     );
   }
 
+  const ehEngenheiro = perfilNaObraProtegido(ator, obraId) === 'engenheiro';
+
   return (
     <main className="pagina pagina--painel">
       <Trilha
@@ -73,7 +76,7 @@ export default async function Servicos({
         <p className="subtitulo">A quantidade de projeto é o denominador do percentual</p>
       </header>
 
-      <AbasDaObra obraId={obraId} atual="servicos" />
+      <AbasDaObra obraId={obraId} atual="servicos" ehEngenheiro={ehEngenheiro} />
 
       <Erro mensagem={erro} />
 

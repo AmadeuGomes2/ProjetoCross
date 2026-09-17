@@ -235,10 +235,21 @@ export async function consultaRdoProtegida(
   ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
 ): Promise<Result<RdoDiario, ErroDeConsultaDoRdo>> {
   const obraId: ObraId = idConfiavel<'obra'>(bruto.obraId);
+  /*
+   * **RDO é do engenheiro.** Decisão de 17/09/2026, do dono do produto.
+   *
+   * Era `'encarregado'`, o perfil mínimo, e por isso o encarregado abria o RDO
+   * e via o documento montado — inclusive o bloco de observações, que é texto
+   * livre, e o bloco de assinaturas com o CREA do responsável técnico. Ele
+   * lança o dia; conferir e entregar ao fiscal é do engenheiro.
+   *
+   * Vale para a tela e para a rota do PDF, porque as duas passam por aqui.
+   * Esconder o botão não seria controle de acesso (CLAUDE.md, Segurança).
+   */
   const permitido = exigeAcessoNaObra(
     ator,
     obraId,
-    'encarregado',
+    'engenheiro',
     paraAcesso(ambiente.cadastro),
   );
   if (!permitido.ok) {

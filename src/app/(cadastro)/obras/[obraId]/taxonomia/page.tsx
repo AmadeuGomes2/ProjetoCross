@@ -21,6 +21,7 @@ import { idConfiavel } from '../../../../../shared/id';
 import { acrescentarTermoAction } from '../../../acoes';
 import { Aviso, Bloco, Campo, Erro, Nota, Vazio } from '../../../componentes';
 import { Trilha } from '../../../../_componentes/casca';
+import { perfilNaObraProtegido } from '../../../../_composicao/rdo-diario';
 import { AbasDaObra } from '../abas';
 import { atorDaRequisicao } from '../../../sessao';
 
@@ -59,6 +60,8 @@ export default async function Taxonomias({
     );
   }
 
+  const ehEngenheiro = perfilNaObraProtegido(ator, obraId) === 'engenheiro';
+
   return (
     <main className="pagina pagina--painel">
       <Trilha
@@ -74,7 +77,7 @@ export default async function Taxonomias({
         <p className="subtitulo">Função, tipo de equipamento e status de atividade</p>
       </header>
 
-      <AbasDaObra obraId={obraId} atual="taxonomia" />
+      <AbasDaObra obraId={obraId} atual="taxonomia" ehEngenheiro={ehEngenheiro} />
 
       <Erro mensagem={erro} />
 

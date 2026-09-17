@@ -245,7 +245,17 @@ describe('F2.1 — cadastro de pessoal e passagens', () => {
     );
   });
 
-  it('CT-034 recusa a lista de pessoal ao encarregado, e a resposta não traz nome', () => {
+  /*
+   * CT-034 mudou em 17/09/2026, por decisão do dono do produto.
+   *
+   * A lista era exclusiva do engenheiro porque é nominal, e nome de
+   * trabalhador é dado pessoal sob a LGPD. O encarregado passa a **ler**: ele
+   * convive com essas pessoas todo dia e precisa conferir quem está
+   * mobilizado. O que não mudou é que ele não escreve — CT-035 abaixo.
+   *
+   * A fronteira que importa continua sendo a da OBRA, e é o segundo caso.
+   */
+  it('CT-034 deixa o encarregado LER a lista de pessoal da obra dele', () => {
     expect(cadastra('P1', 'Motorista', '2026-02-10').ok).toBe(true);
     const c1 = daAcessoDeEncarregado(
       cenario.novoAtor('c1@exemplo.invalido'),
@@ -253,6 +263,16 @@ describe('F2.1 — cadastro de pessoal e passagens', () => {
     );
 
     const resultado = listaPessoalProtegida(c1, obraId, cenario.amb);
+
+    expect(resultado.ok).toBe(true);
+    expect(resultado.ok && resultado.valor).toHaveLength(1);
+  });
+
+  it('CT-034b recusa a lista a quem não tem acesso à obra, e não vaza nome', () => {
+    expect(cadastra('P1', 'Motorista', '2026-02-10').ok).toBe(true);
+    const estranho = cenario.novoAtor('estranho@exemplo.invalido');
+
+    const resultado = listaPessoalProtegida(estranho, obraId, cenario.amb);
 
     expect(resultado.ok).toBe(false);
     if (resultado.ok) return;

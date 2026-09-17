@@ -1,9 +1,12 @@
 /**
  * Passo 2 — pessoal da obra.
  *
- * **Esta tela é do engenheiro e só dele** (CT-034): a lista é nominal, e nome
- * de trabalhador é dado pessoal sob a LGPD. Quando a leitura é recusada, a
- * página mostra a mesma frase genérica de sempre e nenhum nome.
+ * **Quem vê e quem escreve** (decisão de 17/09/2026, que mudou o CT-034):
+ * o encarregado **lê** a lista e o engenheiro **escreve**. A lista é nominal, e
+ * nome de trabalhador é dado pessoal sob a LGPD, mas o encarregado convive com
+ * essas pessoas todo dia e precisa conferir quem está mobilizado. A fronteira
+ * que não se move é a da OBRA: quem não tem acesso recebe a frase genérica de
+ * sempre, sem nenhum nome.
  *
  * A função vem de lista, nunca de texto livre (R13): é o que impede `Servente `
  * com espaço no fim virar uma função diferente.
@@ -27,6 +30,7 @@ import { cadastrarPessoaAction, trocarFuncaoAction } from '../../../acoes';
 import { Bloco, Campo, Erro, Escolha, Nota, Vazio, estilos } from '../../../componentes';
 import { Trilha } from '../../../../_componentes/casca';
 import { AbasDaObra } from '../abas';
+import { perfilNaObraProtegido } from '../../../../_composicao/rdo-diario';
 import { atorDaRequisicao } from '../../../sessao';
 
 export const dynamic = 'force-dynamic';
@@ -58,6 +62,13 @@ export default async function Pessoal({
     );
   }
 
+  /*
+   * O encarregado LÊ a lista (decisão de 17/09/2026) mas não escreve. O
+   * servidor recusa de qualquer forma; esconder o formulário tira o beco sem
+   * saída de preencher e levar erro.
+   */
+  const ehEngenheiro = perfilNaObraProtegido(ator, obraId) === 'engenheiro';
+
   const funcoes = listaTermosProtegida(ator, obraId, 'funcao');
   const opcoes = funcoes.ok ? funcoes.valor.map((t) => t.termo) : [];
 
@@ -76,31 +87,33 @@ export default async function Pessoal({
         <p className="subtitulo">O efetivo do RDO sai daqui, agregado por função</p>
       </header>
 
-      <AbasDaObra obraId={obraId} atual="pessoal" />
+      <AbasDaObra obraId={obraId} atual="pessoal" ehEngenheiro={ehEngenheiro} />
 
       <Erro mensagem={erro} />
 
-      <Bloco titulo="Cadastrar pessoa">
-        <form action={cadastrarPessoaAction}>
-          <input type="hidden" name="obraId" value={obraId} />
-          <Campo nome="nome" rotulo="Nome" obrigatorio />
-          <Escolha
-            nome="funcao"
-            rotulo="Função nesta passagem"
-            opcoes={opcoes}
-            obrigatorio
-          />
-          <div className="grade grade--dupla">
-            <Campo nome="entrada" rotulo="Entrada" tipo="date" obrigatorio />
-            <Campo nome="saida" rotulo="Saída (deixe vazio se continua)" tipo="date" />
-          </div>
-          <div className="linhaDeAcoes">
-            <BotaoDeEnvio>Cadastrar</BotaoDeEnvio>
-          </div>
-        </form>
-      </Bloco>
+      {ehEngenheiro && (
+        <Bloco titulo="Cadastrar pessoa">
+          <form action={cadastrarPessoaAction}>
+            <input type="hidden" name="obraId" value={obraId} />
+            <Campo nome="nome" rotulo="Nome" obrigatorio />
+            <Escolha
+              nome="funcao"
+              rotulo="Função nesta passagem"
+              opcoes={opcoes}
+              obrigatorio
+            />
+            <div className="grade grade--dupla">
+              <Campo nome="entrada" rotulo="Entrada" tipo="date" obrigatorio />
+              <Campo nome="saida" rotulo="Saída (deixe vazio se continua)" tipo="date" />
+            </div>
+            <div className="linhaDeAcoes">
+              <BotaoDeEnvio>Cadastrar</BotaoDeEnvio>
+            </div>
+          </form>
+        </Bloco>
+      )}
 
-      {pessoal.valor.length > 0 ? (
+      {ehEngenheiro && pessoal.valor.length > 0 ? (
         <Bloco titulo="Trocar de função">
           <form action={trocarFuncaoAction}>
             <input type="hidden" name="obraId" value={obraId} />

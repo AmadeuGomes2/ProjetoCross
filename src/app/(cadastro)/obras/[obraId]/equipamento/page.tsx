@@ -18,6 +18,7 @@ import { idConfiavel } from '../../../../../shared/id';
 import { cadastrarEquipamentoAction } from '../../../acoes';
 import { Bloco, Campo, Erro, Escolha, Vazio, estilos } from '../../../componentes';
 import { Trilha } from '../../../../_componentes/casca';
+import { perfilNaObraProtegido } from '../../../../_composicao/rdo-diario';
 import { AbasDaObra } from '../abas';
 import { atorDaRequisicao } from '../../../sessao';
 
@@ -55,6 +56,8 @@ export default async function Equipamentos({
   const tipos = listaTermosProtegida(ator, obraId, 'tipo_equipamento');
   const opcoes = tipos.ok ? tipos.valor.map((t) => t.termo) : [];
 
+  const ehEngenheiro = perfilNaObraProtegido(ator, obraId) === 'engenheiro';
+
   return (
     <main className="pagina pagina--painel">
       <Trilha
@@ -70,7 +73,7 @@ export default async function Equipamentos({
         <p className="subtitulo">O RDO agrega por identificador, não por tipo</p>
       </header>
 
-      <AbasDaObra obraId={obraId} atual="equipamento" />
+      <AbasDaObra obraId={obraId} atual="equipamento" ehEngenheiro={ehEngenheiro} />
 
       <Erro mensagem={erro} />
 

@@ -19,6 +19,7 @@ import { idConfiavel } from '../../../../../shared/id';
 import { revogarAcessoAction } from '../../../acoes';
 import { Bloco, Erro, Vazio } from '../../../componentes';
 import { Trilha } from '../../../../_componentes/casca';
+import { perfilNaObraProtegido } from '../../../../_composicao/rdo-diario';
 import { AbasDaObra } from '../abas';
 import { atorDaRequisicao } from '../../../sessao';
 import { FormularioDeConvite } from './formulario-de-convite';
@@ -52,6 +53,8 @@ export default async function Acesso({
     );
   }
 
+  const ehEngenheiro = perfilNaObraProtegido(ator, obraId) === 'engenheiro';
+
   return (
     <main className="pagina pagina--painel">
       <Trilha
@@ -67,7 +70,7 @@ export default async function Acesso({
         <p className="subtitulo">Quem pode lançar e quem pode fechar o dia</p>
       </header>
 
-      <AbasDaObra obraId={obraId} atual="acesso" />
+      <AbasDaObra obraId={obraId} atual="acesso" ehEngenheiro={ehEngenheiro} />
 
       <Erro mensagem={erro} />
 

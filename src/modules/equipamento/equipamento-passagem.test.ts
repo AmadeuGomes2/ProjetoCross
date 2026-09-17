@@ -166,7 +166,16 @@ describe('F2.2 — cadastro de equipamento e passagens', () => {
     });
   });
 
-  it('CT-047 recusa no servidor o cadastro de equipamento enviado por encarregado', () => {
+  /*
+   * CT-047 mudou em 17/09/2026, por decisão do dono do produto: o encarregado
+   * passa a **cadastrar** equipamento. Ele é quem vê a máquina chegar ao
+   * canteiro, e travar isso obrigava o RDO a sair sem o equipamento até o
+   * engenheiro cadastrar.
+   *
+   * Encerrar passagem continua sendo do engenheiro: desmobilizar muda o
+   * efetivo de todo dia seguinte, e não é ato de campo.
+   */
+  it('CT-047 deixa o encarregado cadastrar equipamento na obra dele', () => {
     const c1 = cenario.novoAtor('c1@exemplo.invalido');
     cenario.conexao.sqlite
       .prepare(
@@ -182,6 +191,23 @@ describe('F2.2 — cadastro de equipamento e passagens', () => {
       );
 
     const resultado = cadastra('TP-41', 'TRATOR', '2026-02-05', undefined, obraId, c1);
+
+    expect(resultado.ok).toBe(true);
+    const lista = listaEquipamentosDaObra(obraId, paraEquipamento(cenario.amb));
+    expect(lista.ok && lista.valor).toHaveLength(1);
+  });
+
+  it('CT-047b recusa o cadastro de equipamento a quem não tem acesso à obra', () => {
+    const estranho = cenario.novoAtor('estranho@exemplo.invalido');
+
+    const resultado = cadastra(
+      'TP-99',
+      'TRATOR',
+      '2026-02-05',
+      undefined,
+      obraId,
+      estranho,
+    );
 
     expect(resultado.ok).toBe(false);
     const lista = listaEquipamentosDaObra(obraId, paraEquipamento(cenario.amb));

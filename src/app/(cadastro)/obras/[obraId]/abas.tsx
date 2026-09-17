@@ -27,25 +27,30 @@ const ABAS: ReadonlyArray<readonly [AbaDaObra, string, string]> = [
 export function AbasDaObra({
   obraId,
   atual,
+  ehEngenheiro = true,
 }: {
   readonly obraId: string;
   readonly atual: AbaDaObra;
+  /** Acesso é do engenheiro; para o encarregado a aba nem aparece (17/09/2026). */
+  readonly ehEngenheiro?: boolean;
 }) {
   return (
     <nav className="abas" aria-label="Seções da obra">
-      {ABAS.map(([chave, sufixo, rotulo]) => {
-        const ativa = chave === atual;
-        return (
-          <Link
-            key={chave}
-            className={ativa ? 'aba aba--ativa' : 'aba'}
-            href={`/obras/${obraId}${sufixo}`}
-            aria-current={ativa ? 'page' : undefined}
-          >
-            {rotulo}
-          </Link>
-        );
-      })}
+      {ABAS.filter(([chave]) => ehEngenheiro || chave !== 'acesso').map(
+        ([chave, sufixo, rotulo]) => {
+          const ativa = chave === atual;
+          return (
+            <Link
+              key={chave}
+              className={ativa ? 'aba aba--ativa' : 'aba'}
+              href={`/obras/${obraId}${sufixo}`}
+              aria-current={ativa ? 'page' : undefined}
+            >
+              {rotulo}
+            </Link>
+          );
+        },
+      )}
     </nav>
   );
 }

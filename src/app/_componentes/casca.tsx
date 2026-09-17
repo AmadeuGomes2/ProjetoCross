@@ -90,10 +90,14 @@ export function Trilha({ degraus }: { degraus: readonly Degrau[] }) {
  * encarregado às 23h50 precisa cair no dia que ele está vivendo, e não no dia
  * seguinte em UTC (CLAUDE.md, Modelo).
  *
+ * **O encarregado não vê a porta do RDO** (17/09/2026): o RDO é do engenheiro,
+ * e o servidor recusa. Oferecer um caminho que termina em recusa é pior do que
+ * não oferecer.
+ *
  * A porta principal muda com o perfil, porque a tarefa muda: o encarregado vem
  * **lançar** e o engenheiro vem **conferir e exportar**
- * (`docs/design/auditoria-e-plano.md`, a tabela dos dois públicos). Ambos veem
- * as duas, porque o engenheiro também lança (decisão 8.1).
+ * (`docs/design/auditoria-e-plano.md`, a tabela dos dois públicos). O engenheiro
+ * vê as duas, porque ele também lança (decisão 8.1); o encarregado vê uma só.
  *
  * Ordem e destaque andam juntos: a porta principal é sempre a primeira. Separar
  * as duas coisas — pôr uma na frente e pintar a outra de verde — dá à tela duas
@@ -137,6 +141,6 @@ export function PortasDoDia({
   );
 
   return (
-    <div className="portas">{principal === 'ver' ? [ver, lancar] : [lancar, ver]}</div>
+    <div className="portas">{perfil === 'engenheiro' ? [ver, lancar] : [lancar]}</div>
   );
 }

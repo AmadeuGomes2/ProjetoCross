@@ -11,8 +11,9 @@ import type { DiaNoPainel } from '../../../../modules/lancamento';
  *
  * Cada dia é um destino, não um enfeite:
  *
- * - dia lançado leva ao RDO, que é onde se confere;
- * - dia não lançado leva ao lançamento, que é o que falta fazer.
+ * - para o engenheiro, dia lançado leva ao RDO, que é onde se confere;
+ * - dia não lançado leva ao lançamento, que é o que falta fazer;
+ * - para o encarregado, **todo** dia leva ao lançamento: ele não abre RDO.
  *
  * O estado não é comunicado só por cor. Cada quadro traz a palavra — em
  * `title` e para o leitor de tela —, porque quem não distingue verde de âmbar
@@ -37,9 +38,12 @@ const CLASSE: Readonly<Record<DiaNoPainel['estado'], string>> = {
 export function PainelDeDias({
   obraId,
   dias,
+  ehEngenheiro,
 }: {
   readonly obraId: string;
   readonly dias: readonly DiaNoPainel[];
+  /** O encarregado não abre RDO (17/09/2026): para ele todo dia leva ao lançamento. */
+  readonly ehEngenheiro: boolean;
 }) {
   const pendentes = dias.filter((d) => d.estado === 'nao_lancado').length;
 
@@ -59,7 +63,7 @@ export function PainelDeDias({
         {[...dias].reverse().map((dia) => {
           const { dia: numero } = partesDoDia(dia.data);
           const destino =
-            dia.estado === 'nao_lancado'
+            !ehEngenheiro || dia.estado === 'nao_lancado'
               ? `/lancamento/${obraId}/${dia.data}`
               : `/rdo/${obraId}/${dia.data}`;
 

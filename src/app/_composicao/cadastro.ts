@@ -281,7 +281,7 @@ export function listaPessoalProtegida(
   obraId: ObraId,
   amb: Amb = ambienteDeCadastroPadrao(),
 ): Resposta<PessoaComPassagens[]> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+  const permitido = autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const lista = listaPessoalDaObra(obraId, paraPessoal(amb));
@@ -315,7 +315,7 @@ export function cadastraEquipamentoProtegido(
   bruto: Record<string, unknown>,
   amb: Amb = ambienteDeCadastroPadrao(),
 ): Resposta<string> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+  const permitido = autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const cmd = analisaCadastrarEquipamento({ ...bruto, obraId });
@@ -332,7 +332,7 @@ export function registraPassagemDeEquipamentoProtegida(
   bruto: Record<string, unknown>,
   amb: Amb = ambienteDeCadastroPadrao(),
 ): Resposta<string> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+  const permitido = autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const cmd = analisaPassagemDeEquipamento({ ...bruto, obraId });
@@ -348,7 +348,7 @@ export function listaEquipamentosProtegida(
   obraId: ObraId,
   amb: Amb = ambienteDeCadastroPadrao(),
 ): Resposta<EquipamentoComPassagens[]> {
-  const permitido = autoriza(ator, obraId, 'engenheiro', amb);
+  const permitido = autoriza(ator, obraId, 'encarregado', amb);
   if (!permitido.ok) return permitido;
 
   const lista = listaEquipamentosDaObra(obraId, paraEquipamento(amb));

@@ -104,9 +104,9 @@ export default async function Obra({
         perfil={ehEngenheiro ? 'engenheiro' : 'encarregado'}
       />
 
-      <AbasDaObra obraId={obraId} atual="visao" />
+      <AbasDaObra obraId={obraId} atual="visao" ehEngenheiro={ehEngenheiro} />
 
-      <PainelDeDias obraId={obraId} dias={ultimosDias} />
+      <PainelDeDias obraId={obraId} dias={ultimosDias} ehEngenheiro={ehEngenheiro} />
 
       <Bloco titulo="Informações gerais">
         <dl className="fichaTecnica">
