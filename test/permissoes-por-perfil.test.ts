@@ -75,17 +75,6 @@ let engenheira: Ator;
 let encarregado: Ator;
 let estranho: Ator;
 
-/** Libera o encarregado por SQL cru: o convite tem teste próprio. */
-function daAcessoDeEncarregado(ator: Ator, acessoId: string): Ator {
-  cenario.conexao.sqlite
-    .prepare(
-      `INSERT INTO acesso (id, obra_id, usuario_id, perfil, liberado_por, liberado_em)
-       VALUES (?, ?, ?, 'encarregado', ?, ?)`,
-    )
-    .run(acessoId, obraId, ator.usuarioId, engenheira.usuarioId, AGORA);
-  return ator;
-}
-
 beforeEach(async () => {
   cenario = await montaCenario();
   defineAmbienteParaTeste(criaAmbienteDaComposicao(cenario.conexao, relogioFixo(AGORA)));
@@ -94,10 +83,7 @@ beforeEach(async () => {
   // (decisão 25.1).
   engenheira = await cenario.novoEngenheiro('eng@exemplo.invalido');
   obraId = await criaObraDoPrd(engenheira, cenario.amb);
-  encarregado = await daAcessoDeEncarregado(
-    await cenario.novoAtor('enc@exemplo.invalido'),
-    '99999999-9999-4999-8999-999999999999',
-  );
+  encarregado = await cenario.novoEncarregado('enc@exemplo.invalido', obraId);
   estranho = await cenario.novoAtor('estranho@exemplo.invalido');
 });
 
@@ -108,11 +94,13 @@ afterEach(async () => {
 
 describe('o que o encarregado PODE, depois de 17/09/2026', () => {
   it('lê a lista de pessoal da obra dele', async () => {
-    expect(listaPessoalProtegida(encarregado, obraId, cenario.amb).ok).toBe(true);
+    expect((await listaPessoalProtegida(encarregado, obraId, cenario.amb)).ok).toBe(true);
   });
 
   it('lê a frota da obra dele', async () => {
-    expect(listaEquipamentosProtegida(encarregado, obraId, cenario.amb).ok).toBe(true);
+    expect((await listaEquipamentosProtegida(encarregado, obraId, cenario.amb)).ok).toBe(
+      true,
+    );
   });
 
   it('cadastra equipamento, porque é ele que vê a máquina chegar', async () => {
@@ -126,7 +114,9 @@ describe('o que o encarregado PODE, depois de 17/09/2026', () => {
   });
 
   it('lê os serviços controlados, que ele precisa para lançar produção', async () => {
-    expect(listaServicosProtegida(encarregado, obraId, cenario.amb).ok).toBe(true);
+    expect((await listaServicosProtegida(encarregado, obraId, cenario.amb)).ok).toBe(
+      true,
+    );
   });
 
   it('cadastra pessoa, porque é ele que vê quem chega ao canteiro', async () => {
@@ -177,8 +167,8 @@ describe('o que o encarregado NÃO pode', () => {
   });
 
   it('não define quantidade de projeto: é a base da medição', async () => {
-    const servicos = listaServicosProtegida(engenheira, obraId, cenario.amb);
-    const primeiro = (await servicos.ok) ? servicos.valor[0] : undefined;
+    const servicos = await listaServicosProtegida(engenheira, obraId, cenario.amb);
+    const primeiro = servicos.ok ? servicos.valor[0] : undefined;
     expect(primeiro).toBeDefined();
     const r = await defineQuantidadeDeProjetoProtegida(
       encarregado,
@@ -202,15 +192,19 @@ describe('o que o encarregado NÃO pode', () => {
   });
 
   it('não vê a lista de acessos da obra', async () => {
-    expect(listaAcessosDaObraProtegida(encarregado, obraId, cenario.amb).ok).toBe(false);
+    expect((await listaAcessosDaObraProtegida(encarregado, obraId, cenario.amb)).ok).toBe(
+      false,
+    );
   });
 });
 
 describe('a fronteira da obra, que nenhuma decisão de perfil move', () => {
   it('recusa tudo a quem não tem acesso nenhum à obra', async () => {
-    expect(listaPessoalProtegida(estranho, obraId, cenario.amb).ok).toBe(false);
-    expect(listaEquipamentosProtegida(estranho, obraId, cenario.amb).ok).toBe(false);
-    expect(listaServicosProtegida(estranho, obraId, cenario.amb).ok).toBe(false);
+    expect((await listaPessoalProtegida(estranho, obraId, cenario.amb)).ok).toBe(false);
+    expect((await listaEquipamentosProtegida(estranho, obraId, cenario.amb)).ok).toBe(
+      false,
+    );
+    expect((await listaServicosProtegida(estranho, obraId, cenario.amb)).ok).toBe(false);
 
     const rdo = await consultaRdoProtegida(estranho, { obraId, dia: '2026-09-03' });
     expect(rdo.ok).toBe(false);
@@ -226,11 +220,15 @@ describe('a fronteira da obra, que nenhuma decisão de perfil move', () => {
       contrato: 'P0999/99-99 - BLOCO 09',
     });
 
-    expect(listaPessoalProtegida(encarregado, outraObra, cenario.amb).ok).toBe(false);
-    expect(listaEquipamentosProtegida(encarregado, outraObra, cenario.amb).ok).toBe(
+    expect((await listaPessoalProtegida(encarregado, outraObra, cenario.amb)).ok).toBe(
       false,
     );
-    expect(listaServicosProtegida(encarregado, outraObra, cenario.amb).ok).toBe(false);
+    expect(
+      (await listaEquipamentosProtegida(encarregado, outraObra, cenario.amb)).ok,
+    ).toBe(false);
+    expect((await listaServicosProtegida(encarregado, outraObra, cenario.amb)).ok).toBe(
+      false,
+    );
 
     const r = await cadastraEquipamentoProtegido(
       encarregado,
@@ -271,19 +269,23 @@ describe('a fronteira da obra, que nenhuma decisão de perfil move', () => {
       contrato: 'P0777/77-77 - BLOCO 07',
     });
 
-    expect(listaPessoalProtegida(engenheira, outraObra, cenario.amb).ok).toBe(false);
-    expect(listaAcessosDaObraProtegida(engenheira, outraObra, cenario.amb).ok).toBe(
+    expect((await listaPessoalProtegida(engenheira, outraObra, cenario.amb)).ok).toBe(
       false,
     );
+    expect(
+      (await listaAcessosDaObraProtegida(engenheira, outraObra, cenario.amb)).ok,
+    ).toBe(false);
   });
 
   it('não vaza nome de pessoa na recusa', async () => {
-    cadastraPessoaProtegida(
+    const cadastrada = await cadastraPessoaProtegida(
       engenheira,
       obraId,
       { nome: 'P1', funcao: 'Motorista', entrada: '2026-02-10' },
       cenario.amb,
     );
+    if (!cadastrada.ok) throw new Error(cadastrada.erro.mensagem);
+
     const r = await listaPessoalProtegida(estranho, obraId, cenario.amb);
     expect(r.ok).toBe(false);
     if (r.ok) return;
@@ -293,8 +295,12 @@ describe('a fronteira da obra, que nenhuma decisão de perfil move', () => {
 
 describe('o engenheiro continua podendo tudo', () => {
   it('lê pessoal, frota, acessos e o RDO', async () => {
-    expect(listaPessoalProtegida(engenheira, obraId, cenario.amb).ok).toBe(true);
-    expect(listaEquipamentosProtegida(engenheira, obraId, cenario.amb).ok).toBe(true);
-    expect(listaAcessosDaObraProtegida(engenheira, obraId, cenario.amb).ok).toBe(true);
+    expect((await listaPessoalProtegida(engenheira, obraId, cenario.amb)).ok).toBe(true);
+    expect((await listaEquipamentosProtegida(engenheira, obraId, cenario.amb)).ok).toBe(
+      true,
+    );
+    expect((await listaAcessosDaObraProtegida(engenheira, obraId, cenario.amb)).ok).toBe(
+      true,
+    );
   });
 });

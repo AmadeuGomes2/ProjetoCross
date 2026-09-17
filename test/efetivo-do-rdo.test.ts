@@ -92,7 +92,7 @@ function cadastraEquipamento(
 }
 
 /** O bloco 5 como o RDO o monta, com as colunas do cadastro e o total. */
-function efetivoPessoal(dia: string, eDiaParado = false): BlocoDeEfetivo {
+async function efetivoPessoal(dia: string, eDiaParado = false): Promise<BlocoDeEfetivo> {
   const mobilizacao = await listaMobilizacaoDePessoalProtegida(e1, obraId, cenario.amb);
   if (!mobilizacao.ok) throw new Error(mobilizacao.erro.mensagem);
   const funcoes = await listaFuncoesParaEfetivo(paraTaxonomia(cenario.amb));
@@ -106,7 +106,10 @@ function efetivoPessoal(dia: string, eDiaParado = false): BlocoDeEfetivo {
   );
 }
 
-function efetivoDeEquipamento(dia: string, eDiaParado = false): BlocoDeEfetivo {
+async function efetivoDeEquipamento(
+  dia: string,
+  eDiaParado = false,
+): Promise<BlocoDeEfetivo> {
   const mobilizacao = await listaMobilizacaoDeEquipamentoProtegida(
     e1,
     obraId,
@@ -129,30 +132,30 @@ function comQuantidade(bloco: BlocoDeEfetivo): [string, number][] {
 
 describe('efetivo de pessoal: as fronteiras da regra R1 contra o cadastro', () => {
   it('conta quem entrou antes e ainda não saiu', async () => {
-    expect(cadastra('P2', 'Motorista', '2026-02-05').ok).toBe(true);
-    expect(comQuantidade(efetivoPessoal('2026-09-01'))).toEqual([['Motorista', 1]]);
+    expect((await cadastra('P2', 'Motorista', '2026-02-05')).ok).toBe(true);
+    expect(comQuantidade(await efetivoPessoal('2026-09-01'))).toEqual([['Motorista', 1]]);
   });
 
   it('conta a pessoa no próprio dia da entrada', async () => {
-    expect(cadastra('P1', 'Motorista', '2026-02-10').ok).toBe(true);
-    expect(comQuantidade(efetivoPessoal('2026-02-10'))).toEqual([['Motorista', 1]]);
+    expect((await cadastra('P1', 'Motorista', '2026-02-10')).ok).toBe(true);
+    expect(comQuantidade(await efetivoPessoal('2026-02-10'))).toEqual([['Motorista', 1]]);
   });
 
   it('não conta a pessoa no dia anterior à entrada', async () => {
-    expect(cadastra('P1', 'Motorista', '2026-02-10').ok).toBe(true);
-    expect(comQuantidade(efetivoPessoal('2026-02-09'))).toEqual([]);
+    expect((await cadastra('P1', 'Motorista', '2026-02-10')).ok).toBe(true);
+    expect(comQuantidade(await efetivoPessoal('2026-02-09'))).toEqual([]);
   });
 
   it('conta a pessoa no dia da saída, porque a saída é o último dia trabalhado', async () => {
     // Decisão 1.1, de 16/09/2026. A planilha faz dos dois jeitos ao mesmo
     // tempo; aqui a resposta é uma só.
-    expect(cadastra('P1', 'Motorista', '2026-02-10', '2026-02-20').ok).toBe(true);
-    expect(comQuantidade(efetivoPessoal('2026-02-20'))).toEqual([['Motorista', 1]]);
+    expect((await cadastra('P1', 'Motorista', '2026-02-10', '2026-02-20')).ok).toBe(true);
+    expect(comQuantidade(await efetivoPessoal('2026-02-20'))).toEqual([['Motorista', 1]]);
   });
 
   it('não conta a pessoa no dia seguinte à saída', async () => {
-    expect(cadastra('P1', 'Motorista', '2026-02-10', '2026-02-20').ok).toBe(true);
-    expect(comQuantidade(efetivoPessoal('2026-02-21'))).toEqual([]);
+    expect((await cadastra('P1', 'Motorista', '2026-02-10', '2026-02-20')).ok).toBe(true);
+    expect(comQuantidade(await efetivoPessoal('2026-02-21'))).toEqual([]);
   });
 
   it('conta uma vez quem tem duas passagens, e não duas', async () => {
@@ -162,24 +165,25 @@ describe('efetivo de pessoal: as fronteiras da regra R1 contra o cadastro', () =
     expect(criada.ok).toBe(true);
     if (!criada.ok) return;
     // A passagem nova pede função: ela é atributo da passagem (decisão 29.1).
-    registraPassagemProtegida(
+    const segunda = await registraPassagemProtegida(
       e1,
       obraId,
       { pessoaId: criada.valor, funcao: 'Motorista', entrada: '2026-03-15' },
       cenario.amb,
     );
+    if (!segunda.ok) throw new Error(segunda.erro.mensagem);
 
-    expect(comQuantidade(efetivoPessoal('2026-03-20'))).toEqual([['Motorista', 1]]);
+    expect(comQuantidade(await efetivoPessoal('2026-03-20'))).toEqual([['Motorista', 1]]);
     // Entre as duas passagens ela não está na obra.
-    expect(comQuantidade(efetivoPessoal('2026-03-01'))).toEqual([]);
+    expect(comQuantidade(await efetivoPessoal('2026-03-01'))).toEqual([]);
   });
 
   it('agrega por função e soma duas pessoas da mesma função', async () => {
-    expect(cadastra('P1', 'Motorista', '2026-02-10').ok).toBe(true);
-    expect(cadastra('P2', 'Motorista', '2026-02-10').ok).toBe(true);
-    expect(cadastra('P3', 'Servente', '2026-02-10').ok).toBe(true);
+    expect((await cadastra('P1', 'Motorista', '2026-02-10')).ok).toBe(true);
+    expect((await cadastra('P2', 'Motorista', '2026-02-10')).ok).toBe(true);
+    expect((await cadastra('P3', 'Servente', '2026-02-10')).ok).toBe(true);
 
-    const bloco = efetivoPessoal('2026-02-15');
+    const bloco = await efetivoPessoal('2026-02-15');
     expect(bloco.colunas.find((c) => c.rotulo === 'Motorista')?.quantidade).toBe(2);
     expect(bloco.colunas.find((c) => c.rotulo === 'Servente')?.quantidade).toBe(1);
     expect(bloco.total).toBe(3);
@@ -188,8 +192,8 @@ describe('efetivo de pessoal: as fronteiras da regra R1 contra o cadastro', () =
 
 describe('efetivo de pessoal: o formato do bloco 5', () => {
   it('mantém a coluna de toda função do cadastro, mesmo sem ninguém', async () => {
-    expect(cadastra('P1', 'Motorista', '2026-02-10').ok).toBe(true);
-    const bloco = efetivoPessoal('2026-02-15');
+    expect((await cadastra('P1', 'Motorista', '2026-02-10')).ok).toBe(true);
+    const bloco = await efetivoPessoal('2026-02-15');
 
     // As 12 funções da carga inicial (decisão 19.1). A coluna existe mesmo
     // vazia: é o que o fiscal vê no papel há meses.
@@ -198,23 +202,23 @@ describe('efetivo de pessoal: o formato do bloco 5', () => {
   });
 
   it('exibe a quantidade zero em branco, e não como 0', async () => {
-    expect(cadastra('P1', 'Motorista', '2026-02-10').ok).toBe(true);
-    const bloco = efetivoPessoal('2026-02-15');
+    expect((await cadastra('P1', 'Motorista', '2026-02-10')).ok).toBe(true);
+    const bloco = await efetivoPessoal('2026-02-15');
 
     expect(bloco.colunas.find((c) => c.rotulo === 'Motorista')?.texto).toBe('1');
     expect(bloco.colunas.find((c) => c.rotulo === 'Servente')?.texto).toBe('');
   });
 
   it('não carrega nome de trabalhador nenhum', async () => {
-    expect(cadastra('P1', 'Motorista', '2026-02-10').ok).toBe(true);
-    expect(JSON.stringify(efetivoPessoal('2026-02-15'))).not.toContain('P1');
+    expect((await cadastra('P1', 'Motorista', '2026-02-10')).ok).toBe(true);
+    expect(JSON.stringify(await efetivoPessoal('2026-02-15'))).not.toContain('P1');
   });
 
   it('zera o bloco inteiro no dia parado, e o TOTAL vai a zero', async () => {
     // Decisão 5.1: o efetivo é o mobilizado e sai zerado no dia parado. Quem
     // zera é o `rdo`, que é quem conhece o estado do dia.
-    expect(cadastra('P1', 'Motorista', '2026-02-10').ok).toBe(true);
-    const bloco = efetivoPessoal('2026-02-15', true);
+    expect((await cadastra('P1', 'Motorista', '2026-02-10')).ok).toBe(true);
+    const bloco = await efetivoPessoal('2026-02-15', true);
 
     expect(bloco.total).toBe(0);
     expect(bloco.colunas.every((c) => c.texto === '')).toBe(true);
@@ -223,29 +227,33 @@ describe('efetivo de pessoal: o formato do bloco 5', () => {
 
 describe('efetivo de equipamento: a mesma regra, por identificador (1.2)', () => {
   it('conta o equipamento no próprio dia da entrada', async () => {
-    expect(cadastraEquipamento('CF-29', 'PATROL', '2026-02-05').ok).toBe(true);
-    expect(comQuantidade(efetivoDeEquipamento('2026-02-05'))).toEqual([['CF-29', 1]]);
+    expect((await cadastraEquipamento('CF-29', 'PATROL', '2026-02-05')).ok).toBe(true);
+    expect(comQuantidade(await efetivoDeEquipamento('2026-02-05'))).toEqual([
+      ['CF-29', 1],
+    ]);
   });
 
   it('não conta o equipamento no dia anterior à entrada', async () => {
-    expect(cadastraEquipamento('CF-29', 'PATROL', '2026-02-05').ok).toBe(true);
-    expect(comQuantidade(efetivoDeEquipamento('2026-02-04'))).toEqual([]);
+    expect((await cadastraEquipamento('CF-29', 'PATROL', '2026-02-05')).ok).toBe(true);
+    expect(comQuantidade(await efetivoDeEquipamento('2026-02-04'))).toEqual([]);
   });
 
   it('conta o equipamento no dia da saída, pela mesma regra da pessoa', async () => {
     // Decisão 1.2: acabou a divergência da planilha, que tinha três
     // comportamentos diferentes para o bloco de equipamento.
-    expect(cadastraEquipamento('CF-29', 'PATROL', '2026-02-05', '2026-02-18').ok).toBe(
-      true,
-    );
-    expect(comQuantidade(efetivoDeEquipamento('2026-02-18'))).toEqual([['CF-29', 1]]);
+    expect(
+      (await cadastraEquipamento('CF-29', 'PATROL', '2026-02-05', '2026-02-18')).ok,
+    ).toBe(true);
+    expect(comQuantidade(await efetivoDeEquipamento('2026-02-18'))).toEqual([
+      ['CF-29', 1],
+    ]);
   });
 
   it('não conta o equipamento no dia seguinte à saída', async () => {
-    expect(cadastraEquipamento('CF-29', 'PATROL', '2026-02-05', '2026-02-18').ok).toBe(
-      true,
-    );
-    expect(comQuantidade(efetivoDeEquipamento('2026-02-19'))).toEqual([]);
+    expect(
+      (await cadastraEquipamento('CF-29', 'PATROL', '2026-02-05', '2026-02-18')).ok,
+    ).toBe(true);
+    expect(comQuantidade(await efetivoDeEquipamento('2026-02-19'))).toEqual([]);
   });
 
   it('conta uma vez o equipamento que tem duas passagens', async () => {
@@ -257,22 +265,25 @@ describe('efetivo de equipamento: a mesma regra, por identificador (1.2)', () =>
     );
     expect(criado.ok).toBe(true);
     if (!criado.ok) return;
-    registraPassagemDeEquipamentoProtegida(
+    const segunda = await registraPassagemDeEquipamentoProtegida(
       e1,
       obraId,
       { equipamentoId: criado.valor, entrada: '2026-03-01' },
       cenario.amb,
     );
+    if (!segunda.ok) throw new Error(segunda.erro.mensagem);
 
-    expect(comQuantidade(efetivoDeEquipamento('2026-03-05'))).toEqual([['MT-26', 1]]);
-    expect(comQuantidade(efetivoDeEquipamento('2026-02-25'))).toEqual([]);
+    expect(comQuantidade(await efetivoDeEquipamento('2026-03-05'))).toEqual([
+      ['MT-26', 1],
+    ]);
+    expect(comQuantidade(await efetivoDeEquipamento('2026-02-25'))).toEqual([]);
   });
 
   it('mantém a coluna do equipamento fora da obra, com a célula em branco', async () => {
-    expect(cadastraEquipamento('CF-29', 'PATROL', '2026-02-05', '2026-02-18').ok).toBe(
-      true,
-    );
-    const bloco = efetivoDeEquipamento('2026-02-19');
+    expect(
+      (await cadastraEquipamento('CF-29', 'PATROL', '2026-02-05', '2026-02-18')).ok,
+    ).toBe(true);
+    const bloco = await efetivoDeEquipamento('2026-02-19');
 
     expect(bloco.colunas.map((c) => c.rotulo)).toEqual(['CF-29']);
     expect(bloco.colunas[0]?.texto).toBe('');

@@ -6,9 +6,12 @@
  * real:** "E1", "C1", "P1" são os rótulos do próprio PRD.
  */
 
+import { and, eq, isNull } from 'drizzle-orm';
+
 import type { AmbienteDeCadastro } from '../../src/app/_composicao/ambiente-de-cadastro';
 import { criaObraProtegida } from '../../src/app/_composicao/cadastro';
 import type { ConexaoRdo } from '../../src/db';
+import { acesso } from '../../src/db/schema';
 import type { Ator } from '../../src/modules/acesso';
 import { geraId, type ObraId, type UsuarioId } from '../../src/shared/id';
 import { criaBancoDeTeste, insereUsuario, relogioFixo } from './banco-de-teste';
@@ -47,25 +50,73 @@ export interface Cenario {
    * coluna `usuario.e_engenheiro` ligada. É quem cria obra.
    */
   novoEngenheiro(email: string): Promise<Ator>;
+  /**
+   * Conta comum já liberada como encarregado na obra.
+   *
+   * A linha de `acesso` é gravada direto na tabela, **sem passar pelo módulo
+   * `acesso`**: o que estes casos provam é o que o servidor faz com quem TEM o
+   * perfil, e um defeito na liberação não pode ser o motivo de o teste passar.
+   * O convite tem teste próprio.
+   */
+  novoEncarregado(email: string, obraId: ObraId): Promise<Ator>;
 }
 
 export async function montaCenario(instante: string = AGORA): Promise<Cenario> {
   const conexao = await criaBancoDeTeste();
   const amb: AmbienteDeCadastro = { db: conexao.db, relogio: relogioFixo(instante) };
 
+  async function novoAtor(email: string): Promise<Ator> {
+    const usuarioId = await insereUsuario(conexao, `Pessoa ${email}`, email);
+    return { usuarioId, sessaoId: geraId<'sessao'>() };
+  }
+
+  /**
+   * Quem libera é o engenheiro ativo da obra, e não um id inventado: a coluna
+   * `liberado_por` tem chave estrangeira para `usuario`, e um id solto faria a
+   * montagem do cenário morrer com erro de integridade em vez de erro de regra.
+   */
+  async function engenheiroDaObra(obraId: ObraId): Promise<UsuarioId> {
+    const linhas = await conexao.db
+      .select({ usuarioId: acesso.usuarioId })
+      .from(acesso)
+      .where(
+        and(
+          eq(acesso.obraId, obraId),
+          eq(acesso.perfil, 'engenheiro'),
+          isNull(acesso.revogadoEm),
+        ),
+      )
+      .limit(1);
+
+    const primeiro = linhas[0];
+    if (primeiro === undefined) {
+      throw new Error('A obra do cenário não tem engenheiro ativo para liberar acesso.');
+    }
+    return primeiro.usuarioId;
+  }
+
   return {
     conexao,
     amb,
     fecha: () => conexao.fecha(),
-    async novoAtor(email: string): Promise<Ator> {
-      const usuarioId = await insereUsuario(conexao, `Pessoa ${email}`, email);
-      return { usuarioId, sessaoId: geraId<'sessao'>() };
-    },
+    novoAtor,
     async novoEngenheiro(email: string): Promise<Ator> {
       const usuarioId = await insereUsuario(conexao, `Pessoa ${email}`, email, {
         eEngenheiro: true,
       });
       return { usuarioId, sessaoId: geraId<'sessao'>() };
+    },
+    async novoEncarregado(email: string, obraId: ObraId): Promise<Ator> {
+      const ator = await novoAtor(email);
+      await conexao.db.insert(acesso).values({
+        id: geraId<'acesso'>(),
+        obraId,
+        usuarioId: ator.usuarioId,
+        perfil: 'encarregado',
+        liberadoPor: await engenheiroDaObra(obraId),
+        liberadoEm: instante,
+      });
+      return ator;
     },
   };
 }
