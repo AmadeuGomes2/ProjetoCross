@@ -41,6 +41,7 @@ import {
   registroExportacao,
 } from '../../db/schema';
 import type { DiaPuro } from '../../shared/date/dia';
+import { algumaPassagemCobreODia } from '../../shared/date/intervalo';
 import { idConfiavel, type ObraId } from '../../shared/id';
 import { ambienteDaComposicao, type AmbienteDaComposicao } from './ambiente';
 import { paraAcesso } from './ambiente-de-cadastro';
@@ -236,9 +237,14 @@ function impactoDasPassagens(
     .where(eq(diaDeObra.obraId, obraId))
     .all();
 
-  const cobertos = dias.filter((d) =>
-    passagens.some((p) => d.data >= p.entrada && (p.saida === null || d.data <= p.saida)),
-  );
+  /*
+   * `algumaPassagemCobreODia` de `shared/date/intervalo.ts`, que se declara a
+   * ÚNICA implementação desta regra — e é, por um motivo concreto: a versão
+   * que eu tinha escrito aqui à mão não tinha o guarda de intervalo invertido.
+   * O BM'S 4 da planilha real tem **-716 dias**, fim antes do início; com dado
+   * assim, a cópia contaria dias que não existem e o aviso mentiria o número.
+   */
+  const cobertos = dias.filter((d) => algumaPassagemCobreODia(passagens, d.data));
 
   if (cobertos.length === 0) return NADA;
 

@@ -43,7 +43,7 @@ export function calculaAvisosDoPeriodo(
     avisos.push({
       codigo: AVISO_DO_PERIODO.CONJUNTO_NAO_CONTIGUO,
       mensagem:
-        'Os dias escolhidos não são seguidos. A faixa de RDO mostra o primeiro e o último número, e os dias do meio que ficaram de fora não entram nas contas.',
+        'Os dias escolhidos não são seguidos. Os dias escolhidos não são seguidos, e os dias do meio que ficaram de fora não entram nas contas.',
       servicoId: null,
     });
   }

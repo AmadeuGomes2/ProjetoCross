@@ -1,40 +1,53 @@
 ---
 name: invariantes-ja-provados
-description: O que passou na auditoria de 2026-09-16 e por que — defesas estruturais (tipo do log, portas sem campo de nome, filtro por obra no repositorio) que so quebram se alguem as contornar
+description: Defesas estruturais ja provadas (tipo do log, portas sem campo de nome, metadados constantes, filtro por obra, celula de texto no Excel) e como re-conferir cada uma em vez de reler tudo
 metadata:
   type: project
 ---
 
-Verificado em `d5dce94` e registrado em
-`docs/seguranca/2026-09-16-fatia-vertical-v1.md`. São defesas **de tipo ou de
-esquema**, não de disciplina: continuam valendo até alguém as contornar de
-propósito.
+Verificado em `d5dce94` (16/09) e re-verificado em `886227d` (17/09). Laudos em
+`docs/seguranca/2026-09-16-fatia-vertical-v1.md` e
+`docs/seguranca/2026-09-17-periodo-e-perfis.md`. São defesas **de tipo ou de
+esquema**, não de disciplina: continuam valendo até alguém as contornar.
 
-- `ContextoDeLog` não tem campo de texto: nome não entra em log nem por
-  descuido. Zero `console.log` no projeto. Os `catch` de borda registram
-  `causa.name`, nunca `causa.message`.
-- A porta `PessoaMobilizada` do módulo `rdo` não tem campo de nome, e
-  `RdoParaDocumento` não tem autor de lançamento. O nome não chega ao módulo que
-  imprime — o bloco 5 agrega por função por construção.
-- Metadados do PDF são constante fixa (`'RDO digital'`), `keywords` vazio.
+- `ContextoDeLog` (`src/shared/log/index.ts`) não tem campo de texto: nome não
+  entra em log nem por descuido. Zero `console.log` em `src/`. Os `catch` de
+  borda registram `causa.name`, nunca `causa.message`, e contagem (`quantidade`)
+  no lugar da lista de dias.
+- `PessoaMobilizada` (`src/modules/rdo/portas.ts`) não tem campo de nome, e nem
+  `RdoParaDocumento` nem `RdoDePeriodoParaDocumento` têm autor de lançamento. O
+  bloco 5 agrega por função por construção. O único nome nos documentos é o do
+  responsável técnico, no bloco 11 de assinatura — layout herdado, legítimo, e é
+  o motivo de o RDO ter virado só do engenheiro em 17/09.
+- Metadados do PDF são constante (`AUTOR_DO_PDF` em
+  `src/modules/export/documento/rotulos.ts`), `keywords` vazio. **Conferido no
+  fonte, não nos bytes** — falta ler o `/Info` de um PDF renderizado.
+- Metadados do Excel idem, e esses **foram conferidos nos bytes**:
+  `docProps/core.xml` e `app.xml` sem nome, sem Company, sem Manager.
+- **Injeção de fórmula no Excel: provada no XML cru**, não pelo comentário.
+  `planilha-de-periodo.ts` escreve toda célula não-numérica por `escreveTexto`
+  (`cell.value = string` + `numFmt = '@'`), e o `sheet1.xml` sai com `t="s"` em
+  todas, sem nenhum `<f>`, inclusive para `-`, `=1+1`, `@…` e cargas DDE.
+  Reconferir só se alguém escrever `{ formula: … }` ou desviar de `escreveTexto`.
+  Residual conhecido: sobrevive a um "salvar como CSV" na máquina do fiscal;
+  prefixar com apóstrofo quebraria a fidelidade do `-` e foi recusado.
 - Toda consulta de `lancamento/repositorio-drizzle.ts` filtra por `obraId`,
-  inclusive as de busca por id. A segunda camada existe mesmo com a primeira
-  falhando.
-- `revogaAcesso` resolve a obra a partir do acesso alvo antes de autorizar: não
-  há IDOR por adivinhar `acessoId`.
+  inclusive `dosDias`/`nosDias` e as buscas por id. `buscaAcessoAtivo` casa
+  `usuarioId` **e** `obraId`.
+- `impacto.ts` autoriza antes de contar e devolve `NADA` quando recusa —
+  indistinguível de "não houve impacto", então contagem não vaza obra alheia.
+- Exportação grava trilha **antes** de entregar o arquivo, numa transação, uma
+  linha por dia com `loteId`; trilha que falha impede a entrega.
 - Nenhuma planilha, PDF, banco ou imagem entrou no histórico, em commit nenhum.
-  `tmp/` ignorado e não rastreado.
-- `npm ls xlsx` vazio; overrides de `uuid` e `esbuild` presentes; `npm audit`
-  limpo.
+- `npm ls xlsx` vazio; overrides `uuid ^11.1.1` e `esbuild ^0.25.0` presentes;
+  `npm audit` limpo; 830 testes passando.
 
-**Why:** a regra de honestidade exige listar o que passou, e re-verificar tudo
-do zero a cada auditoria custa caro. Este registro diz o que já foi provado e
-**como** — para que a próxima passada confira se o mecanismo ainda existe, em
-vez de reler cada chamada.
+**Why:** a regra de honestidade exige listar o que passou, e re-verificar tudo do
+zero a cada auditoria custa caro.
 
-**How to apply:** use como ponto de partida, nunca como conclusão. Antes de
-repetir qualquer item no laudo, confirme que o mecanismo citado ainda está lá
-(grep o tipo, a porta, o filtro). Se o mecanismo sumiu, o item volta a ser
-achado. Reabra especificamente: metadado do PDF em bytes reais e trilha de
-exportação, quando as portas de `export` deixarem de ser stub. Ver
-[[fronteira-de-acesso-latente]].
+**How to apply:** ponto de partida, nunca conclusão. Antes de repetir qualquer
+item no laudo, confirme que o mecanismo citado ainda existe (grep o tipo, a
+porta, o filtro). Se o mecanismo sumiu, o item volta a ser achado. Próxima
+passada deve abrir: **metadado do PDF em bytes reais** (único item da lista
+verificado só no fonte). Ver [[dupla-validacao-e-borda-morta]] e
+[[decisoes-de-seguranca-pendentes]].

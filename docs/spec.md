@@ -166,6 +166,32 @@ agente `seguranca` a cada frente de trabalho.
 
 ---
 
+## 4.1 Revisão de perfis, 17/09/2026
+
+O dono do produto mudou quem faz o quê. **Onde esta seção divergir do que vem
+antes, vale esta**, e a fonte viva é `test/permissoes-por-perfil.test.ts`.
+
+| Operação               | Antes       | Agora       |
+| ---------------------- | ----------- | ----------- |
+| ler a lista de pessoal | engenheiro  | encarregado |
+| ler a frota            | engenheiro  | encarregado |
+| cadastrar equipamento  | engenheiro  | encarregado |
+| **abrir o RDO**        | encarregado | engenheiro  |
+
+O encarregado **não abre o RDO** — nem na tela, nem em impressão, nem em PDF. O
+documento carrega observação em texto livre e o registro do responsável técnico,
+e conferir e entregar ao fiscal é do engenheiro.
+
+O encarregado passou a **ler** a lista nominal de pessoal porque convive com
+essas pessoas todo dia e precisa conferir quem está mobilizado. Escrever — criar
+pessoa e trocar de função — continua sendo do engenheiro. A mudança reverte o
+CT-034, que existia por causa da LGPD, e está registrada no laudo de
+`docs/seguranca/2026-09-17-periodo-e-perfis.md`.
+
+A aba **Acesso** não aparece para o encarregado.
+
+---
+
 ## 5. Saídas
 
 RDO **diário**, **semanal** e **mensal**, em **PDF** e **Excel**.

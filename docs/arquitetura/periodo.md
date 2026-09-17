@@ -21,17 +21,17 @@ Decisões do dono do produto, 17/09/2026. Ainda **sem número no PRD**: entrar e
 `docs/prd/v1.md` é tarefa do coordenador, e a numeração seguinte livre é a
 **38**. Enquanto isso, cito por `DP`.
 
-| #   | Decisão                                                                                                                         |
-| --- | ------------------------------------------------------------------------------------------------------------------------------- |
-| DP1 | A entrada é um **conjunto de dias**, não um intervalo. "Três RDOs" pode ser 02, 05 e 09, não contíguos                          |
-| DP2 | Efetivo pessoal e de equipamento: **média por dia**. Dia não lançado **não entra no divisor**                                   |
-| DP3 | Atividades: **todas, por data**. Nada agrupado, nada deduplicado                                                                |
-| DP4 | Pluviometria: **total de mm no período**, contagem de dias por letra (`B`, `C`, `I`) e contagem de dias parados                 |
-| DP5 | A letra do dia é a **pior dos três turnos**                                                                                     |
-| DP6 | Produção: `EXEC.` = executado **no período**; `ACUM.` = acumulado da obra **até o último dia** do período; `%` = acum ÷ projeto |
-| DP7 | `RDO Nº` do consolidado sai como **faixa**, `209 a 215`. `BM'S` lista **todos** os períodos que o conjunto cobre                |
-| DP8 | Observações: todas, por data. Assinatura: **responsável técnico vigente**                                                       |
-| DP9 | Três modos de exportação: só consolidado, só diários, consolidado + diários anexados. **Excel espelha o documento**             |
+| #   | Decisão                                                                                                                                                                                                      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| DP1 | A entrada é um **conjunto de dias**, não um intervalo. "Três RDOs" pode ser 02, 05 e 09, não contíguos                                                                                                       |
+| DP2 | Efetivo pessoal e de equipamento: **média por dia**. Dia não lançado **não entra no divisor**                                                                                                                |
+| DP3 | Atividades: **todas, por data**. Nada agrupado, nada deduplicado                                                                                                                                             |
+| DP4 | Pluviometria: **total de mm no período**, contagem de dias por letra (`B`, `C`, `I`) e contagem de dias parados                                                                                              |
+| DP5 | A letra do dia é a **pior dos três turnos**                                                                                                                                                                  |
+| DP6 | Produção: `EXEC.` = executado **no período**; `ACUM.` = acumulado da obra **até o último dia** do período; `%` = acum ÷ projeto                                                                              |
+| DP7 | ~~`RDO Nº` sai como faixa~~ — **REVISADA em 17/09/2026**: sai como **lista**, `209, 212, 216`. Faixa afirmaria continuidade que o conjunto pode não ter. `BM'S` lista todos os períodos que o conjunto cobre |
+| DP8 | Observações: todas, por data. Assinatura: **responsável técnico vigente**                                                                                                                                    |
+| DP9 | Três modos de exportação: só consolidado, só diários, consolidado + diários anexados. **Excel espelha o documento**                                                                                          |
 
 **Aviso de escopo, não discordância.** `CLAUDE.md`, seção "Fora do escopo da
 v1", ainda lista "RDO semanal e mensal" e "Exportação em Excel". DP1 a DP9
@@ -123,20 +123,21 @@ Arquivo: `src/modules/rdo/periodo/tipos.ts`.
 
 ### 2.1 Identificação
 
-| Campo                | Tipo                 | O que é                                                           |
-| -------------------- | -------------------- | ----------------------------------------------------------------- |
-| `dias`               | `readonly DiaPuro[]` | o conjunto normalizado, devolvido para a tela conferir            |
-| `quantidadeDeDias`   | `number`             | `dias.length`                                                     |
-| `diasLancados`       | `number`             | quantos têm registro de dia; é o **divisor** de DP2               |
-| `primeiroDia`        | `DiaPuro`            | `dias[0]`                                                         |
-| `ultimoDia`          | `DiaPuro`            | `dias[n-1]`; é a data de corte do `ACUM.` (DP6)                   |
-| `periodoTexto`       | `string`             | `02/09/2026 a 09/09/2026`. Sempre faixa, sempre `dd/mm/aaaa`      |
-| `eContiguo`          | `boolean`            | `quantidadeDeDias === diferencaEmDias(primeiro, ultimo) + 1`      |
-| `numeroDoRdoInicial` | `number`             | **menor** número calculado, não o do primeiro dia. Ver abaixo     |
-| `numeroDoRdoFinal`   | `number`             | **maior** número calculado                                        |
-| `faixaDeRdoTexto`    | `string`             | `209 a 215`; com um dia só, `209` — faixa de um número é ruído    |
-| `bms`                | `readonly number[]`  | todos os BMS que o conjunto cobre, crescente, sem repetição (DP7) |
-| `bmsTexto`           | `string`             | `3, 4`; vazio quando nenhum período cobre dia nenhum              |
+| Campo                | Tipo                 | O que é                                                                               |
+| -------------------- | -------------------- | ------------------------------------------------------------------------------------- |
+| `dias`               | `readonly DiaPuro[]` | o conjunto normalizado, devolvido para a tela conferir                                |
+| `quantidadeDeDias`   | `number`             | `dias.length`                                                                         |
+| `diasLancados`       | `number`             | quantos têm registro de dia; é o **divisor** de DP2                                   |
+| `primeiroDia`        | `DiaPuro`            | `dias[0]`                                                                             |
+| `ultimoDia`          | `DiaPuro`            | `dias[n-1]`; é a data de corte do `ACUM.` (DP6)                                       |
+| `periodoTexto`       | `string`             | `02/09/2026 a 09/09/2026`. Sempre faixa, sempre `dd/mm/aaaa`                          |
+| `eContiguo`          | `boolean`            | `quantidadeDeDias === diferencaEmDias(primeiro, ultimo) + 1`                          |
+| `numeroDoRdoInicial` | `number`             | **menor** número calculado, não o do primeiro dia. Ver abaixo                         |
+| `numeroDoRdoFinal`   | `number`             | **maior** número calculado                                                            |
+| `numerosDoRdo`       | `readonly number[]`  | Um por dia escolhido, em ordem. **Faixa não é representável neste tipo**, e é o ponto |
+| `numerosDoRdoTexto`  | `string`             | `209, 212, 216`; com um dia só, `209`                                                 |
+| `bms`                | `readonly number[]`  | todos os BMS que o conjunto cobre, crescente, sem repetição (DP7)                     |
+| `bmsTexto`           | `string`             | `3, 4`; vazio quando nenhum período cobre dia nenhum                                  |
 
 **`numeroDoRdoInicial` é `min` sobre os números calculados, não o número do
 primeiro dia.** Parece a mesma coisa e não é: a decisão 6.2 congela o número no
@@ -307,11 +308,11 @@ continua vazio na v1 (decisão 10.1).
 `src/modules/rdo/tipos.ts:87-101`, com três códigos novos, **de tela**, que nunca
 entram no documento:
 
-| Código                    | Quando                                                    |
-| ------------------------- | --------------------------------------------------------- |
-| `CONJUNTO_NAO_CONTIGUO`   | `eContiguo === false`; a faixa de RDO sugere continuidade |
-| `DIAS_NAO_LANCADOS`       | `diasLancados < quantidadeDeDias`                         |
-| `PERIODO_SEM_DIA_LANCADO` | `diasLancados === 0`; não há divisor para a média         |
+| Código                    | Quando                                                                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `CONJUNTO_NAO_CONTIGUO`   | `eContiguo === false`. O documento não afirma mais continuidade (a lista substituiu a faixa), mas o aviso continua útil na tela |
+| `DIAS_NAO_LANCADOS`       | `diasLancados < quantidadeDeDias`                                                                                               |
+| `PERIODO_SEM_DIA_LANCADO` | `diasLancados === 0`; não há divisor para a média                                                                               |
 
 **Não existe `resumoDoDia` no `RdoDePeriodo`.** Resumo é de um dia; no período o
 que existe é a contagem por letra.

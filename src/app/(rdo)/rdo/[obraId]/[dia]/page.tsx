@@ -30,8 +30,10 @@ import {
 } from '../../../../_composicao/rdo-diario';
 import { atorDaRequisicao } from '../../../../_composicao/sessao';
 import { ControleDeExportacao } from '../../../_componentes/controle-de-exportacao';
+import { FechamentoDoDia } from '../../../_componentes/fechamento-do-dia';
+import { painelDosUltimosDiasProtegido } from '../../../../_composicao/lancamento';
 import { RdoDiarioNaTela } from '../../../_componentes/rdo-diario-na-tela';
-import { formataBr } from '../../../../../shared/date/dia';
+import { diaPuroConfiavel, formataBr } from '../../../../../shared/date/dia';
 import { idConfiavel } from '../../../../../shared/id';
 import { Trilha } from '../../../../_componentes/casca';
 import estilos from '../../../_componentes/rdo.module.css';
@@ -69,6 +71,19 @@ export default async function PaginaDoRdoDiario({
     );
   }
 
+  /*
+   * Uma janela de UM dia, só para saber se ele está fechado.
+   *
+   * `RdoDiario` não carrega esse estado — ele é do lançamento, não do
+   * documento — e reusar o painel evita uma sexta leitura do mesmo dado.
+   */
+  const [estadoDoDia] = await painelDosUltimosDiasProtegido(
+    ator,
+    idConfiavel<'obra'>(obraId),
+    diaPuroConfiavel(dia),
+    1,
+  );
+
   // Decisão 27.1: o encarregado não vê o controle de exportação. A recusa do
   // servidor continua onde estava, na rota e no módulo `export`; o que muda é
   // a tela deixar de oferecer o que ia terminar em 403.
@@ -89,6 +104,12 @@ export default async function PaginaDoRdoDiario({
           perfil={perfilNaObraProtegido(ator, obraId)}
           obraId={idConfiavel<'obra'>(obraId)}
           dia={dia}
+        />
+        <FechamentoDoDia
+          obraId={obraId}
+          dia={dia}
+          ehEngenheiro={perfilNaObraProtegido(ator, obraId) === 'engenheiro'}
+          jaFechado={estadoDoDia?.fechado ?? false}
         />
       </nav>
       <RdoDiarioNaTela rdo={resultado.valor} />

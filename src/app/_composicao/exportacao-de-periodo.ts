@@ -36,10 +36,11 @@ import type {
 } from '../../modules/export/periodo/portas';
 import { registraExportacaoDePeriodoNoBanco } from '../../modules/export/repositorio';
 import { montaRdoDiario } from '../../modules/rdo/monta-rdo-diario';
+import { interpretaPedidoDeRdoDePeriodo } from '../../modules/rdo/borda/esquemas-de-periodo';
 import { montaRdoDePeriodo } from '../../modules/rdo/periodo/monta-rdo-de-periodo';
 import { paraDocumentoDePeriodo } from '../../modules/rdo/periodo/para-documento-de-periodo';
 import { paraDocumento } from '../../modules/rdo/para-documento';
-import { criaDiaPuro, type DiaPuro } from '../../shared/date/dia';
+import type { DiaPuro } from '../../shared/date/dia';
 import { instanteAgora } from '../../shared/date/fuso';
 import { erro, erroDeDominio, ok, CODIGO_ERRO, type Result } from '../../shared/result';
 import type { ObraId } from '../../shared/id';
@@ -57,49 +58,58 @@ export function criaPortasDoExportDePeriodo(
       const portas = await portasDoRdoDePeriodoProtegidas(ator, obraId, dias, ambiente);
       if (!portas.ok) return erro(portas.erro);
 
-      const consolidado =
-        modo === 'diarios' ? null : await montaRdoDePeriodo(obraId, dias, portas.valor);
-      if (consolidado !== null && !consolidado.ok) return erro(consolidado.erro);
-
-      const diarios: ReturnType<typeof paraDocumento>[] = [];
-      if (modo !== 'consolidado') {
-        /*
-         * **Divergência declarada do contrato** (`docs/arquitetura/periodo.md`,
-         * seção 3): o contrato pede que os diários anexados saiam de portas em
-         * memória sobre o mesmo instantâneo do consolidado, e a composição só
-         * expõe as portas do período — as do diário ainda consultam o banco.
-         *
-         * O risco é real e pequeno: um lançamento gravado entre a leitura do
-         * instantâneo e a montagem dos anexos faria o anexo discordar do
-         * resumo que ele acompanha. Numa obra com um encarregado lançando, a
-         * janela é de milissegundos; com dois, deixa de ser desprezível.
-         *
-         * Fica registrado porque calar seria pior: quem for fechar isso precisa
-         * saber que a garantia do contrato ainda não está de pé.
-         */
+      /**
+       * Os diários do período.
+       *
+       * **Divergência declarada do contrato** (`docs/arquitetura/periodo.md`,
+       * seção 3): o contrato pede que os anexos saiam de portas em memória
+       * sobre o mesmo instantâneo do consolidado, e a composição só expõe as
+       * portas do período — as do diário ainda consultam o banco.
+       *
+       * O risco é de correção, não de acesso: a autorização já correu para
+       * esta obra e o repositório filtra por ela. O que pode acontecer é um
+       * lançamento gravado no meio fazer o anexo discordar do resumo que ele
+       * acompanha, dentro do mesmo arquivo. Fica registrado porque calar seria
+       * pior.
+       */
+      const montaDiarios = async () => {
         const portasDoDiario = criaPortasDoRdo(ambiente);
+        const feitos: ReturnType<typeof paraDocumento>[] = [];
         for (const dia of dias) {
           const montado = await montaRdoDiario(obraId, dia, portasDoDiario);
           if (!montado.ok) return erro(montado.erro);
-          diarios.push(paraDocumento(montado.valor));
+          feitos.push(paraDocumento(montado.valor));
         }
+        return ok(feitos);
+      };
+
+      const montaConsolidado = async () => {
+        const montado = await montaRdoDePeriodo(obraId, dias, portas.valor);
+        if (!montado.ok) return erro(montado.erro);
+        return ok(paraDocumentoDePeriodo(montado.valor));
+      };
+
+      /*
+       * Um ramo por modo, cada um devolvendo o pacote pronto.
+       *
+       * A primeira versão montava as duas partes soltas e juntava no fim, e
+       * precisava de um `consolidado === null || !consolidado.ok` que nenhum
+       * teste alcançava. Caminho de erro morto é pior que caminho de erro
+       * nenhum, porque parece proteger.
+       */
+      if (modo === 'diarios') {
+        const diarios = await montaDiarios();
+        return diarios.ok ? ok({ modo, diarios: diarios.valor }) : erro(diarios.erro);
       }
 
-      if (modo === 'diarios') return ok({ modo, diarios });
-      if (consolidado === null || !consolidado.ok) {
-        return erro(
-          erroDeDominio(
-            CODIGO_ERRO.FALHA_INESPERADA,
-            'Não foi possível montar o consolidado.',
-          ),
-        );
-      }
-      const projetado = paraDocumentoDePeriodo(consolidado.valor);
-      return ok(
-        modo === 'consolidado'
-          ? { modo, consolidado: projetado }
-          : { modo, consolidado: projetado, diarios },
-      );
+      const consolidado = await montaConsolidado();
+      if (!consolidado.ok) return erro(consolidado.erro);
+
+      if (modo === 'consolidado') return ok({ modo, consolidado: consolidado.valor });
+
+      const diarios = await montaDiarios();
+      if (!diarios.ok) return erro(diarios.erro);
+      return ok({ modo, consolidado: consolidado.valor, diarios: diarios.valor });
     },
 
     registraExportacao: async (eventos) =>
@@ -144,7 +154,7 @@ export async function respondeComOPeriodoExportado(
   corpo: unknown,
   ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
 ): Promise<Response> {
-  const pedido = leiaPedidoDeExportacao(corpo);
+  const pedido = leiaPedidoDeExportacao(obraId, corpo);
   if (!pedido.ok) return Response.json({ erro: pedido.erro }, { status: 400 });
 
   const exportado = await exportaPeriodoProtegido(
@@ -185,8 +195,30 @@ const MODOS: readonly ModoDeExportacaoDePeriodo[] = [
   'consolidado-com-diarios',
 ];
 
-/** Entrada do navegador é hostil: tipo, faixa e domínio, sempre no servidor. */
-function leiaPedidoDeExportacao(bruto: unknown): Result<
+function ehModo(valor: unknown): valor is ModoDeExportacaoDePeriodo {
+  return MODOS.includes(valor as ModoDeExportacaoDePeriodo);
+}
+
+function ehFormato(valor: unknown): valor is FormatoDeExportacaoDePeriodo {
+  return valor === 'PDF' || valor === 'XLSX';
+}
+
+/**
+ * Lê o pedido do navegador, que é entrada hostil.
+ *
+ * **O conjunto de dias passa por `interpretaPedidoDeRdoDePeriodo`**, a borda do
+ * módulo — e não por uma validação escrita aqui. A primeira versão desta função
+ * tinha a sua própria, e faltava nela o teto de 366 dias: um POST com 20.000
+ * datas válidas era aceito, e a leitura do instantâneo acontecia com o conjunto
+ * inteiro antes de qualquer recusa. Sessão válida bastava para derrubar o
+ * servidor.
+ *
+ * Duas bordas para a mesma entrada é sempre isso: uma delas fica para trás.
+ */
+function leiaPedidoDeExportacao(
+  obraId: ObraId,
+  bruto: unknown,
+): Result<
   {
     readonly dias: readonly DiaPuro[];
     readonly modo: ModoDeExportacaoDePeriodo;
@@ -199,28 +231,18 @@ function leiaPedidoDeExportacao(bruto: unknown): Result<
   }
   const corpo = bruto as Record<string, unknown>;
 
-  if (!Array.isArray(corpo['dias']) || corpo['dias'].length === 0) {
-    return erro('Escolha ao menos um dia.');
-  }
-  const dias: DiaPuro[] = [];
-  for (const cru of corpo['dias']) {
-    if (typeof cru !== 'string') return erro('Data inválida no pedido.');
-    const dia = criaDiaPuro(cru);
-    if (!dia.ok) return erro(dia.erro.mensagem);
-    dias.push(dia.valor);
-  }
+  // Ordem, repetição, dia inválido e o teto: tudo do módulo, num lugar só.
+  const pedido = interpretaPedidoDeRdoDePeriodo({ obraId, dias: corpo['dias'] });
+  if (!pedido.ok) return erro(pedido.erro.mensagem);
 
-  const modo = corpo['modo'];
-  if (!MODOS.includes(modo as ModoDeExportacaoDePeriodo)) {
-    return erro('Escolha o que exportar.');
-  }
-  const formato = corpo['formato'];
-  if (formato !== 'PDF' && formato !== 'XLSX') return erro('Escolha o formato.');
+  if (!ehModo(corpo['modo'])) return erro('Escolha o que exportar.');
+  if (!ehFormato(corpo['formato'])) return erro('Escolha o formato.');
 
-  // Ordena e tira repetição AQUI, e não confia na tela: o pedido pode não vir
-  // dela. O módulo recebe o conjunto já normalizado (contrato, 1.1).
-  const unicos = [...new Set(dias)].sort();
-  return ok({ dias: unicos, modo: modo as ModoDeExportacaoDePeriodo, formato });
+  return ok({
+    dias: pedido.valor.dias,
+    modo: corpo['modo'],
+    formato: corpo['formato'],
+  });
 }
 
 function statusDaExportacao(e: ErroDeExportacao): number {

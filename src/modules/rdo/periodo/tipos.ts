@@ -175,7 +175,12 @@ export interface GrupoDeObservacoesDoDia {
  * documento, como os do diário.
  */
 export const AVISO_DO_PERIODO = {
-  /** `eContiguo === false`; a faixa de RDO sugere continuidade que não existe. */
+  /**
+   * `eContiguo === false`. Desde que o `RDO Nº` virou lista (17/09/2026) o
+   * documento não afirma mais continuidade, mas o aviso continua útil na
+   * tela: quem escolheu dias soltos sem querer precisa reparar antes de
+   * exportar.
+   */
   CONJUNTO_NAO_CONTIGUO: 'CONJUNTO_NAO_CONTIGUO',
   DIAS_NAO_LANCADOS: 'DIAS_NAO_LANCADOS',
   /** `diasLancados === 0`; não há divisor para a média. */

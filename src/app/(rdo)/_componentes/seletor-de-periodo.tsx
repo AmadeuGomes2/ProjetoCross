@@ -57,8 +57,9 @@ function diasDoIntervalo(de: string, ate: string): string[] {
   if (de === '' || ate === '' || ate < de) return [];
   const dias: string[] = [];
   let atual = de;
-  // Teto de segurança: a borda do servidor recusa acima de 366, e um laço sem
-  // freio aqui travaria o navegador antes de chegar lá.
+  // Freio do navegador. O teto de verdade é do servidor, em
+  // `rdo/borda/esquemas-de-periodo.ts`, que recusa acima de 366 dias; este
+  // laço só evita travar a aba antes de o pedido sequer sair.
   for (let passo = 0; passo < 400 && atual <= ate; passo += 1) {
     dias.push(atual);
     atual = somaDias(atual, 1);
@@ -272,12 +273,20 @@ export function SeletorDePeriodo({
         </p>
       )}
 
+      {/*
+        No modo avulso a contagem NÃO diz "primeiro a último": {02, 08, 11}
+        sairia como "02/09 a 11/09" e afirmaria dez dias onde há três. É o
+        mesmo erro que fez a faixa ser recusada no documento, e não faria
+        sentido corrigi-lo no papel e deixá-lo na tela que monta o pedido.
+      */}
       <p className={estilos.contagem}>
         {escolhidos.length === 0
           ? 'Nenhum dia escolhido.'
-          : `${escolhidos.length} dia(s): ${formataBr(escolhidos[0] ?? '')} a ${formataBr(
-              escolhidos[escolhidos.length - 1] ?? '',
-            )}`}
+          : usaAvulsos
+            ? `${escolhidos.length} dia(s): ${escolhidos.map((d) => formataBr(d)).join(', ')}`
+            : `${escolhidos.length} dia(s): ${formataBr(escolhidos[0] ?? '')} a ${formataBr(
+                escolhidos[escolhidos.length - 1] ?? '',
+              )}`}
       </p>
 
       <div className="linhaDeAcoes">

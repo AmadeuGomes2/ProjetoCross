@@ -189,6 +189,43 @@ describe('a fronteira da obra, que nenhuma decisão de perfil move', () => {
     expect(rdo.ok).toBe(false);
   });
 
+  it('recusa o encarregado da obra A quando ele pede a obra B', () => {
+    /*
+     * O cenário tinha uma obra só, e por isso pinava apenas "ator sem acesso
+     * nenhum". A fronteira que importa é outra: alguém COM acesso legítimo a
+     * uma obra pedindo dado de outra — que é o formato de um vazamento real.
+     */
+    const outraObra = criaObraDoPrd(engenheira, cenario.amb, {
+      contrato: 'P0999/99-99 - BLOCO 09',
+    });
+
+    expect(listaPessoalProtegida(encarregado, outraObra, cenario.amb).ok).toBe(false);
+    expect(listaEquipamentosProtegida(encarregado, outraObra, cenario.amb).ok).toBe(
+      false,
+    );
+    expect(listaServicosProtegida(encarregado, outraObra, cenario.amb).ok).toBe(false);
+
+    const r = cadastraEquipamentoProtegido(
+      encarregado,
+      outraObra,
+      { identificador: 'XX-00', tipo: 'TRATOR', entrada: '2026-02-05' },
+      cenario.amb,
+    );
+    expect(r.ok).toBe(false);
+  });
+
+  it('recusa o ENGENHEIRO da obra A quando ele pede a obra B', () => {
+    const outroEngenheiro = cenario.novoEngenheiro('outro@exemplo.invalido');
+    const outraObra = criaObraDoPrd(outroEngenheiro, cenario.amb, {
+      contrato: 'P0777/77-77 - BLOCO 07',
+    });
+
+    expect(listaPessoalProtegida(engenheira, outraObra, cenario.amb).ok).toBe(false);
+    expect(listaAcessosDaObraProtegida(engenheira, outraObra, cenario.amb).ok).toBe(
+      false,
+    );
+  });
+
   it('não vaza nome de pessoa na recusa', () => {
     cadastraPessoaProtegida(
       engenheira,

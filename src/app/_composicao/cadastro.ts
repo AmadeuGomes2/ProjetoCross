@@ -277,8 +277,15 @@ export function trocaFuncaoProtegida(
 }
 
 /**
- * **Só o engenheiro** (CT-034). O tipo devolvido carrega nome de trabalhador;
- * o encarregado não recebe a lista nem sabe que ela existe.
+ * **Os dois perfis leem** (decisão de 17/09/2026, que revisou o CT-034).
+ *
+ * O tipo devolvido carrega nome de trabalhador, e por isso a lista era
+ * exclusiva do engenheiro. O encarregado passou a ler porque convive com essas
+ * pessoas todo dia e precisa conferir quem está mobilizado; o que ele não faz é
+ * escrever — cadastrar e trocar de função continuam sendo do engenheiro.
+ *
+ * A fronteira que não se moveu é a da **obra**: quem não tem acesso continua
+ * recebendo a recusa genérica, sem nome nenhum.
  */
 export function listaPessoalProtegida(
   ator: Ator,

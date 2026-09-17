@@ -25,8 +25,10 @@ import {
   restauraAmbientePadrao,
 } from '../src/app/_composicao/ambiente';
 import {
+  cadastraEquipamentoProtegido,
   cadastraPeriodoBmsProtegido,
   cadastraPessoaProtegida,
+  listaEquipamentosProtegida,
   listaPeriodosBmsProtegida,
   listaPessoalProtegida,
 } from '../src/app/_composicao/cadastro';
@@ -34,6 +36,7 @@ import {
   houveImpacto,
   impactoDaPessoa,
   impactoDoCabecalho,
+  impactoDoEquipamento,
   impactoDoPeriodoBms,
 } from '../src/app/_composicao/impacto';
 import { casosDeLancamento } from '../src/app/_composicao/lancamento';
@@ -185,5 +188,90 @@ describe('a fronteira da obra vale também para contagem', () => {
 
     expect(impacto.diasLancados).toBe(0);
     expect(houveImpacto(impacto)).toBe(false);
+  });
+});
+
+describe('os números que o aviso mostra, quando não são zero', () => {
+  it('conta os dias fechados separados dos abertos', async () => {
+    await lancaODia('2026-09-01');
+    await lancaODia('2026-09-02');
+    await lancaODia('2026-09-03');
+    // Fecha dois dos três. Fechar é do engenheiro (9.1).
+    for (const data of ['2026-09-01', '2026-09-02']) {
+      const r = await casosDeLancamento().recebeFechamento({ obraId, data }, engenheira);
+      if (!r.ok) throw new Error(`não fechei ${data}: ${r.erro.mensagem}`);
+    }
+
+    const impacto = impactoDoCabecalho(engenheira, obraId);
+
+    expect(impacto.diasLancados).toBe(3);
+    expect(impacto.diasFechados).toBe(2);
+  });
+
+  it('conta o equipamento pelos dias da passagem dele', async () => {
+    cadastraEquipamentoProtegido(
+      engenheira,
+      obraId,
+      {
+        identificador: 'TR-77',
+        tipo: 'TRATOR',
+        entrada: '2026-09-02',
+        saida: '2026-09-03',
+      },
+      cenario.amb,
+    );
+    await lancaODia('2026-09-01'); // antes
+    await lancaODia('2026-09-02'); // dentro
+    await lancaODia('2026-09-03'); // dentro, último dia
+    await lancaODia('2026-09-04'); // depois
+
+    const frota = listaEquipamentosProtegida(engenheira, obraId, cenario.amb);
+    const equipamentoId = frota.ok ? (frota.valor[0]?.equipamentoId ?? '') : '';
+    expect(equipamentoId).not.toBe('');
+
+    const impacto = impactoDoEquipamento(engenheira, obraId, equipamentoId);
+
+    expect(impacto.diasLancados).toBe(2);
+  });
+
+  it('não consegue nem criar passagem com saída anterior à entrada', () => {
+    /*
+     * O BM'S 4 da planilha real tem **-716 dias**: fim antes do início, e
+     * ninguém viu porque nada validava. A tentativa de reproduzir esse dado
+     * aqui mostrou que **o esquema recusa**, por `ck_passagem_pessoa_intervalo`.
+     *
+     * O caso fica registrado porque foi assim que se descobriu: o aviso de
+     * impacto tinha uma cópia manual da regra de cobertura, sem o guarda de
+     * inversão. A cópia foi trocada por `algumaPassagemCobreODia`, de
+     * `shared/date/intervalo.ts`, mas a primeira linha de defesa é esta — o
+     * dado torto não entra.
+     */
+    cenario.conexao.sqlite
+      .prepare(
+        `INSERT INTO pessoa (id, obra_id, nome, criado_por, criado_em)
+         VALUES (?, ?, 'P9', ?, ?)`,
+      )
+      .run('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', obraId, engenheira.usuarioId, AGORA);
+    const funcao = cenario.conexao.sqlite
+      .prepare('SELECT id FROM funcao LIMIT 1')
+      .get() as { id: string };
+
+    const invertida = () =>
+      cenario.conexao.sqlite
+        .prepare(
+          `INSERT INTO passagem_pessoa
+             (id, obra_id, pessoa_id, funcao_id, entrada, saida, registrado_por, registrado_em)
+           VALUES (?, ?, ?, ?, '2026-09-10', '2026-09-01', ?, ?)`,
+        )
+        .run(
+          'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          obraId,
+          'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          funcao.id,
+          engenheira.usuarioId,
+          AGORA,
+        );
+
+    expect(invertida).toThrow(/ck_passagem_pessoa_intervalo/);
   });
 });

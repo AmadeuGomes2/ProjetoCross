@@ -129,7 +129,21 @@ export function paraDocumentoDePeriodo(rdo: RdoDePeriodo): RdoDePeriodoParaDocum
       // e `numeroDoRdoFinal` ficam para trás: são da aplicação, não do papel.
       numerosDoRdo: rdo.identificacao.numerosDoRdo,
     },
-    informacoesGerais: rdo.informacoesGerais,
+    /*
+     * Campo a campo, e não o objeto inteiro.
+     *
+     * Repassar `rdo.informacoesGerais` inteiro faria um campo novo do cabeçalho
+     * chegar ao papel sem ninguém decidir — que é exatamente o que esta
+     * projeção existe para impedir.
+     */
+    informacoesGerais: {
+      contrato: rdo.informacoesGerais.contrato,
+      dataInicio: rdo.informacoesGerais.dataInicio,
+      dataFinal: rdo.informacoesGerais.dataFinal,
+      contratante: rdo.informacoesGerais.contratante,
+      contratada: rdo.informacoesGerais.contratada,
+      escopo: rdo.informacoesGerais.escopo,
+    },
     caracteristicas: {
       nome: rdo.caracteristicasDoProjeto.nome,
       area: rdo.caracteristicasDoProjeto.area,
@@ -178,6 +192,13 @@ export function paraDocumentoDePeriodo(rdo: RdoDePeriodo): RdoDePeriodoParaDocum
       data: grupo.dataBr,
       linhas: grupo.linhas,
     })),
-    responsavelTecnico: rdo.responsavelTecnico,
+    responsavelTecnico:
+      rdo.responsavelTecnico === null
+        ? null
+        : {
+            nome: rdo.responsavelTecnico.nome,
+            titulo: rdo.responsavelTecnico.titulo,
+            registro: rdo.responsavelTecnico.registro,
+          },
   };
 }

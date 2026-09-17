@@ -1357,3 +1357,17 @@ tbody tr:last-child td {
   min-height: var(--toque-minimo);
   font-size: 0.9rem;
 }
+
+/* Confirmacao em linha, para acao irreversivel pela interface. */
+.confirmacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e2);
+}
+
+.confirmacaoTexto {
+  flex-basis: 100%;
+  font-size: 0.9rem;
+  color: var(--tinta-fraca);
+}

@@ -1,32 +1,35 @@
 ---
 name: fronteira-de-acesso-latente
-description: Os grupos de rota (lancamento) e (rdo) nunca verificaram acesso por obra; a falha fica escondida atras de portas em stub e o teste-guardiao passa a vazio
+description: Historico do furo de acesso de (rdo) e (lancamento) — fechado em 17/09/2026 — e o padrao de codigo que o produziu, que continua valendo como alerta
 metadata:
   type: project
 ---
 
-Auditoria de 2026-09-16 (commit `d5dce94`) achou dois CRÍTICOS de mesmo formato:
-`src/app/(rdo)/rdo/[obraId]/[dia]/page.tsx` não autentica nada, e
-`src/app/(lancamento)/_dados.ts` confere só que existe sessão, nunca
-`exigeAcessoNaObra(ator, obraId, ...)`. O grupo `(cadastro)` está correto nas 8
-páginas — o furo é só nesses dois grupos.
+**Estado: fechado em 2026-09-17.** Mantido porque o _padrão_ que produziu o furo
+não foi eliminado, só corrigido nos dois pontos onde apareceu.
 
-**Why:** os dois nasceram de um padrão, não de descuido. (a) Os casos de uso de
-**leitura** de `lancamento` recebem `(obraId, data)` sem ator e delegam a
-autorização a quem chama — as escritas recebem `Ator` e autorizam sozinhas. (b)
-As portas de dado de `(rdo)` e `(lancamento)` são recusas fixas, então tudo
-falha fechado hoje e nenhum teste fica vermelho. (c) O teste-guardião
-`src/modules/acesso/rotas-protegidas.test.ts` varre `route.ts`, e o projeto não
-tem nenhum: a asserção é `expect([]).toEqual([])`. A superfície real é
-`page.tsx` e arquivos `'use server'`.
+## O que era, e o que aconteceu
 
-**How to apply:** em qualquer auditoria futura, (1) não aceite "o teste de rotas
-protegidas passa" como prova — confirme o que ele varre; (2) trate porta em
-stub como falha latente e não como falha fechada, e confira se a documentação de
-ligação (ex.: a tabela em `src/app/_composicao/rdo-diario.ts`) lista a
-verificação de acesso entre os passos; (3) ao ver caso de uso de leitura sem
-`Ator` na assinatura, procure o chamador antes de dar por verificado. A ligação
-das portas da frente A é o momento de re-auditar — a assinatura de
-`PortasDoLancamento['exigeAcessoNaObra']` (recebe ação) nem bate com
-`acesso.exigeAcessoNaObra` (recebe perfil mínimo), então há um adaptador a
-escrever. Ver [[decisoes-de-seguranca-pendentes]].
+Auditoria de 2026-09-16 (`d5dce94`) achou dois CRÍTICOS de mesmo formato:
+`src/app/(rdo)/rdo/[obraId]/[dia]/page.tsx` não autenticava nada, e
+`src/app/(lancamento)/_dados.ts` conferia só que existia sessão. Os dois
+nasceram de um padrão, não de descuido: casos de uso de **leitura** recebem
+`(obraId, data)` sem ator e delegam a autorização a quem chama, enquanto as
+escritas recebem `Ator` e autorizam sozinhas.
+
+Em 2026-09-17 (verificado no laudo `docs/seguranca/2026-09-17-periodo-e-perfis.md`):
+
+- a página do RDO autentica e chama `consultaRdoProtegida`;
+- `rotas-protegidas.test.ts` foi reescrito e **deixou de passar a vazio**: varre
+  `page.tsx`, `route.ts` e todo arquivo com `'use server'`, e afirma primeiro o
+  **tamanho** do que encontrou. As marcas aceitas são `comAtorNaObra`,
+  `exigeAcessoNaObra` e o sufixo `Protegid`.
+
+**How to apply:** o guardião prova que **algo** autoriza, nunca **qual perfil**.
+Quem prova o perfil é `test/permissoes-por-perfil.test.ts`, uma linha por par
+(operação, perfil) — e trocar uma palavra em `_composicao/cadastro.ts` passa no
+guardião, no `typecheck` e no lint. Ao auditar, leia os dois. E ao ver caso de
+uso de leitura sem `Ator` na assinatura, procure o chamador antes de dar por
+verificado: é a assinatura que convida ao furo, e ela continua assim.
+
+Ver [[dupla-validacao-e-borda-morta]] e [[invariantes-ja-provados]].
