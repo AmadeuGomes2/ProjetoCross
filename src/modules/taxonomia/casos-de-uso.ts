@@ -31,19 +31,20 @@ import {
 import * as repositorio from './repositorio';
 import type { Ambiente, FuncaoParaEfetivo, Termo, TipoDeTaxonomia } from './tipos';
 
-export function listaTermos(
+export async function listaTermos(
   tipo: TipoDeTaxonomia,
   amb: Ambiente,
-): Result<Termo[], ErroDeDominio> {
-  return ok(repositorio.listaTermosDaTabela(amb.db, tipo));
+): Promise<Result<Termo[], ErroDeDominio>> {
+  return ok(await repositorio.listaTermosDaTabela(amb.db, tipo));
 }
 
 /** Só os termos em uso. Termo desativado continua no histórico, mas não na tela. */
-export function listaTermosAtivos(
+export async function listaTermosAtivos(
   tipo: TipoDeTaxonomia,
   amb: Ambiente,
-): Result<Termo[], ErroDeDominio> {
-  return ok(repositorio.listaTermosDaTabela(amb.db, tipo).filter((t) => t.ativo));
+): Promise<Result<Termo[], ErroDeDominio>> {
+  const termos = await repositorio.listaTermosDaTabela(amb.db, tipo);
+  return ok(termos.filter((t) => t.ativo));
 }
 
 /**
@@ -59,12 +60,12 @@ export function listaTermosAtivos(
  * A quantidade zero não some: o gabarito mostra a coluna com a célula em
  * branco, e quem decide isso é `rdo/efetivo.ts`.
  */
-export function listaFuncoesParaEfetivo(
+export async function listaFuncoesParaEfetivo(
   amb: Ambiente,
-): Result<FuncaoParaEfetivo[], ErroDeDominio> {
+): Promise<Result<FuncaoParaEfetivo[], ErroDeDominio>> {
+  const funcoes = await repositorio.listaTermosDaTabela(amb.db, 'funcao');
   return ok(
-    repositorio
-      .listaTermosDaTabela(amb.db, 'funcao')
+    funcoes
       .map((t) => ({
         funcaoId: idConfiavel<'funcao'>(t.id),
         termo: t.termo,
@@ -81,11 +82,11 @@ export function listaFuncoesParaEfetivo(
  * existe: **não cria termo por efeito colateral** (CT-037). Foi assim que a
  * planilha ganhou `Servente ` e `Servente` como duas funções diferentes.
  */
-export function resolveTermo(
+export async function resolveTermo(
   tipo: TipoDeTaxonomia,
   bruto: string,
   amb: Ambiente,
-): Termo | null {
+): Promise<Termo | null> {
   if (bruto.trim() === '') return null;
   return repositorio.buscaPorChave(amb.db, tipo, bruto);
 }
@@ -100,36 +101,49 @@ export function resolveTermo(
  * A autorização **não** mora aqui: é a rota, por `exigeAcessoNaObra` com
  * perfil `engenheiro`, que a faz (arquitetura, 5.2). Ver
  * `src/app/_composicao/cadastro.ts`.
+ *
+ * **Conferência, próxima ordem e gravação na mesma transação** (17/09/2026).
+ * São três idas ao banco que dependem umas das outras, e o que as mantinha
+ * indivisíveis era a sincronia do SQLite. O UNIQUE de `termo_normalizado` ainda
+ * barraria o duplicado, mas `ordem` não é única: dois termos acrescentados ao
+ * mesmo tempo sairiam com a mesma posição na lista.
  */
-export function acrescentaTermo(
+export async function acrescentaTermo(
   tipo: TipoDeTaxonomia,
   bruto: string,
   amb: Ambiente,
-): Result<string, ErroDeDominio> {
+): Promise<Result<string, ErroDeDominio>> {
   const termo = normalizaTermo(bruto);
   if (termo === '') {
     return erro(erroDeDominio(CODIGO_ERRO.TERMO_VAZIO, 'Informe o termo a acrescentar.'));
   }
+  const criadoEm = instanteAgora(amb.relogio);
 
-  const existente = repositorio.buscaPorChave(amb.db, tipo, termo);
-  if (existente !== null) {
-    return erro(
-      erroDeDominio(
-        CODIGO_ERRO.JA_EXISTE,
-        `Já existe o termo "${existente.termo}" nesta lista.`,
-      ),
-    );
-  }
+  const resultado = await amb.db.transaction<Result<string, ErroDeDominio>>(
+    async (tx) => {
+      const existente = await repositorio.buscaPorChave(tx, tipo, termo);
+      if (existente !== null) {
+        return erro(
+          erroDeDominio(
+            CODIGO_ERRO.JA_EXISTE,
+            `Já existe o termo "${existente.termo}" nesta lista.`,
+          ),
+        );
+      }
 
-  const id = repositorio.insereTermo(amb.db, tipo, {
-    termo,
-    termoNormalizado: chaveDeTermo(termo),
-    ordem: repositorio.proximaOrdem(amb.db, tipo),
-    criadoEm: instanteAgora(amb.relogio),
-  });
+      const id = await repositorio.insereTermo(tx, tipo, {
+        termo,
+        termoNormalizado: chaveDeTermo(termo),
+        ordem: await repositorio.proximaOrdem(tx, tipo),
+        criadoEm,
+      });
+      return ok(id);
+    },
+  );
 
+  if (!resultado.ok) return resultado;
   registra('info', geraId<'correlacao'>(), 'taxonomia.termo_acrescentado', {});
-  return ok(id);
+  return resultado;
 }
 
 /**
@@ -139,8 +153,10 @@ export function acrescentaTermo(
  * fechada e validar o motivo contra ela seria defeito; as sugestões só
  * preenchem o campo sem fechá-lo.
  */
-export function listaSugestoesDeMotivo(amb: Ambiente): Result<string[], ErroDeDominio> {
-  return ok(repositorio.listaSugestoes(amb.db));
+export async function listaSugestoesDeMotivo(
+  amb: Ambiente,
+): Promise<Result<string[], ErroDeDominio>> {
+  return ok(await repositorio.listaSugestoes(amb.db));
 }
 
 /**

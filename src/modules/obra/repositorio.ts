@@ -6,6 +6,16 @@
  *
  * Nenhuma função de leitura existe sem `obraId` no argumento: é a segunda
  * camada da fronteira de confiança (arquitetura, 5.2, item 2).
+ *
+ * ## Assíncrono desde 17/09/2026
+ *
+ * O banco virou Postgres, no Neon, e o driver fala pela rede: toda função daqui
+ * devolve `Promise`. O `.get()`, o `.all()` e o `.run()` do `better-sqlite3` não
+ * existem neste dialeto — a busca de uma linha vira `limit(1)` mais o primeiro
+ * elemento, e a de muitas é o próprio `await` do construtor de consulta.
+ *
+ * `limit(1)` em vez de trazer tudo e pegar o primeiro: o que se paga agora é
+ * rede, não memória do processo.
  */
 
 import { and, asc, desc, eq } from 'drizzle-orm';
@@ -59,39 +69,47 @@ const colunasDaObra = {
   respTecnicoCrea: obra.respTecnicoCrea,
 } as const;
 
-export function buscaObra(db: BancoRdo, obraId: ObraId): LinhaDeObra | null {
-  return db.select(colunasDaObra).from(obra).where(eq(obra.id, obraId)).get() ?? null;
+export async function buscaObra(
+  db: BancoRdo,
+  obraId: ObraId,
+): Promise<LinhaDeObra | null> {
+  const linhas = await db
+    .select(colunasDaObra)
+    .from(obra)
+    .where(eq(obra.id, obraId))
+    .limit(1);
+  return linhas[0] ?? null;
 }
 
-export function insereObra(
+export async function insereObra(
   db: BancoRdo,
   dados: LinhaDeObra & { readonly criadoPor: UsuarioId; readonly criadoEm: Instante },
-): void {
-  db.insert(obra).values(dados).run();
+): Promise<void> {
+  await db.insert(obra).values(dados);
 }
 
-export function atualizaCabecalho(
+export async function atualizaCabecalho(
   db: BancoRdo,
   obraId: ObraId,
   dados: Omit<
     LinhaDeObra,
     'id' | 'respTecnicoNome' | 'respTecnicoTitulo' | 'respTecnicoCrea'
   >,
-): void {
-  db.update(obra).set(dados).where(eq(obra.id, obraId)).run();
+): Promise<void> {
+  await db.update(obra).set(dados).where(eq(obra.id, obraId));
 }
 
-export function atualizaResponsavelTecnico(
+export async function atualizaResponsavelTecnico(
   db: BancoRdo,
   obraId: ObraId,
   nome: string,
   titulo: string,
   crea: string,
-): void {
-  db.update(obra)
+): Promise<void> {
+  await db
+    .update(obra)
     .set({ respTecnicoNome: nome, respTecnicoTitulo: titulo, respTecnicoCrea: crea })
-    .where(eq(obra.id, obraId))
-    .run();
+    .where(eq(obra.id, obraId));
 }
 
 export interface LinhaDePeriodo {
@@ -101,7 +119,17 @@ export interface LinhaDePeriodo {
   readonly dataFinal: DiaPuro;
 }
 
-export function listaPeriodos(db: BancoRdo, obraId: ObraId): LinhaDePeriodo[] {
+/**
+ * Os períodos da obra, do mais antigo para o mais recente.
+ *
+ * `data_inicial` é `DATE` desde 17/09/2026: a ordenação passou a ser
+ * cronológica de verdade, e não mais por coincidência lexicográfica do texto
+ * `AAAA-MM-DD`. O resultado é o mesmo; a garantia, não.
+ */
+export async function listaPeriodos(
+  db: BancoRdo,
+  obraId: ObraId,
+): Promise<LinhaDePeriodo[]> {
   return db
     .select({
       id: periodoBms.id,
@@ -111,11 +139,10 @@ export function listaPeriodos(db: BancoRdo, obraId: ObraId): LinhaDePeriodo[] {
     })
     .from(periodoBms)
     .where(eq(periodoBms.obraId, obraId))
-    .orderBy(asc(periodoBms.dataInicial))
-    .all();
+    .orderBy(asc(periodoBms.dataInicial));
 }
 
-export function inserePeriodo(
+export async function inserePeriodo(
   db: BancoRdo,
   dados: {
     readonly id: PeriodoBmsId;
@@ -126,8 +153,8 @@ export function inserePeriodo(
     readonly criadoPor: UsuarioId;
     readonly criadoEm: Instante;
   },
-): void {
-  db.insert(periodoBms).values(dados).run();
+): Promise<void> {
+  await db.insert(periodoBms).values(dados);
 }
 
 /**
@@ -136,7 +163,7 @@ export function inserePeriodo(
  * Não mexe em `criado_por` nem em `criado_em`: quem cadastrou continua sendo
  * quem cadastrou. Alteração de período não reescreve autoria.
  */
-export function atualizaPeriodo(
+export async function atualizaPeriodo(
   db: BancoRdo,
   obraId: ObraId,
   periodoId: PeriodoBmsId,
@@ -145,11 +172,11 @@ export function atualizaPeriodo(
     readonly dataInicial: DiaPuro;
     readonly dataFinal: DiaPuro;
   },
-): void {
-  db.update(periodoBms)
+): Promise<void> {
+  await db
+    .update(periodoBms)
     .set(dados)
-    .where(and(eq(periodoBms.obraId, obraId), eq(periodoBms.id, periodoId)))
-    .run();
+    .where(and(eq(periodoBms.obraId, obraId), eq(periodoBms.id, periodoId)));
 }
 
 /**
@@ -165,14 +192,14 @@ export function atualizaPeriodo(
  * O `numero_rdo_congelado` do dia fechado continua onde estava: ele congela o
  * número do RDO, não o do BM'S.
  */
-export function excluiPeriodo(
+export async function excluiPeriodo(
   db: BancoRdo,
   obraId: ObraId,
   periodoId: PeriodoBmsId,
-): void {
-  db.delete(periodoBms)
-    .where(and(eq(periodoBms.obraId, obraId), eq(periodoBms.id, periodoId)))
-    .run();
+): Promise<void> {
+  await db
+    .delete(periodoBms)
+    .where(and(eq(periodoBms.obraId, obraId), eq(periodoBms.id, periodoId)));
 }
 
 export interface LinhaDeServico {
@@ -182,7 +209,10 @@ export interface LinhaDeServico {
   readonly ativo: number;
 }
 
-export function listaServicos(db: BancoRdo, obraId: ObraId): LinhaDeServico[] {
+export async function listaServicos(
+  db: BancoRdo,
+  obraId: ObraId,
+): Promise<LinhaDeServico[]> {
   return db
     .select({
       id: servicoControlado.id,
@@ -192,32 +222,28 @@ export function listaServicos(db: BancoRdo, obraId: ObraId): LinhaDeServico[] {
     })
     .from(servicoControlado)
     .where(eq(servicoControlado.obraId, obraId))
-    .orderBy(asc(servicoControlado.ordem))
-    .all();
+    .orderBy(asc(servicoControlado.ordem));
 }
 
-export function buscaServico(
+export async function buscaServico(
   db: BancoRdo,
   obraId: ObraId,
   servicoId: ServicoControladoId,
-): LinhaDeServico | null {
-  return (
-    db
-      .select({
-        id: servicoControlado.id,
-        nome: servicoControlado.nome,
-        ordem: servicoControlado.ordem,
-        ativo: servicoControlado.ativo,
-      })
-      .from(servicoControlado)
-      .where(
-        and(eq(servicoControlado.obraId, obraId), eq(servicoControlado.id, servicoId)),
-      )
-      .get() ?? null
-  );
+): Promise<LinhaDeServico | null> {
+  const linhas = await db
+    .select({
+      id: servicoControlado.id,
+      nome: servicoControlado.nome,
+      ordem: servicoControlado.ordem,
+      ativo: servicoControlado.ativo,
+    })
+    .from(servicoControlado)
+    .where(and(eq(servicoControlado.obraId, obraId), eq(servicoControlado.id, servicoId)))
+    .limit(1);
+  return linhas[0] ?? null;
 }
 
-export function insereServico(
+export async function insereServico(
   db: BancoRdo,
   dados: {
     readonly id: ServicoControladoId;
@@ -226,13 +252,11 @@ export function insereServico(
     readonly nomeNormalizado: string;
     readonly ordem: number;
   },
-): void {
-  db.insert(servicoControlado)
-    .values({ ...dados, ativo: 1 })
-    .run();
+): Promise<void> {
+  await db.insert(servicoControlado).values({ ...dados, ativo: 1 });
 }
 
-export function insereVersaoDeQuantidade(
+export async function insereVersaoDeQuantidade(
   db: BancoRdo,
   dados: {
     readonly id: QuantidadeProjetoVersaoId;
@@ -242,8 +266,8 @@ export function insereVersaoDeQuantidade(
     readonly definidoPor: UsuarioId;
     readonly definidoEm: Instante;
   },
-): void {
-  db.insert(quantidadeProjetoVersao).values(dados).run();
+): Promise<void> {
+  await db.insert(quantidadeProjetoVersao).values(dados);
 }
 
 export interface LinhaDeVersao {
@@ -258,11 +282,11 @@ export interface LinhaDeVersao {
  * antiga (R15). A **vigente é a primeira**: não existe cópia dela no serviço,
  * porque duas colunas com o mesmo número são duas verdades.
  */
-export function listaVersoesDoServico(
+export async function listaVersoesDoServico(
   db: BancoRdo,
   obraId: ObraId,
   servicoId: ServicoControladoId,
-): LinhaDeVersao[] {
+): Promise<LinhaDeVersao[]> {
   return db
     .select({
       servicoId: quantidadeProjetoVersao.servicoId,
@@ -277,12 +301,14 @@ export function listaVersoesDoServico(
         eq(quantidadeProjetoVersao.servicoId, servicoId),
       ),
     )
-    .orderBy(desc(quantidadeProjetoVersao.definidoEm))
-    .all();
+    .orderBy(desc(quantidadeProjetoVersao.definidoEm));
 }
 
 /** Todas as versões da obra, para montar a lista de serviços numa consulta só. */
-export function listaVersoesDaObra(db: BancoRdo, obraId: ObraId): LinhaDeVersao[] {
+export async function listaVersoesDaObra(
+  db: BancoRdo,
+  obraId: ObraId,
+): Promise<LinhaDeVersao[]> {
   return db
     .select({
       servicoId: quantidadeProjetoVersao.servicoId,
@@ -292,8 +318,7 @@ export function listaVersoesDaObra(db: BancoRdo, obraId: ObraId): LinhaDeVersao[
     })
     .from(quantidadeProjetoVersao)
     .where(eq(quantidadeProjetoVersao.obraId, obraId))
-    .orderBy(desc(quantidadeProjetoVersao.definidoEm))
-    .all();
+    .orderBy(desc(quantidadeProjetoVersao.definidoEm));
 }
 
 export { diaPuroConfiavel };

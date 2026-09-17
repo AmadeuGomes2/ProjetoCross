@@ -25,13 +25,17 @@ import type {
  * `src/app/_composicao/`. Recebe o banco porque a concessão precisa correr na
  * **mesma transação** da criação da obra — CT-003 diz que quem cria a obra sai
  * dela com acesso de engenheiro, e meia gravação deixaria a obra inacessível.
+ *
+ * Devolve `Promise` desde 17/09/2026: com Postgres a gravação é de rede, e a
+ * porta que devolvesse `void` faria `criaObra` fechar a transação sem esperar o
+ * acesso ficar gravado — que é exatamente a obra inacessível que ela evita.
  */
 export type ConcedeAcessoDeEngenheiro = (
   db: BancoRdo,
   obraId: ObraId,
   usuarioId: UsuarioId,
   em: Instante,
-) => void;
+) => Promise<void>;
 
 export type Ambiente = ComPortas<{
   concedeAcessoDeEngenheiro: ConcedeAcessoDeEngenheiro;

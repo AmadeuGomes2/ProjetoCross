@@ -12,6 +12,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { sql } from 'drizzle-orm';
 
 import { paraObra } from '../../app/_composicao/ambiente-de-cadastro';
 import {
@@ -19,7 +20,7 @@ import {
   listaHistoricoDeQuantidadeProtegido,
   listaServicosProtegida,
 } from '../../app/_composicao/cadastro';
-import { servicoControlado } from '../../db/schema';
+import { acesso, servicoControlado } from '../../db/schema';
 import { CODIGO_ERRO } from '../../shared/result';
 import {
   criaObraDoPrd,
@@ -27,56 +28,81 @@ import {
   type Cenario,
 } from '../../../test/fixtures/cenario-de-cadastro';
 import type { Ator } from '../../modules/acesso';
-import type { ObraId, ServicoControladoId } from '../../shared/id';
+import {
+  geraId,
+  type ObraId,
+  type ServicoControladoId,
+  type UsuarioId,
+} from '../../shared/id';
 import { listaServicosControlados } from './servico-controlado';
+
+const AGORA = '2026-09-16T12:00:00.000Z';
 
 let cenario: Cenario;
 let e1: Ator;
 let obraId: ObraId;
 
-beforeEach(() => {
-  cenario = montaCenario();
-  e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-  obraId = criaObraDoPrd(e1, cenario.amb);
+beforeEach(async () => {
+  cenario = await montaCenario();
+  e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+  obraId = await criaObraDoPrd(e1, cenario.amb);
 });
 
-afterEach(() => {
-  cenario.fecha();
+afterEach(async () => {
+  await cenario.fecha();
 });
 
-function idDoServico(nome: string): ServicoControladoId {
-  const lista = listaServicosControlados(obraId, paraObra(cenario.amb));
+async function idDoServico(nome: string): Promise<ServicoControladoId> {
+  const lista = await listaServicosControlados(obraId, paraObra(cenario.amb));
   if (!lista.ok) throw new Error('não foi possível listar os serviços');
   const servico = lista.valor.find((s) => s.nome === nome);
   if (servico === undefined) throw new Error(`serviço ausente: ${nome}`);
   return servico.servicoId;
 }
 
-function quantidadeVigente(nome: string): string | null {
-  const lista = listaServicosControlados(obraId, paraObra(cenario.amb));
+async function quantidadeVigente(nome: string): Promise<string | null> {
+  const lista = await listaServicosControlados(obraId, paraObra(cenario.amb));
   if (!lista.ok) throw new Error('não foi possível listar os serviços');
   const servico = lista.valor.find((s) => s.nome === nome);
   return servico?.quantidadeDeProjeto?.toString() ?? null;
 }
 
+/** Acesso de encarregado gravado direto na tabela, sem passar pelo módulo. */
+async function liberaEncarregado(usuarioId: UsuarioId): Promise<void> {
+  await cenario.conexao.db.insert(acesso).values({
+    id: geraId<'acesso'>(),
+    obraId,
+    usuarioId,
+    perfil: 'encarregado',
+    liberadoPor: e1.usuarioId,
+    liberadoEm: AGORA,
+  });
+}
+
 describe('F2.3 — serviço controlado e quantidade de projeto', () => {
-  it('CT-050 guarda 2210,392 exatamente, sem arredondar', () => {
-    const definida = defineQuantidadeDeProjetoProtegida(
+  it('CT-050 guarda 2210,392 exatamente, sem arredondar', async () => {
+    const definida = await defineQuantidadeDeProjetoProtegida(
       e1,
       obraId,
-      idDoServico('REC.(FRESA+CAPA)'),
+      await idDoServico('REC.(FRESA+CAPA)'),
       '2210,392',
       cenario.amb,
     );
     expect(definida.ok).toBe(true);
-    expect(quantidadeVigente('REC.(FRESA+CAPA)')).toBe('2210.392');
+    expect(await quantidadeVigente('REC.(FRESA+CAPA)')).toBe('2210.392');
   });
 
-  it('CT-051 registra quem definiu a quantidade e quando', () => {
-    const servicoId = idDoServico('REC.(FRESA+CAPA)');
-    defineQuantidadeDeProjetoProtegida(e1, obraId, servicoId, '2210,392', cenario.amb);
+  it('CT-051 registra quem definiu a quantidade e quando', async () => {
+    const servicoId = await idDoServico('REC.(FRESA+CAPA)');
+    await defineQuantidadeDeProjetoProtegida(
+      e1,
+      obraId,
+      servicoId,
+      '2210,392',
+      cenario.amb,
+    );
 
-    const historico = listaHistoricoDeQuantidadeProtegido(
+    const historico = await listaHistoricoDeQuantidadeProtegido(
       e1,
       obraId,
       servicoId,
@@ -87,12 +113,18 @@ describe('F2.3 — serviço controlado e quantidade de projeto', () => {
 
     expect(historico.valor).toHaveLength(1);
     expect(historico.valor[0]?.definidoPor).toBe(e1.usuarioId);
-    expect(historico.valor[0]?.definidoEm).toBe('2026-09-16T12:00:00.000Z');
+    expect(historico.valor[0]?.definidoEm).toBe(AGORA);
   });
 
-  it('CT-052 guarda a versão anterior e a nova no histórico, com autor e hora', () => {
-    const servicoId = idDoServico('REC.(FRESA+CAPA)');
-    defineQuantidadeDeProjetoProtegida(e1, obraId, servicoId, '2210,392', cenario.amb);
+  it('CT-052 guarda a versão anterior e a nova no histórico, com autor e hora', async () => {
+    const servicoId = await idDoServico('REC.(FRESA+CAPA)');
+    await defineQuantidadeDeProjetoProtegida(
+      e1,
+      obraId,
+      servicoId,
+      '2210,392',
+      cenario.amb,
+    );
 
     // Uma segunda definição, um instante depois: sem isso as duas versões
     // teriam o mesmo `definido_em` e "a mais recente" não teria resposta.
@@ -100,9 +132,9 @@ describe('F2.3 — serviço controlado e quantidade de projeto', () => {
       db: cenario.amb.db,
       relogio: () => new Date('2026-09-16T13:00:00.000Z'),
     };
-    defineQuantidadeDeProjetoProtegida(e1, obraId, servicoId, '2500,000', depois);
+    await defineQuantidadeDeProjetoProtegida(e1, obraId, servicoId, '2500,000', depois);
 
-    const historico = listaHistoricoDeQuantidadeProtegido(
+    const historico = await listaHistoricoDeQuantidadeProtegido(
       e1,
       obraId,
       servicoId,
@@ -118,15 +150,21 @@ describe('F2.3 — serviço controlado e quantidade de projeto', () => {
     expect(historico.valor.every((v) => v.definidoPor === e1.usuarioId)).toBe(true);
   });
 
-  it('CT-053 a quantidade vigente passa a ser a última definida', () => {
-    const servicoId = idDoServico('REC.(FRESA+CAPA)');
-    defineQuantidadeDeProjetoProtegida(e1, obraId, servicoId, '2210,392', cenario.amb);
-    defineQuantidadeDeProjetoProtegida(e1, obraId, servicoId, '2500,000', {
+  it('CT-053 a quantidade vigente passa a ser a última definida', async () => {
+    const servicoId = await idDoServico('REC.(FRESA+CAPA)');
+    await defineQuantidadeDeProjetoProtegida(
+      e1,
+      obraId,
+      servicoId,
+      '2210,392',
+      cenario.amb,
+    );
+    await defineQuantidadeDeProjetoProtegida(e1, obraId, servicoId, '2500,000', {
       db: cenario.amb.db,
       relogio: () => new Date('2026-09-16T13:00:00.000Z'),
     });
 
-    expect(quantidadeVigente('REC.(FRESA+CAPA)')).toBe('2500');
+    expect(await quantidadeVigente('REC.(FRESA+CAPA)')).toBe('2500');
   });
 
   it('CT-053 o serviço não tem coluna de quantidade: não há cópia a divergir', () => {
@@ -135,24 +173,24 @@ describe('F2.3 — serviço controlado e quantidade de projeto', () => {
     expect(colunas.some((c) => c.toLowerCase().includes('quantidade'))).toBe(false);
   });
 
-  it('CT-054 recusa quantidade de projeto negativa', () => {
-    const resultado = defineQuantidadeDeProjetoProtegida(
+  it('CT-054 recusa quantidade de projeto negativa', async () => {
+    const resultado = await defineQuantidadeDeProjetoProtegida(
       e1,
       obraId,
-      idDoServico('REC.(FRESA+CAPA)'),
+      await idDoServico('REC.(FRESA+CAPA)'),
       '-1',
       cenario.amb,
     );
 
     expect(resultado.ok).toBe(false);
-    expect(quantidadeVigente('REC.(FRESA+CAPA)')).toBeNull();
+    expect(await quantidadeVigente('REC.(FRESA+CAPA)')).toBeNull();
   });
 
-  it('CT-055 recusa quantidade de projeto zero e diz que precisa ser maior que zero', () => {
-    const resultado = defineQuantidadeDeProjetoProtegida(
+  it('CT-055 recusa quantidade de projeto zero e diz que precisa ser maior que zero', async () => {
+    const resultado = await defineQuantidadeDeProjetoProtegida(
       e1,
       obraId,
-      idDoServico('RECICLAGEM(BASE+CAPA)'),
+      await idDoServico('RECICLAGEM(BASE+CAPA)'),
       '0',
       cenario.amb,
     );
@@ -163,48 +201,37 @@ describe('F2.3 — serviço controlado e quantidade de projeto', () => {
     expect(resultado.erro.mensagem).toBe('A quantidade precisa ser maior que zero.');
   });
 
-  it('CT-056 aceita 0,001, o menor valor do outro lado da fronteira', () => {
-    const definida = defineQuantidadeDeProjetoProtegida(
+  it('CT-056 aceita 0,001, o menor valor do outro lado da fronteira', async () => {
+    const definida = await defineQuantidadeDeProjetoProtegida(
       e1,
       obraId,
-      idDoServico('RECICLAGEM(BASE+CAPA)'),
+      await idDoServico('RECICLAGEM(BASE+CAPA)'),
       '0,001',
       cenario.amb,
     );
 
     expect(definida.ok).toBe(true);
-    expect(quantidadeVigente('RECICLAGEM(BASE+CAPA)')).toBe('0.001');
+    expect(await quantidadeVigente('RECICLAGEM(BASE+CAPA)')).toBe('0.001');
   });
 
-  it('CT-057 recusa no servidor a quantidade enviada por um encarregado', () => {
-    const c1 = cenario.novoAtor('c1@exemplo.invalido');
-    cenario.conexao.sqlite
-      .prepare(
-        `INSERT INTO acesso (id, obra_id, usuario_id, perfil, liberado_por, liberado_em)
-         VALUES (?, ?, ?, 'encarregado', ?, ?)`,
-      )
-      .run(
-        '33333333-3333-4333-8333-333333333333',
-        obraId,
-        c1.usuarioId,
-        e1.usuarioId,
-        '2026-09-16T12:00:00.000Z',
-      );
+  it('CT-057 recusa no servidor a quantidade enviada por um encarregado', async () => {
+    const c1 = await cenario.novoAtor('c1@exemplo.invalido');
+    await liberaEncarregado(c1.usuarioId);
 
-    const resultado = defineQuantidadeDeProjetoProtegida(
+    const resultado = await defineQuantidadeDeProjetoProtegida(
       c1,
       obraId,
-      idDoServico('REC.(FRESA+CAPA)'),
+      await idDoServico('REC.(FRESA+CAPA)'),
       '100',
       cenario.amb,
     );
 
     expect(resultado.ok).toBe(false);
-    expect(quantidadeVigente('REC.(FRESA+CAPA)')).toBeNull();
+    expect(await quantidadeVigente('REC.(FRESA+CAPA)')).toBeNull();
   });
 
-  it('CT-058 a obra nasce com os quatro serviços, na ordem e na grafia herdadas', () => {
-    const lista = listaServicosProtegida(e1, obraId, cenario.amb);
+  it('CT-058 a obra nasce com os quatro serviços, na ordem e na grafia herdadas', async () => {
+    const lista = await listaServicosProtegida(e1, obraId, cenario.amb);
     expect(lista.ok).toBe(true);
     if (!lista.ok) return;
 
@@ -217,24 +244,26 @@ describe('F2.3 — serviço controlado e quantidade de projeto', () => {
     expect(lista.valor.map((s) => s.ordem)).toEqual([1, 2, 3, 4]);
   });
 
-  it('CT-059 o banco recusa quantidade de projeto zero mesmo por SQL cru', () => {
+  it('CT-059 o banco recusa quantidade de projeto zero mesmo por SQL cru', async () => {
     // 13.4 impede o zero na borda, mas R5 manda manter a proteção: dado
     // antigo, migração ou outro caminho não podem quebrar a página do RDO.
-    const servicoId = idDoServico('REC.(FRESA+CAPA)');
-    expect(() =>
-      cenario.conexao.sqlite
-        .prepare(
-          `INSERT INTO quantidade_projeto_versao
-             (id, obra_id, servico_id, quantidade_milesimos, definido_por, definido_em)
-           VALUES (?, ?, ?, 0, ?, ?)`,
+    // O `INSERT` continua cru — não passa por borda, esquema nem caso de uso —,
+    // só mudou de dialeto: quem recusa é `ck_qtd_projeto_positiva`.
+    const servicoId = await idDoServico('REC.(FRESA+CAPA)');
+
+    await expect(async () => {
+      await cenario.conexao.db.execute(sql`
+        INSERT INTO quantidade_projeto_versao
+          (id, obra_id, servico_id, quantidade_milesimos, definido_por, definido_em)
+        VALUES (
+          ${'44444444-4444-4444-8444-444444444444'},
+          ${obraId},
+          ${servicoId},
+          0,
+          ${e1.usuarioId},
+          ${AGORA}
         )
-        .run(
-          '44444444-4444-4444-8444-444444444444',
-          obraId,
-          servicoId,
-          e1.usuarioId,
-          '2026-09-16T12:00:00.000Z',
-        ),
-    ).toThrow();
+      `);
+    }).rejects.toThrow();
   });
 });
