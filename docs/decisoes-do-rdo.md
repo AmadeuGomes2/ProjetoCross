@@ -174,7 +174,68 @@ está na pergunta 5.
 
 ---
 
-## 4. O que ainda depende de você
+## 4. O relatório de um período — e o que inventamos nele
+
+Isto é novo. Até agora o sistema fazia o relatório de **um dia**. Agora ele faz
+também o de um **conjunto de dias**: uma semana, um mês, um intervalo, ou dias
+soltos que você marca a dedo.
+
+São três formas de tirar, e você escolhe na hora:
+
+- **só o consolidado** — uma folha com o período inteiro somado;
+- **só os diários** — um RDO por dia, um atrás do outro, cada um idêntico ao que
+  já se conhece;
+- **o consolidado com os diários anexados** — o resumo na frente, a prova atrás.
+
+Sai em PDF e também em Excel.
+
+### O que precisou de invenção, e por isso precisa do seu aval
+
+Consolidar não é somar tudo. Cada bloco pediu uma decisão, e **estas cinco coisas
+não existem na planilha** — foram criadas para este relatório. São o ponto em que
+eu mais posso ter errado, porque o fiscal nunca as viu:
+
+**1. O efetivo vira média por dia.** No diário está escrito `Servente 4`, que é
+gente contada. No consolidado passa a ser `Servente 4,2`, que é média dos dias
+trabalhados. Para não se confundir com contagem, o título do bloco ganhou um
+complemento: **`EFETIVO PESSOAL · MÉDIA POR DIA`**. O rótulo herdado continua
+inteiro, na frente.
+
+O divisor são os dias **com lançamento**. Dia que ninguém lançou fica de fora da
+conta; dia parado entra, com efetivo zero, e por isso puxa a média para baixo.
+
+**2. A pluviometria ganhou quatro linhas novas.** No diário são as três letras de
+turno mais o índice. Num período, letra de turno não faz sentido, então entram
+contadores: **`DIAS BONS`**, **`DIAS CHUVOSOS`**, **`DIAS IMPRATIC.`** e
+**`DIAS PARADOS`**. O `INDICE` continua, com a soma dos mm. A letra de cada dia é
+a **pior** dos três turnos daquele dia.
+
+**3. O campo `DIA` passou a dizer quantos dias são.** No diário ele traz o dia da
+semana. Num conjunto isso não existe, então ele passa a trazer `6 dias`. O rótulo
+não mudou; o que ele significa, sim.
+
+**4. O `RDO Nº` traz a lista, nunca uma faixa.** Se você escolher os dias 2, 8 e
+11, sai `209, 215, 218` — os três números, separados por vírgula. **Não** sai
+"209 a 218", e isso é de propósito: uma faixa afirmaria que foram dez dias de
+trabalho quando foram três. Num documento que sustenta medição, isso seria grave.
+
+Em compensação, escolher um mês inteiro faz o campo ficar longo, com 26 números.
+Se ficar ruim de ler no papel, me diga.
+
+**5. As atividades saem todas, agrupadas por data.** Nada é resumido nem juntado.
+Um mês rende umas 80 linhas e o documento passa de uma folha — como o diário já
+faz quando o dia é cheio.
+
+### O que não mudou no consolidado
+
+`EXEC.` é o que foi executado **no período escolhido**. `ACUM.` continua sendo o
+acumulado da obra inteira até o último dia do período, e o percentual continua
+sendo acumulado dividido pela quantidade de projeto. Os rótulos e a ordem dos
+blocos são os mesmos do diário.
+
+---
+
+## 5. O que ainda depende de você
 
 São perguntas de verdade. Nada foi preenchido por suposição.
 
@@ -221,7 +282,7 @@ São perguntas de verdade. Nada foi preenchido por suposição.
 
 ---
 
-## 5. Se você discordar
+## 6. Se você discordar
 
 Discordar é o esperado — este documento existe para isso. Diga o item e o que
 deveria ser, e a decisão é refeita. Mudança no layout do documento, em
