@@ -18,7 +18,9 @@ import { formataBr as formataDia } from '../../../../../shared/date/dia';
 import { fusoDaObra, hojeNaObra } from '../../../../../shared/date/fuso';
 import { idConfiavel } from '../../../../../shared/id';
 import { definirQuantidadeAction } from '../../../acoes';
-import { Aviso, Bloco, Campo, Erro, Vazio, Voltar } from '../../../componentes';
+import { Aviso, Bloco, Campo, Erro, Vazio } from '../../../componentes';
+import { Trilha } from '../../../../_componentes/casca';
+import { AbasDaObra } from '../abas';
 import { atorDaRequisicao } from '../../../sessao';
 
 export const dynamic = 'force-dynamic';
@@ -41,7 +43,12 @@ export default async function Servicos({
   if (!servicos.ok) {
     return (
       <main className="pagina pagina--estreita">
-        <Voltar para="/obras" texto="Voltar às obras" />
+        <Trilha
+          degraus={[
+            { texto: 'Obras', href: '/obras' },
+            { texto: 'Serviços controlados' },
+          ]}
+        />
         <header className="cabecalhoDaPagina">
           <h1>Serviços controlados</h1>
         </header>
@@ -51,13 +58,21 @@ export default async function Servicos({
   }
 
   return (
-    <main className="pagina">
-      <Voltar para={`/obras/${obraId}`} texto="Voltar à obra" />
+    <main className="pagina pagina--painel">
+      <Trilha
+        degraus={[
+          { texto: 'Obras', href: '/obras' },
+          { texto: 'Obra', href: `/obras/${obraId}` },
+          { texto: 'Serviços controlados' },
+        ]}
+      />
 
       <header className="cabecalhoDaPagina">
         <h1>Serviços controlados</h1>
         <p className="subtitulo">A quantidade de projeto é o denominador do percentual</p>
       </header>
+
+      <AbasDaObra obraId={obraId} atual="servicos" />
 
       <Erro mensagem={erro} />
 

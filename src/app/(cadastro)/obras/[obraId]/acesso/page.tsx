@@ -16,7 +16,9 @@ import { redirect } from 'next/navigation';
 import { listaAcessosDaObraProtegida } from '../../../../_composicao/cadastro';
 import { idConfiavel } from '../../../../../shared/id';
 import { revogarAcessoAction } from '../../../acoes';
-import { Bloco, Erro, Vazio, Voltar } from '../../../componentes';
+import { Bloco, Erro, Vazio } from '../../../componentes';
+import { Trilha } from '../../../../_componentes/casca';
+import { AbasDaObra } from '../abas';
 import { atorDaRequisicao } from '../../../sessao';
 import { FormularioDeConvite } from './formulario-de-convite';
 
@@ -40,7 +42,7 @@ export default async function Acesso({
   if (!acessos.ok) {
     return (
       <main className="pagina pagina--estreita">
-        <Voltar para="/obras" texto="Voltar às obras" />
+        <Trilha degraus={[{ texto: 'Obras', href: '/obras' }, { texto: 'Acesso' }]} />
         <header className="cabecalhoDaPagina">
           <h1>Acesso</h1>
         </header>
@@ -50,13 +52,21 @@ export default async function Acesso({
   }
 
   return (
-    <main className="pagina">
-      <Voltar para={`/obras/${obraId}`} texto="Voltar à obra" />
+    <main className="pagina pagina--painel">
+      <Trilha
+        degraus={[
+          { texto: 'Obras', href: '/obras' },
+          { texto: 'Obra', href: `/obras/${obraId}` },
+          { texto: 'Acesso' },
+        ]}
+      />
 
       <header className="cabecalhoDaPagina">
         <h1>Acesso</h1>
         <p className="subtitulo">Quem pode lançar e quem pode fechar o dia</p>
       </header>
+
+      <AbasDaObra obraId={obraId} atual="acesso" />
 
       <Erro mensagem={erro} />
 

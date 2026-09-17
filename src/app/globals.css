@@ -73,6 +73,13 @@
 
   --largura-texto: 40rem;
   --largura-tela: 64rem;
+  /*
+   * Largura do painel, para a tela que o engenheiro abre no monitor.
+   * A captura em 1440px mostrou a lista de obras usando 64rem e
+   * deixando 416px mortos de cada lado. Painel e tabela ganham o
+   * espaco; texto corrido continua em 40rem, que e onde se le bem.
+   */
+  --largura-painel: 78rem;
 
   --fonte:
     system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -720,5 +727,426 @@ tbody tr:last-child td {
     width: 45%;
     background: var(--realce);
     opacity: 0.55;
+  }
+}
+
+/* =================================================================
+ * Casca da aplicação: barra, trilha e portas do dia
+ *
+ * Frente A do plano de design. A captura das 17 telas mostrou que a
+ * aplicação não tinha casca: `<main>` solto, sem identidade, sem
+ * lugar, sem saída, e sem caminho para o trabalho do dia.
+ *
+ * A barra é fina de propósito — 56px — porque o conteúdo é o produto
+ * e o cromo não deve competir com ele. Some na impressão: o RDO é
+ * documento contratual, não captura de tela do sistema.
+ * ================================================================= */
+
+.barra {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--papel);
+  border-bottom: 1px solid var(--borda);
+  /* Acompanha a barra de status do iPhone em tela cheia. */
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.barraInterna {
+  max-width: var(--largura-painel);
+  margin: 0 auto;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e4);
+  padding: 0 var(--e4);
+}
+
+.barraMarca {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e2);
+  color: var(--tinta);
+  text-decoration: none;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.barraMarca:hover {
+  color: var(--tinta);
+}
+
+.barraMarca .marcaSinal {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+}
+
+.barraMarca .marcaSinal::before {
+  top: 8px;
+  left: 6px;
+  width: 14px;
+}
+.barraMarca .marcaSinal::after {
+  top: 14px;
+  left: 6px;
+  width: 8px;
+}
+
+/*
+ * Sair é ação secundária e precisa parecer secundária. Na captura ela
+ * tinha o mesmo peso de "Criar obra", que é a ação principal da tela.
+ */
+.barraSair {
+  min-height: var(--toque-minimo);
+  padding: 0 var(--e3);
+  border: 1px solid transparent;
+  border-radius: var(--raio-pequeno);
+  background: none;
+  color: var(--tinta-fraca);
+  font: inherit;
+  font-size: 0.93rem;
+  cursor: pointer;
+}
+
+.barraSair:hover {
+  background: var(--papel-recuo);
+  border-color: var(--borda);
+  color: var(--tinta);
+}
+
+/* ------------------------------------------------------------- trilha */
+
+.trilha {
+  margin-bottom: var(--e4);
+}
+
+.trilha ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e1) var(--e2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+  color: var(--tinta-tenue);
+}
+
+/* O separador é do CSS: não é conteúdo, e o leitor de tela não o lê. */
+.trilha li + li::before {
+  content: '/';
+  margin-right: var(--e2);
+  color: var(--borda-forte);
+}
+
+.trilha a {
+  color: var(--tinta-fraca);
+  text-decoration: none;
+}
+
+.trilha a:hover {
+  color: var(--realce);
+  text-decoration: underline;
+}
+
+.trilha [aria-current='page'] {
+  color: var(--tinta);
+  font-weight: 600;
+}
+
+/* -------------------------------------------------- portas do dia */
+
+/*
+ * A porta de entrada do trabalho. Antes disto só se chegava ao
+ * lançamento e ao RDO digitando a URL com a data na mão.
+ *
+ * Alvo alto porque a principal é apertada no canteiro, com luva.
+ */
+.portas {
+  display: grid;
+  gap: var(--e3);
+  margin-bottom: var(--e5);
+}
+
+@media (min-width: 40rem) {
+  .portas {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.porta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--e1);
+  min-height: var(--toque);
+  padding: var(--e4);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--papel);
+  color: var(--tinta);
+  text-decoration: none;
+  box-shadow: var(--sombra);
+}
+
+.porta:hover {
+  border-color: var(--realce);
+  color: var(--tinta);
+}
+
+.porta--principal {
+  background: var(--realce);
+  border-color: var(--realce);
+  color: var(--realce-tinta);
+}
+
+.porta--principal:hover {
+  background: var(--realce-forte);
+  border-color: var(--realce-forte);
+  color: var(--realce-tinta);
+}
+
+.portaTitulo {
+  font-size: 1.1rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.portaData {
+  font-size: 0.9rem;
+  color: var(--tinta-tenue);
+}
+
+.porta--principal .portaData {
+  color: var(--realce-tinta);
+  opacity: 0.85;
+}
+
+@media print {
+  .barra,
+  .trilha,
+  .portas {
+    display: none !important;
+  }
+}
+
+/* =================================================================
+ * Painel: as peças da tela de sistema
+ *
+ * Abas, ficha técnica, gaveta e cartão de destino. Tudo aqui saiu de
+ * um defeito visto na captura de 16/09, anotado em
+ * `docs/design/auditoria-e-plano.md`.
+ * ================================================================= */
+
+/* Largura de painel. Texto corrido continua em 40rem, que é onde se lê. */
+.pagina--painel {
+  max-width: var(--largura-painel);
+}
+
+.cabecalhoDaPagina--comAcao {
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.cabecalhoDaPagina--comAcao > div {
+  min-width: 0;
+}
+
+/* ----------------------------------------------------------------- abas */
+
+/*
+ * Antes eram cinco botões brancos idênticos, sem indicar qual estava
+ * aberto: navegação desenhada como ação. O estado atual é marcado por
+ * peso, cor e sublinhado — não por cor sozinha.
+ */
+.abas {
+  display: flex;
+  gap: var(--e1);
+  margin-bottom: var(--e5);
+  border-bottom: 1px solid var(--borda);
+  /*
+   * A régua de abas é a única coisa do sistema que pode rolar na
+   * horizontal, e rola dentro de si mesma: são seis destinos e o
+   * celular tem 390px. A proibição do CLAUDE.md é a tabela de dados
+   * rolar, que é onde se perde informação sem perceber.
+   */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.abas::-webkit-scrollbar {
+  display: none;
+}
+
+.aba {
+  flex: none;
+  padding: var(--e3) var(--e3);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--tinta-fraca);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.aba:hover {
+  color: var(--tinta);
+  border-bottom-color: var(--borda-forte);
+}
+
+.aba--ativa,
+.aba--ativa:hover {
+  color: var(--realce);
+  border-bottom-color: var(--realce);
+  font-weight: 650;
+}
+
+/* -------------------------------------------------------- ficha técnica */
+
+/*
+ * Rótulo e valor, em `<dl>` porque é o que a estrutura é. Antes era
+ * `<li>` com `justify-content: space-between`, que jogava o valor
+ * contra a borda direita: num monitor largo isso abria um vão de
+ * 700px entre o rótulo e o que ele nomeia, e a leitura se perdia.
+ */
+.fichaTecnica {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin: 0;
+}
+
+.fichaTecnica dt {
+  color: var(--tinta-tenue);
+  font-size: 0.85rem;
+  padding-top: var(--e3);
+}
+
+.fichaTecnica dd {
+  margin: 0;
+  padding-bottom: var(--e3);
+  border-bottom: 1px solid var(--borda);
+}
+
+.fichaTecnica dd:last-child {
+  border-bottom: 0;
+}
+
+@media (min-width: 40rem) {
+  .fichaTecnica {
+    grid-template-columns: 12rem 1fr;
+  }
+
+  .fichaTecnica dt {
+    padding: var(--e3) 0;
+    border-bottom: 1px solid var(--borda);
+  }
+
+  .fichaTecnica dd {
+    padding: var(--e3) 0;
+  }
+
+  .fichaTecnica dt:last-of-type {
+    border-bottom: 0;
+  }
+}
+
+/* --------------------------------------------------------------- gaveta */
+
+/*
+ * O formulário que se usa uma vez por mês, fechado, abaixo do que se
+ * lê todo dia. Antes a lista de períodos emendava direto no
+ * formulário de cadastro, sem separação nenhuma.
+ */
+.gaveta {
+  margin-top: var(--e4);
+  border-top: 1px solid var(--borda);
+  padding-top: var(--e3);
+}
+
+.gaveta > summary {
+  min-height: var(--toque-minimo);
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+  color: var(--realce);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.gaveta > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* O triângulo é do CSS: gira ao abrir, e não é lido como conteúdo. */
+.gaveta > summary::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border-left: 6px solid currentcolor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 120ms ease;
+}
+
+.gaveta[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.gaveta > form {
+  padding-top: var(--e4);
+}
+
+/* ----------------------------------------------------- cartão de obra */
+
+.grade--cartoes {
+  display: grid;
+  gap: var(--e3);
+  grid-template-columns: 1fr;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+@media (min-width: 48rem) {
+  .grade--cartoes {
+    grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+  }
+}
+
+/* A linha inteira é o alvo, para que funcione com o dedo. */
+.cartaoDeObra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e3);
+  min-height: var(--toque);
+  padding: var(--e4);
+  background: var(--papel);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  color: var(--tinta);
+  text-decoration: none;
+}
+
+.cartaoDeObra:hover {
+  border-color: var(--realce);
+  color: var(--tinta);
+}
+
+.cartaoDeObraContrato {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+@media (min-width: 40rem) {
+  .grade--tripla {
+    grid-template-columns: 1fr 1fr 1fr;
   }
 }

@@ -18,7 +18,9 @@ import { listaLetrasDeTurno, TIPOS_DE_TAXONOMIA } from '../../../../../modules/t
 import type { TipoDeTaxonomia } from '../../../../../modules/taxonomia';
 import { idConfiavel } from '../../../../../shared/id';
 import { acrescentarTermoAction } from '../../../acoes';
-import { Aviso, Bloco, Campo, Erro, Nota, Vazio, Voltar } from '../../../componentes';
+import { Aviso, Bloco, Campo, Erro, Nota, Vazio } from '../../../componentes';
+import { Trilha } from '../../../../_componentes/casca';
+import { AbasDaObra } from '../abas';
 import { atorDaRequisicao } from '../../../sessao';
 
 export const dynamic = 'force-dynamic';
@@ -47,7 +49,7 @@ export default async function Taxonomias({
   if (!primeira.ok) {
     return (
       <main className="pagina pagina--estreita">
-        <Voltar para="/obras" texto="Voltar às obras" />
+        <Trilha degraus={[{ texto: 'Obras', href: '/obras' }, { texto: 'Listas' }]} />
         <header className="cabecalhoDaPagina">
           <h1>Listas</h1>
         </header>
@@ -57,13 +59,21 @@ export default async function Taxonomias({
   }
 
   return (
-    <main className="pagina">
-      <Voltar para={`/obras/${obraId}`} texto="Voltar à obra" />
+    <main className="pagina pagina--painel">
+      <Trilha
+        degraus={[
+          { texto: 'Obras', href: '/obras' },
+          { texto: 'Obra', href: `/obras/${obraId}` },
+          { texto: 'Listas' },
+        ]}
+      />
 
       <header className="cabecalhoDaPagina">
         <h1>Listas</h1>
         <p className="subtitulo">Função, tipo de equipamento e status de atividade</p>
       </header>
+
+      <AbasDaObra obraId={obraId} atual="taxonomia" />
 
       <Erro mensagem={erro} />
 

@@ -14,7 +14,7 @@
  */
 
 import { entrarAction } from '../acoes';
-import { Bloco, Campo, Erro, Voltar } from '../componentes';
+import { Bloco, Campo, Erro } from '../componentes';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,8 +27,6 @@ export default async function Entrar({
 
   return (
     <main className="pagina pagina--estreita">
-      <Voltar para="/" texto="Início" />
-
       <header className="cabecalhoDaPagina">
         <h1>Entrar</h1>
         <p className="subtitulo">RDO digital</p>

@@ -20,7 +20,6 @@
  * é falha inesperada, traz o identificador de correlação para o suporte.
  */
 
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import type { ReactElement } from 'react';
 
@@ -32,7 +31,9 @@ import {
 import { atorDaRequisicao } from '../../../../_composicao/sessao';
 import { ControleDeExportacao } from '../../../_componentes/controle-de-exportacao';
 import { RdoDiarioNaTela } from '../../../_componentes/rdo-diario-na-tela';
+import { formataBr } from '../../../../../shared/date/dia';
 import { idConfiavel } from '../../../../../shared/id';
+import { Trilha } from '../../../../_componentes/casca';
 import estilos from '../../../_componentes/rdo.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -56,10 +57,14 @@ export default async function PaginaDoRdoDiario({
 
     return (
       <main className={estilos.pagina}>
+        <Trilha
+          degraus={[
+            { texto: 'Obras', href: '/obras' },
+            { texto: 'Obra', href: `/obras/${obraId}` },
+            { texto: 'RDO' },
+          ]}
+        />
         <p className={estilos.erro}>{resultado.erro.mensagem}</p>
-        <Link className="botao botao--secundario" href={`/obras/${obraId}`}>
-          ← Voltar à obra
-        </Link>
       </main>
     );
   }
@@ -73,9 +78,13 @@ export default async function PaginaDoRdoDiario({
   return (
     <>
       <nav className={`${estilos.barraDeAcoes} naoImprime`}>
-        <Link className="botao botao--secundario" href={`/obras/${obraId}`}>
-          ← Voltar à obra
-        </Link>
+        <Trilha
+          degraus={[
+            { texto: 'Obras', href: '/obras' },
+            { texto: 'Obra', href: `/obras/${obraId}` },
+            { texto: `RDO de ${formataBr(dia)}` },
+          ]}
+        />
         <ControleDeExportacao
           perfil={perfilNaObraProtegido(ator, obraId)}
           obraId={idConfiavel<'obra'>(obraId)}

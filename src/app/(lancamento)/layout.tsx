@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { BarraSuperior } from '../_componentes/casca';
 import estilos from './estilos.module.css';
 
 /**
@@ -10,5 +11,10 @@ import estilos from './estilos.module.css';
  * desktop é o caso fácil que sai de graça.
  */
 export default function LayoutDeLancamento({ children }: { children: ReactNode }) {
-  return <div className={estilos.tela}>{children}</div>;
+  return (
+    <>
+      <BarraSuperior />
+      <div className={estilos.tela}>{children}</div>
+    </>
+  );
 }

@@ -1,7 +1,8 @@
 import Link from 'next/link';
 
-import { somaDias } from '../../../../../shared/date/dia';
-import { CabecalhoDoDia, Voltar } from '../../../_componentes/cabecalho';
+import { formataBr, somaDias } from '../../../../../shared/date/dia';
+import { Trilha } from '../../../../_componentes/casca';
+import { CabecalhoDoDia } from '../../../_componentes/cabecalho';
 import { carregaDadosDaTelaProtegida } from '../../../_dados';
 import estilos from '../../../estilos.module.css';
 
@@ -23,7 +24,13 @@ export default async function PaginaDoDia({
   if (!dados.dataValida) {
     return (
       <main>
-        <Voltar para={`/obras/${obraId}`} texto="Voltar à obra" />
+        <Trilha
+          degraus={[
+            { texto: 'Obras', href: '/obras' },
+            { texto: 'Obra', href: `/obras/${obraId}` },
+            { texto: 'Lançamento' },
+          ]}
+        />
         <h1 className={estilos.data}>Data inválida</h1>
         <p className={estilos.recadoErro}>{dados.recado}</p>
       </main>
@@ -34,7 +41,13 @@ export default async function PaginaDoDia({
 
   return (
     <main>
-      <Voltar para={`/obras/${obraId}`} texto="Voltar à obra" />
+      <Trilha
+        degraus={[
+          { texto: 'Obras', href: '/obras' },
+          { texto: 'Obra', href: `/obras/${obraId}` },
+          { texto: formataBr(data) },
+        ]}
+      />
       <CabecalhoDoDia data={data} estado={dados.estado} fechado={dados.diaFechado} />
 
       {dados.recado === null ? null : <p className={estilos.recado}>{dados.recado}</p>}

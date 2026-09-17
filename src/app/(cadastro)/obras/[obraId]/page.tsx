@@ -1,12 +1,20 @@
 /**
- * Cadastro da obra: cabeçalho, períodos de BM'S e responsável técnico.
+ * A obra: porta do trabalho do dia, depois cadastro.
  *
  * A página é fina: lê pelas funções protegidas de `_composicao/cadastro.ts`,
  * que autorizam antes de qualquer coisa, e renderiza. Nenhuma regra de negócio
  * mora aqui.
+ *
+ * Desenho, depois da captura de 16/09:
+ *
+ * - A obra abria em formulário. Agora abre nas **portas do dia**, que são o que
+ *   se vem fazer; antes disso só se chegava ao lançamento e ao RDO digitando a
+ *   URL com a data na mão.
+ * - Ler e escrever estavam no mesmo bloco: a lista de períodos emendava direto
+ *   num formulário de cadastro, sem separação. Agora o formulário fica dentro
+ *   de um `<details>`, fechado, e a lista se lê sem ruído.
  */
 
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import {
@@ -14,11 +22,14 @@ import {
   obtemCabecalhoProtegido,
 } from '../../../_composicao/cadastro';
 import { formataBr } from '../../../../shared/date/dia';
+import { hojeNaObra } from '../../../../shared/date/fuso';
 import { idConfiavel } from '../../../../shared/id';
 import { cadastrarPeriodoAction, definirResponsavelAction } from '../../acoes';
-import { Aviso, Bloco, Campo, Erro, Vazio, Voltar } from '../../componentes';
+import { Aviso, Bloco, Campo, Erro, Vazio } from '../../componentes';
+import { PortasDoDia, Trilha } from '../../../_componentes/casca';
 import { perfilNaObraProtegido } from '../../../_composicao/rdo-diario';
 import { atorDaRequisicao } from '../../sessao';
+import { AbasDaObra } from './abas';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +52,7 @@ export default async function Obra({
   if (!cabecalho.ok) {
     return (
       <main className="pagina pagina--estreita">
-        <Voltar para="/obras" texto="Voltar às obras" />
+        <Trilha degraus={[{ texto: 'Obras', href: '/obras' }, { texto: 'Obra' }]} />
         <header className="cabecalhoDaPagina">
           <h1>Obra</h1>
         </header>
@@ -61,71 +72,59 @@ export default async function Obra({
    * responsável técnico, que são do engenheiro (25.1 e 32.1). O servidor
    * continua recusando de qualquer forma; isto tira o beco sem saída.
    */
-  const ehEngenheiro = perfilNaObraProtegido(ator, obraId) === 'engenheiro';
+  const perfil = perfilNaObraProtegido(ator, obraId);
+  const ehEngenheiro = perfil === 'engenheiro';
+
+  // O dia sai do fuso da obra, no servidor. Nunca do relógio do navegador.
+  const hoje = hojeNaObra();
 
   return (
-    <main className="pagina">
-      <Voltar para="/obras" texto="Voltar às obras" />
+    <main className="pagina pagina--painel">
+      <Trilha degraus={[{ texto: 'Obras', href: '/obras' }, { texto: obra.contrato }]} />
 
       <header className="cabecalhoDaPagina">
-        <h1>{obra.contrato}</h1>
-        <p className="subtitulo">{obra.nomeProjeto}</p>
+        <div>
+          <h1>{obra.contrato}</h1>
+          <p className="subtitulo">{obra.nomeProjeto}</p>
+        </div>
       </header>
 
       <Erro mensagem={erro} />
 
-      <nav className="linhaDeAcoes">
-        <Link className="botao botao--secundario" href={`/obras/${obraId}/pessoal`}>
-          Pessoal
-        </Link>
-        <Link className="botao botao--secundario" href={`/obras/${obraId}/equipamento`}>
-          Equipamentos
-        </Link>
-        <Link className="botao botao--secundario" href={`/obras/${obraId}/servicos`}>
-          Serviços controlados
-        </Link>
-        <Link className="botao botao--secundario" href={`/obras/${obraId}/taxonomia`}>
-          Listas
-        </Link>
-        <Link className="botao botao--secundario" href={`/obras/${obraId}/acesso`}>
-          Acesso
-        </Link>
-      </nav>
+      <PortasDoDia
+        obraId={obraId}
+        hoje={hoje}
+        perfil={ehEngenheiro ? 'engenheiro' : 'encarregado'}
+      />
+
+      <AbasDaObra obraId={obraId} atual="visao" />
 
       <Bloco titulo="Informações gerais">
-        <ul className="listaLimpa">
-          <li className="itemDeLista">
-            <span className="rotulo">Contratante</span> {obra.contratante}
-          </li>
-          <li className="itemDeLista">
-            <span className="rotulo">Contratada</span> {obra.contratada}
-          </li>
-          <li className="itemDeLista">
-            <span className="rotulo">Data de início</span> {formataBr(obra.dataInicio)}
-          </li>
-          <li className="itemDeLista">
-            <span className="rotulo">Data final</span> {formataBr(obra.dataTermino)}
-          </li>
-          <li className="itemDeLista">
-            <span className="rotulo">Escopo</span> {obra.escopo}
-          </li>
-          <li className="itemDeLista">
-            <span className="rotulo">Nome</span> {obra.nomeProjeto}
-          </li>
-          <li className="itemDeLista">
-            <span className="rotulo">Área</span> {obra.area}
-          </li>
-          <li className="itemDeLista">
-            <span className="rotulo">Local</span> {obra.local}
-          </li>
-        </ul>
+        <dl className="fichaTecnica">
+          <dt>Contratante</dt>
+          <dd>{obra.contratante}</dd>
+          <dt>Contratada</dt>
+          <dd>{obra.contratada}</dd>
+          <dt>Data de início</dt>
+          <dd>{formataBr(obra.dataInicio)}</dd>
+          <dt>Data final</dt>
+          <dd>{formataBr(obra.dataTermino)}</dd>
+          <dt>Escopo</dt>
+          <dd>{obra.escopo}</dd>
+          <dt>Nome</dt>
+          <dd>{obra.nomeProjeto}</dd>
+          <dt>Área</dt>
+          <dd>{obra.area}</dd>
+          <dt>Local</dt>
+          <dd>{obra.local}</dd>
+        </dl>
       </Bloco>
 
       <Bloco titulo="Períodos de BM'S">
         {!periodos.ok || periodos.valor.length === 0 ? (
           <Vazio>
-            Nenhum período de BM&apos;S cadastrado. Cadastre o primeiro no formulário
-            abaixo: sem ele o RDO sai com o campo BM&apos;S vazio.
+            Nenhum período de BM&apos;S cadastrado. Cadastre o primeiro em{' '}
+            <b>Cadastrar período</b>: sem ele o RDO sai com o campo BM&apos;S vazio.
           </Vazio>
         ) : (
           <ul className="listaLimpa">
@@ -142,19 +141,26 @@ export default async function Obra({
         )}
 
         {ehEngenheiro && (
-          <form action={cadastrarPeriodoAction}>
-            <input type="hidden" name="obraId" value={obraId} />
-            <Campo nome="numero" rotulo="Número" tipo="number" obrigatorio />
-            <div className="grade grade--dupla">
-              <Campo nome="dataInicial" rotulo="Data inicial" tipo="date" obrigatorio />
-              <Campo nome="dataFinal" rotulo="Data final" tipo="date" obrigatorio />
-            </div>
-            <div className="linhaDeAcoes">
-              <button className="botao" type="submit">
-                Cadastrar período
-              </button>
-            </div>
-          </form>
+          /*
+           * Fechado por padrão. Cadastrar período é ato raro — uma vez por mês —
+           * e estava ocupando meia tela todo dia, colado na lista que se lê.
+           */
+          <details className="gaveta">
+            <summary>Cadastrar período</summary>
+            <form action={cadastrarPeriodoAction}>
+              <input type="hidden" name="obraId" value={obraId} />
+              <div className="grade grade--tripla">
+                <Campo nome="numero" rotulo="Número" tipo="number" obrigatorio />
+                <Campo nome="dataInicial" rotulo="Data inicial" tipo="date" obrigatorio />
+                <Campo nome="dataFinal" rotulo="Data final" tipo="date" obrigatorio />
+              </div>
+              <div className="linhaDeAcoes">
+                <button className="botao" type="submit">
+                  Cadastrar período
+                </button>
+              </div>
+            </form>
+          </details>
         )}
       </Bloco>
 
@@ -164,40 +170,52 @@ export default async function Obra({
             Ainda não informado. O bloco de assinaturas do PDF precisa dos três campos.
           </Aviso>
         ) : (
-          <ul className="listaLimpa">
-            <li className="itemDeLista">{obra.respTecnico.nome}</li>
-            <li className="itemDeLista">{obra.respTecnico.titulo}</li>
-            <li className="itemDeLista">{obra.respTecnico.crea}</li>
-          </ul>
+          <dl className="fichaTecnica">
+            <dt>Nome</dt>
+            <dd>{obra.respTecnico.nome}</dd>
+            <dt>Titulação</dt>
+            <dd>{obra.respTecnico.titulo}</dd>
+            <dt>Registro</dt>
+            <dd>{obra.respTecnico.crea}</dd>
+          </dl>
         )}
 
         {ehEngenheiro && (
-          <form action={definirResponsavelAction}>
-            <input type="hidden" name="obraId" value={obraId} />
-            <Campo
-              nome="respTecnicoNome"
-              rotulo="Nome"
-              obrigatorio
-              valorInicial={obra.respTecnico?.nome}
-            />
-            <Campo
-              nome="respTecnicoTitulo"
-              rotulo="Titulação"
-              obrigatorio
-              valorInicial={obra.respTecnico?.titulo}
-            />
-            <Campo
-              nome="respTecnicoCrea"
-              rotulo="Registro"
-              obrigatorio
-              valorInicial={obra.respTecnico?.crea}
-            />
-            <div className="linhaDeAcoes">
-              <button className="botao" type="submit">
-                Salvar responsável técnico
-              </button>
-            </div>
-          </form>
+          <details className="gaveta" open={obra.respTecnico === null}>
+            <summary>
+              {obra.respTecnico === null
+                ? 'Informar responsável técnico'
+                : 'Alterar responsável técnico'}
+            </summary>
+            <form action={definirResponsavelAction}>
+              <input type="hidden" name="obraId" value={obraId} />
+              <Campo
+                nome="respTecnicoNome"
+                rotulo="Nome"
+                obrigatorio
+                valorInicial={obra.respTecnico?.nome}
+              />
+              <div className="grade grade--dupla">
+                <Campo
+                  nome="respTecnicoTitulo"
+                  rotulo="Titulação"
+                  obrigatorio
+                  valorInicial={obra.respTecnico?.titulo}
+                />
+                <Campo
+                  nome="respTecnicoCrea"
+                  rotulo="Registro"
+                  obrigatorio
+                  valorInicial={obra.respTecnico?.crea}
+                />
+              </div>
+              <div className="linhaDeAcoes">
+                <button className="botao" type="submit">
+                  Salvar responsável técnico
+                </button>
+              </div>
+            </form>
+          </details>
         )}
       </Bloco>
     </main>

@@ -18,7 +18,8 @@
 import { redirect } from 'next/navigation';
 
 import { criarObraAction } from '../../acoes';
-import { Bloco, Campo, Erro, Nota, Voltar } from '../../componentes';
+import { Bloco, Campo, Erro, Nota } from '../../componentes';
+import { Trilha } from '../../../_componentes/casca';
 import { atorDaRequisicao } from '../../sessao';
 import { BlocoDeBms } from './campos-de-bms';
 
@@ -35,7 +36,7 @@ export default async function NovaObra({
 
   return (
     <main className="pagina">
-      <Voltar para="/obras" texto="Voltar às obras" />
+      <Trilha degraus={[{ texto: 'Obras', href: '/obras' }, { texto: 'Criar obra' }]} />
 
       <header className="cabecalhoDaPagina">
         <h1>Criar obra</h1>

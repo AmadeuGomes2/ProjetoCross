@@ -16,9 +16,13 @@
  * - `Aviso` é o que pode dar errado depois — falta de dado, efeito colateral;
  * - `Nota` é explicação, sem alarme nenhum;
  * - `Vazio` é lista sem nada, e diz o PRÓXIMO PASSO, não "nenhum registro".
+ *
+ * Navegação não mora aqui: onde se está e como se volta é `Trilha`, em
+ * `src/app/_componentes/casca.tsx`. O `Voltar` avulso que existia aqui foi
+ * removido em 16/09/2026 — ele dava um degrau só, e a captura de tela mostrou
+ * que quem entrava fundo não tinha caminho de volta visível.
  */
 
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 import estilos from './estilos.module.css';
@@ -125,22 +129,6 @@ export function Bloco({ titulo, children }: { titulo: string; children: ReactNod
       <h2>{titulo}</h2>
       {children}
     </section>
-  );
-}
-
-/**
- * O caminho de volta.
- *
- * Toda tela interna precisa de um, visível: sem ele só se chega a esta parte do
- * sistema digitando a URL, e só se sai dela apertando o botão do navegador.
- */
-export function Voltar({ para, texto }: { para: string; texto: string }) {
-  return (
-    <nav className="linhaDeAcoes">
-      <Link className="botao botao--secundario" href={para}>
-        ← {texto}
-      </Link>
-    </nav>
   );
 }
 

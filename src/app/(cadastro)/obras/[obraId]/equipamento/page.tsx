@@ -15,15 +15,9 @@ import {
 import { formataBr } from '../../../../../shared/date/dia';
 import { idConfiavel } from '../../../../../shared/id';
 import { cadastrarEquipamentoAction } from '../../../acoes';
-import {
-  Bloco,
-  Campo,
-  Erro,
-  Escolha,
-  Vazio,
-  Voltar,
-  estilos,
-} from '../../../componentes';
+import { Bloco, Campo, Erro, Escolha, Vazio, estilos } from '../../../componentes';
+import { Trilha } from '../../../../_componentes/casca';
+import { AbasDaObra } from '../abas';
 import { atorDaRequisicao } from '../../../sessao';
 
 export const dynamic = 'force-dynamic';
@@ -46,7 +40,9 @@ export default async function Equipamentos({
   if (!equipamentos.ok) {
     return (
       <main className="pagina pagina--estreita">
-        <Voltar para="/obras" texto="Voltar às obras" />
+        <Trilha
+          degraus={[{ texto: 'Obras', href: '/obras' }, { texto: 'Equipamentos' }]}
+        />
         <header className="cabecalhoDaPagina">
           <h1>Equipamentos</h1>
         </header>
@@ -59,13 +55,21 @@ export default async function Equipamentos({
   const opcoes = tipos.ok ? tipos.valor.map((t) => t.termo) : [];
 
   return (
-    <main className="pagina">
-      <Voltar para={`/obras/${obraId}`} texto="Voltar à obra" />
+    <main className="pagina pagina--painel">
+      <Trilha
+        degraus={[
+          { texto: 'Obras', href: '/obras' },
+          { texto: 'Obra', href: `/obras/${obraId}` },
+          { texto: 'Equipamentos' },
+        ]}
+      />
 
       <header className="cabecalhoDaPagina">
         <h1>Equipamentos</h1>
         <p className="subtitulo">O RDO agrega por identificador, não por tipo</p>
       </header>
+
+      <AbasDaObra obraId={obraId} atual="equipamento" />
 
       <Erro mensagem={erro} />
 

@@ -23,16 +23,9 @@ import {
 import { formataBr } from '../../../../../shared/date/dia';
 import { idConfiavel } from '../../../../../shared/id';
 import { cadastrarPessoaAction, trocarFuncaoAction } from '../../../acoes';
-import {
-  Bloco,
-  Campo,
-  Erro,
-  Escolha,
-  Nota,
-  Vazio,
-  Voltar,
-  estilos,
-} from '../../../componentes';
+import { Bloco, Campo, Erro, Escolha, Nota, Vazio, estilos } from '../../../componentes';
+import { Trilha } from '../../../../_componentes/casca';
+import { AbasDaObra } from '../abas';
 import { atorDaRequisicao } from '../../../sessao';
 
 export const dynamic = 'force-dynamic';
@@ -55,7 +48,7 @@ export default async function Pessoal({
   if (!pessoal.ok) {
     return (
       <main className="pagina pagina--estreita">
-        <Voltar para="/obras" texto="Voltar às obras" />
+        <Trilha degraus={[{ texto: 'Obras', href: '/obras' }, { texto: 'Pessoal' }]} />
         <header className="cabecalhoDaPagina">
           <h1>Pessoal</h1>
         </header>
@@ -68,13 +61,21 @@ export default async function Pessoal({
   const opcoes = funcoes.ok ? funcoes.valor.map((t) => t.termo) : [];
 
   return (
-    <main className="pagina">
-      <Voltar para={`/obras/${obraId}`} texto="Voltar à obra" />
+    <main className="pagina pagina--painel">
+      <Trilha
+        degraus={[
+          { texto: 'Obras', href: '/obras' },
+          { texto: 'Obra', href: `/obras/${obraId}` },
+          { texto: 'Pessoal' },
+        ]}
+      />
 
       <header className="cabecalhoDaPagina">
         <h1>Pessoal</h1>
         <p className="subtitulo">O efetivo do RDO sai daqui, agregado por função</p>
       </header>
+
+      <AbasDaObra obraId={obraId} atual="pessoal" />
 
       <Erro mensagem={erro} />
 

@@ -1,5 +1,3 @@
-import Link from 'next/link';
-
 import { diaDaSemana, formataBr } from '../../../shared/date/dia';
 import type { EstadoNaTela } from '../../../modules/lancamento';
 import estilos from '../estilos.module.css';
@@ -35,19 +33,5 @@ export function CabecalhoDoDia({
         {fechado ? ' · dia fechado' : ''}
       </span>
     </header>
-  );
-}
-
-export function Voltar({
-  para,
-  texto,
-}: {
-  readonly para: string;
-  readonly texto: string;
-}) {
-  return (
-    <Link className={estilos.voltar} href={para}>
-      ← {texto}
-    </Link>
   );
 }
