@@ -266,10 +266,27 @@ export async function revogaAcesso(
   const naObra = await exigeAcessoNaObra(ator, alvo.obraId, 'engenheiro', amb);
   if (!naObra.ok) return erro(recusa);
 
-  if (
-    alvo.perfil === 'engenheiro' &&
-    (await repositorio.contaEngenheirosAtivos(amb.db, alvo.obraId)) <= 1
-  ) {
+  /*
+   * Conferir e revogar numa transação só, com bloqueio de linha.
+   *
+   * Eram duas chamadas soltas, e funcionava porque o `better-sqlite3` era
+   * síncrono: não havia ponto de intercalação entre a contagem e a gravação.
+   * Com o driver de rede há um `await` no meio, e duas revogações simultâneas
+   * passariam as duas pela trava — deixando a obra sem engenheiro responsável.
+   *
+   * "Ao menos um engenheiro por obra" não é expressável em `CHECK`, porque olha
+   * outras linhas. O bloqueio é a única defesa.
+   */
+  const resultado = await repositorio.revogaSeSobrarEngenheiro(
+    amb.db,
+    acessoId,
+    alvo.obraId,
+    alvo.perfil === 'engenheiro',
+    ator.usuarioId,
+    instanteAgora(amb.relogio),
+  );
+
+  if (!resultado.revogado) {
     return erro(
       erroDeDominio(
         CODIGO_ERRO.SEM_PERMISSAO,
@@ -277,13 +294,6 @@ export async function revogaAcesso(
       ),
     );
   }
-
-  await repositorio.marcaAcessoRevogado(
-    amb.db,
-    acessoId,
-    ator.usuarioId,
-    instanteAgora(amb.relogio),
-  );
   registra('info', geraId<'correlacao'>(), 'acesso.revogado', {
     obraId: alvo.obraId,
     usuarioId: alvo.usuarioId,

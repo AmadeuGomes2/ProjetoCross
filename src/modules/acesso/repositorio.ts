@@ -301,6 +301,65 @@ export async function marcaAcessoRevogado(
     .where(and(eq(acesso.id, acessoId), isNull(acesso.revogadoEm)));
 }
 
+/**
+ * Revoga o acesso **e** confere, na mesma transação, que sobra engenheiro.
+ *
+ * ## Por que existe, e por que só agora
+ *
+ * A conferência e a revogação eram duas chamadas soltas. Com o
+ * `better-sqlite3`, que era **síncrono**, nada rodava entre uma e outra: o
+ * processo é de uma linha só e não havia ponto de intercalação. Com o driver de
+ * rede há um `await` no meio, e duas revogações simultâneas podem **as duas**
+ * ler `total = 2`, passar pela trava e revogar — deixando a obra sem engenheiro
+ * responsável, que é justamente o que a regra existe para impedir.
+ *
+ * É regressão da migração para Postgres, de 17/09/2026, e não um defeito
+ * antigo. Achada pela frente que converteu este módulo.
+ *
+ * ## Como fica correto
+ *
+ * `FOR UPDATE` nas linhas de acesso da obra. A segunda transação fica esperando
+ * a primeira terminar e só então conta — aí ela vê `total = 1` e recusa.
+ *
+ * Ao contrário do uso único do convite, aqui **não existe restrição no banco**
+ * por trás: "ao menos um engenheiro por obra" não é expressável em `CHECK`,
+ * porque olha outras linhas. O bloqueio é a única defesa.
+ */
+export async function revogaSeSobrarEngenheiro(
+  db: BancoRdo,
+  acessoId: AcessoId,
+  obraId: ObraId,
+  ehEngenheiro: boolean,
+  por: UsuarioId,
+  em: Instante,
+): Promise<{ readonly revogado: boolean }> {
+  return db.transaction(async (tx) => {
+    if (ehEngenheiro) {
+      // `FOR UPDATE` serializa: quem chegar depois espera e vê o resultado.
+      const ativos = await tx
+        .select({ id: acesso.id })
+        .from(acesso)
+        .where(
+          and(
+            eq(acesso.obraId, obraId),
+            eq(acesso.perfil, 'engenheiro'),
+            isNull(acesso.revogadoEm),
+          ),
+        )
+        .for('update');
+
+      if (ativos.length <= 1) return { revogado: false };
+    }
+
+    await tx
+      .update(acesso)
+      .set({ revogadoPor: por, revogadoEm: em })
+      .where(and(eq(acesso.id, acessoId), isNull(acesso.revogadoEm)));
+
+    return { revogado: true };
+  });
+}
+
 export interface LinhaDeConvite {
   readonly id: ConviteId;
   readonly obraId: ObraId;
