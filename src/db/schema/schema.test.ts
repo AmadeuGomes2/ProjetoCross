@@ -640,3 +640,214 @@ describe('seed das taxonomias', () => {
     expect(colunas.map((c) => c.coluna)).not.toContain('obra_id');
   });
 });
+
+/**
+ * Exclusão com rastro, decisão 30.1, de 16/09/2026.
+ *
+ * Os casos vieram do teste da migration `0003_exclusao_com_rastro_e_convite`,
+ * aposentado em 17/09/2026 e guardado em
+ * `docs/historico/testes-de-migracao-sqlite/`. Aquele arquivo misturava duas
+ * naturezas: metade era sobre a MIGRAÇÃO — não perder lançamento, não deixar
+ * tabela de trabalho para trás, `integrity_check` —, e perdeu o objeto quando o
+ * banco deixou de ser SQLite; metade era sobre o ESQUEMA, e continua valendo,
+ * porque o CHECK segue lá, escrito uma vez em `convencoes.ts` e aplicado às
+ * quatro tabelas de lançamento.
+ *
+ * A expectativa é a da decisão 30.1: excluir não apaga linha, e o rastro é
+ * quem, quando e por quê. Rastro pela metade não é rastro — por isso os três
+ * campos existem juntos ou não existem.
+ */
+describe('exclusão com rastro', () => {
+  const ATIVIDADE = '12121212-1212-4212-8212-121212121212';
+
+  /**
+   * Um lançamento de atividade vigente, para ser excluído.
+   *
+   * O status é só preenchimento da chave estrangeira — qual dos 14 semeados não
+   * muda nada aqui —, e por isso vem pela `ordem`, que o seed fixa, e não por
+   * um id, que o seed sorteia a cada execução.
+   */
+  beforeEach(async () => {
+    await montaBase();
+    await insereDia('2026-09-03');
+    const status = await conexao.consulta<{ id: string }>(
+      `SELECT id FROM status_atividade ORDER BY ordem LIMIT 1`,
+    );
+    const statusId = status[0]?.id;
+    if (statusId === undefined) throw new Error('O seed não carregou status_atividade');
+    await conexao.executa(
+      `INSERT INTO lancamento_atividade
+         (id, obra_id, data, autor_id, registrado_em, raiz_id, descricao, status_id)
+       VALUES ($1, $2, '2026-09-03', $3, $4, $1, 'Fresagem da Rua A', $5)`,
+      [ATIVIDADE, OBRA, USUARIO, INSTANTE, statusId],
+    );
+  });
+
+  // O lançamento nasce vigente: nenhuma das três colunas tem valor, e é essa
+  // ausência que `lancamento/vigencia.ts` lê como "não excluído".
+  it('o lançamento nasce sem marca de exclusão', async () => {
+    const linhas = await conexao.consulta(
+      `SELECT excluido_por, excluido_em, motivo_exclusao
+         FROM lancamento_atividade WHERE id = $1`,
+      [ATIVIDADE],
+    );
+
+    expect(linhas).toEqual([
+      { excluido_por: null, excluido_em: null, motivo_exclusao: null },
+    ]);
+  });
+
+  it('aceita a exclusão completa: quem, quando e por quê', async () => {
+    await aceita(
+      conexao.executa(
+        `UPDATE lancamento_atividade
+            SET excluido_por = $1, excluido_em = $2, motivo_exclusao = 'Lançado na data errada'
+          WHERE id = $3`,
+        [USUARIO, INSTANTE, ATIVIDADE],
+      ),
+    );
+  });
+
+  it('recusa exclusão sem motivo: rastro pela metade não é rastro', async () => {
+    await expect(
+      conexao.executa(
+        `UPDATE lancamento_atividade SET excluido_por = $1, excluido_em = $2 WHERE id = $3`,
+        [USUARIO, INSTANTE, ATIVIDADE],
+      ),
+    ).rejects.toThrow(/violates check constraint "ck_atividade_exclusao"/);
+  });
+
+  // Motivo em branco é o mesmo que motivo nenhum: ninguém responde com ele, seis
+  // meses depois, por que o número do RDO mudou.
+  it('recusa motivo em branco', async () => {
+    await expect(
+      conexao.executa(
+        `UPDATE lancamento_atividade
+            SET excluido_por = $1, excluido_em = $2, motivo_exclusao = '   '
+          WHERE id = $3`,
+        [USUARIO, INSTANTE, ATIVIDADE],
+      ),
+    ).rejects.toThrow(/violates check constraint "ck_atividade_exclusao"/);
+  });
+
+  it('recusa motivo sem quem e sem quando', async () => {
+    await expect(
+      conexao.executa(
+        `UPDATE lancamento_atividade SET motivo_exclusao = 'Sem autor' WHERE id = $1`,
+        [ATIVIDADE],
+      ),
+    ).rejects.toThrow(/violates check constraint "ck_atividade_exclusao"/);
+  });
+
+  // CLAUDE.md, Modelo: instante de auditoria é UTC com `Z`. Hora local sem
+  // deslocamento é como se perde um dia de RDO — e aqui quem recusa é
+  // `ck_atividade_excluido_em`, o CHECK do formato, porque a trinca do rastro
+  // está completa e passa pelo `ck_atividade_exclusao`.
+  it('recusa instante de exclusão em hora local, sem fuso', async () => {
+    await expect(
+      conexao.executa(
+        `UPDATE lancamento_atividade
+            SET excluido_por = $1, excluido_em = '2026-09-16 12:00:00',
+                motivo_exclusao = 'Lançado na data errada'
+          WHERE id = $2`,
+        [USUARIO, ATIVIDADE],
+      ),
+    ).rejects.toThrow(/violates check constraint "ck_atividade_excluido_em"/);
+  });
+
+  // CLAUDE.md, Modelo: "`excluido_por`, `excluido_em` e `motivo_exclusao` nas
+  // QUATRO tabelas de lançamento". Uma tabela que ficasse de fora só apareceria
+  // no dia em que alguém excluísse uma produção e a linha sumisse de verdade.
+  //
+  // Era `pragma table_info`, que não existe no Postgres; a lista vem do
+  // `information_schema`, e a asserção é a lista inteira para que uma quinta
+  // tabela de lançamento não entre em silêncio.
+  it('as quatro tabelas de lançamento têm as três colunas de exclusão', async () => {
+    const colunas = await conexao.consulta<{ tabela: string; coluna: string }>(
+      `SELECT table_name AS tabela, column_name AS coluna
+         FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name LIKE 'lancamento\\_%'
+          AND column_name IN ('excluido_por', 'excluido_em', 'motivo_exclusao')
+        ORDER BY table_name, column_name`,
+    );
+
+    expect(colunas.map((c) => `${c.tabela}.${c.coluna}`)).toEqual([
+      'lancamento_atividade.excluido_em',
+      'lancamento_atividade.excluido_por',
+      'lancamento_atividade.motivo_exclusao',
+      'lancamento_observacao.excluido_em',
+      'lancamento_observacao.excluido_por',
+      'lancamento_observacao.motivo_exclusao',
+      'lancamento_pluviometria.excluido_em',
+      'lancamento_pluviometria.excluido_por',
+      'lancamento_pluviometria.motivo_exclusao',
+      'lancamento_producao.excluido_em',
+      'lancamento_producao.excluido_por',
+      'lancamento_producao.motivo_exclusao',
+    ]);
+  });
+});
+
+/**
+ * Convite e conta de engenheiro — decisões 34.1 e 25.1, de 16/09/2026.
+ *
+ * Mesma origem do bloco acima: o que os testes das migrations `0001` e `0003`
+ * provavam sobre o ESQUEMA continua aqui; o que eles provavam sobre o
+ * transporte de dado de um esquema para o outro foi aposentado com o SQLite.
+ */
+describe('convite e conta de engenheiro', () => {
+  beforeEach(montaBase);
+
+  const CONVITE = '13131313-1313-4313-8313-131313131313';
+  const OUTRO_CONVITE = '14141414-1414-4414-8414-141414141414';
+  const EXPIRA_EM = '2026-09-23T12:00:00.000Z';
+
+  function insereConvite(id: string, tokenHash: string, perfil: string): Promise<void> {
+    return conexao.executa(
+      `INSERT INTO convite (id, obra_id, token_hash, perfil, criado_por, criado_em, expira_em)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [id, OBRA, tokenHash, perfil, USUARIO, INSTANTE, EXPIRA_EM],
+    );
+  }
+
+  // Decisão 34.1: um engenheiro dá acesso de engenheiro a outra pessoa na obra.
+  // Enquanto o perfil do convite era fixo em `encarregado`, a saída do
+  // engenheiro travava o cadastro da obra — só o comando no servidor criava
+  // outro (25.1).
+  it('aceita convite de engenheiro', async () => {
+    await aceita(insereConvite(CONVITE, 'hash-de-teste', 'engenheiro'));
+  });
+
+  it('aceita convite de encarregado', async () => {
+    await aceita(insereConvite(CONVITE, 'hash-de-teste', 'encarregado'));
+  });
+
+  // A lista continua fechada: o perfil chega de formulário, e o banco é a
+  // segunda camada que impede uma rota nova de inventar um terceiro.
+  it('recusa convite de perfil que não existe', async () => {
+    await expect(insereConvite(CONVITE, 'hash-de-teste', 'fiscal')).rejects.toThrow(
+      /violates check constraint "ck_convite_perfil"/,
+    );
+  });
+
+  // Decisão 17 da seção 7 da arquitetura: o token é guardado em hash e vale
+  // para um convite só. Dois convites com o mesmo hash fariam um link conceder
+  // dois acessos.
+  it('o token do convite é único', async () => {
+    await insereConvite(CONVITE, 'hash-repetido', 'encarregado');
+
+    await expect(
+      insereConvite(OUTRO_CONVITE, 'hash-repetido', 'engenheiro'),
+    ).rejects.toThrow(/violates unique constraint "ux_convite_token"/);
+  });
+
+  // Convenção do projeto (`convencoes.ts`): booleano é INTEGER 0/1 com CHECK.
+  // `e_engenheiro` decide quem cria obra (25.1); um terceiro valor ali deixaria
+  // a pergunta "esta conta é de engenheiro?" sem resposta de duas vias.
+  it('recusa valor que não seja 0 nem 1 em e_engenheiro', async () => {
+    await expect(
+      conexao.executa(`UPDATE usuario SET e_engenheiro = 2 WHERE id = $1`, [USUARIO]),
+    ).rejects.toThrow(/violates check constraint "ck_usuario_e_engenheiro"/);
+  });
+});
