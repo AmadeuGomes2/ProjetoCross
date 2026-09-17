@@ -147,15 +147,31 @@ h3 {
   margin: 0 0 0.4em;
 }
 
+/*
+ * Escala com intervalo de verdade.
+ *
+ * Era 1.55 / 1.2 / 1.02 sobre corpo de 1rem: quatro degraus dentro de meio
+ * rem. Com intervalos assim nada se destaca, e "o que eu vim fazer" competia
+ * com "configuracao da obra" — foi o problema 4 da auditoria.
+ *
+ * `clamp` porque o topo da escala e o que mais precisa mudar entre 390px e
+ * 1440px: um titulo de 2rem no celular come a dobra que o encarregado tem para
+ * trabalhar. O corpo nao entra na escala fluida e continua em 17px, que e a
+ * decisao de campo (ler ao sol, de braco estendido).
+ */
 h1 {
-  font-size: 1.55rem;
-  letter-spacing: -0.01em;
+  font-size: clamp(1.6rem, 1.35rem + 1.1vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 h2 {
-  font-size: 1.2rem;
+  font-size: clamp(1.2rem, 1.12rem + 0.35vw, 1.4rem);
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 h3 {
-  font-size: 1.02rem;
+  font-size: 1.05rem;
+  font-weight: 650;
 }
 
 p {
@@ -217,6 +233,7 @@ img {
   margin: 0;
   color: var(--tinta-tenue);
   font-size: 0.95rem;
+  font-weight: 400;
 }
 
 .cartao {

@@ -296,3 +296,54 @@ Não é landing page. É **sistema web operacional**: painel, menu, tabela,
 formulário e fluxo. O celular continua sendo primeiro **no lançamento**, porque
 é lá que o encarregado está; o monitor deixa de ser celular esticado nas telas
 do engenheiro, que são consulta e conferência.
+
+---
+
+# Execução, 16/09/2026
+
+Cinco commits, um por frente. Nenhuma regra de negócio, rota ou consulta
+existente mudou; a única consulta **nova** é a leitura do painel.
+
+| Frente     | Feito                                                                             | Onde                                                         |
+| ---------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| A — casca  | barra persistente, trilha nas 17 telas, portas do dia                             | `src/app/_componentes/casca.tsx`, três `layout.tsx` de grupo |
+| B — painel | últimos 14 dias com estado, cadastro em gaveta, abas com estado ativo             | `modules/lancamento/painel.ts`, `obras/[obraId]/`            |
+| C — visual | escala tipográfica com `clamp`, cor de estado do domínio, desabilitado inequívoco | `globals.css`                                                |
+| D — campo  | `BotaoDeEnvio` em 11 formulários, zero legível no hub                             | `_componentes/botao-de-envio.tsx`                            |
+| E — RDO    | produção em quatro colunas rotuladas, função vazia recuada                        | `(rdo)/_componentes/`                                        |
+
+## O que a captura provou, e que eu não teria visto lendo código
+
+Três conclusões da auditoria às cegas eram falsas, e as três só caíram porque a
+tela foi olhada:
+
+1. "Criar obra é uma coluna única sem seções" — já tinha quatro seções.
+2. "41 colunas de efetivo não cabem em 390px" — no celular já era grade de três.
+3. "As ações de servidor não têm estado de carregamento" — as de **lançamento**
+   tinham; as de **cadastro** é que não.
+
+E um defeito que eu mesmo introduzi na Frente A só apareceu na recaptura: para o
+engenheiro a ordem das portas dizia "veja o RDO" e a cor dizia "lance o dia".
+Ordem e destaque agora andam juntos.
+
+## O que ficou de fora, e por quê
+
+- **Largura do RDO na tela** continua em 48rem. Esticar o documento para 78rem
+  o faria parecer menos com o RDO que o fiscal conhece, e fidelidade vence
+  aproveitamento de tela.
+- **"Produção: nenhum" não ganhou cor de alerta.** Um dia pode legitimamente não
+  ter produção. Marcar como pendência seria inventar regra que ninguém escreveu.
+- **Altura das páginas** melhorou pouco: obra de 3.748 para 3.164 px, RDO
+  continua longo. O RDO é um documento de um dia inteiro; encurtá-lo de verdade
+  exige decidir o que dobrar, e isso é decisão de produto, não de layout.
+
+## Como conferir daqui para frente
+
+```
+npm run telas -- --rotulo antes                 # 17 telas × 3 larguras
+npm run telas -- --rotulo escuro --tema escuro  # o tema que ninguém tinha visto
+npm run telas -- --so rdo,obra                  # só o que se está mexendo
+```
+
+As imagens vão para `tmp/telas/`, fora do versionamento: captura de obra real
+mostra nome de trabalhador (CLAUDE.md, Segurança).

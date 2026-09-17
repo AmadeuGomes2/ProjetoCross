@@ -10,6 +10,7 @@
  *   node scripts/telas.mjs                    captura tudo
  *   node scripts/telas.mjs --rotulo antes     prefixa os arquivos
  *   node scripts/telas.mjs --so rdo,obra      captura só o que casar
+ *   node scripts/telas.mjs --tema escuro      captura no tema escuro
  *
  * Precisa do servidor no ar (`npm run dev`) e de contas no banco. As imagens
  * vão para `tmp/telas/`, que o `.gitignore` bloqueia: captura de tela de obra
@@ -29,6 +30,12 @@ const opcao = (nome) => {
 };
 const rotulo = opcao('--rotulo');
 const filtro = opcao('--so');
+/*
+ * O tema escuro existe desde a folha de estilo global e nunca foi olhado.
+ * `color-scheme: light dark` faz dele o padrão de quem usa o aparelho no
+ * escuro — que é metade do canteiro no fim do dia.
+ */
+const tema = opcao('--tema') === 'escuro' ? 'dark' : 'light';
 
 /** Larguras que importam: o celular do encarregado e o monitor do engenheiro. */
 const APARELHOS = [
@@ -90,6 +97,7 @@ async function main() {
         deviceScaleFactor: 2,
         locale: 'pt-BR',
         timezoneId: 'America/Sao_Paulo',
+        colorScheme: tema,
       });
       if (perfil !== 'publico') {
         await contexto.addCookies([
