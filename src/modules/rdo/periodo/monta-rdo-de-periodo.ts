@@ -203,10 +203,10 @@ export async function montaRdoDePeriodo(
       eContiguo,
       numeroDoRdoInicial,
       numeroDoRdoFinal,
-      faixaDeRdoTexto:
-        numeroDoRdoInicial === numeroDoRdoFinal
-          ? String(numeroDoRdoInicial)
-          : `${numeroDoRdoInicial} a ${numeroDoRdoFinal}`,
+      // A LISTA, nunca a faixa (17/09/2026). `numeros` já vem na ordem dos
+      // dias, que o pedido normalizou crescente.
+      numerosDoRdo: numeros,
+      numerosDoRdoTexto: numeros.join(', '),
       bms,
       bmsTexto: bms.join(', '),
     },

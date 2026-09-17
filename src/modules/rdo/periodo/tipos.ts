@@ -53,8 +53,21 @@ export interface IdentificacaoDoPeriodo {
    */
   readonly numeroDoRdoInicial: number;
   readonly numeroDoRdoFinal: number;
-  /** `209 a 215`; com um dia só, `209` — faixa de um número é ruído. */
-  readonly faixaDeRdoTexto: string;
+  /**
+   * Os números dos RDOs do conjunto, em ordem, **um por dia escolhido**.
+   *
+   * Decisão do dono do produto, 17/09/2026: o documento traz a **lista**, nunca
+   * a faixa. Faixa afirma continuidade onde o conjunto pode ter buraco — `209 a
+   * 216` para {02, 05, 09} faria o fiscal ler oito dias onde houve três, num
+   * papel que sustenta medição.
+   *
+   * `numeroDoRdoInicial` e `numeroDoRdoFinal` continuam, porque ordenar e
+   * comparar períodos precisa deles; o que saiu foi o **texto** de faixa, que
+   * era o que ia para o papel.
+   */
+  readonly numerosDoRdo: readonly number[];
+  /** `209, 212, 216`; com um dia só, `209`. */
+  readonly numerosDoRdoTexto: string;
   /** Todos os BMS que o conjunto cobre, crescente e sem repetição (DP7). */
   readonly bms: readonly number[];
   /** `3, 4`; vazio quando nenhum período cobre dia nenhum. */

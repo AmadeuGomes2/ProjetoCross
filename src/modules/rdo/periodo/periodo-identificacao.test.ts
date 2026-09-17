@@ -7,8 +7,9 @@
  *   corridos, com o primeiro dia do contrato sendo o RDO 0. O contrato começa
  *   em 05/02/2026, então 01/09/2026 é o RDO 208 — o número que o fiscal
  *   reconhece. Daí 29/09 = 236, 30/09 = 237 e 01/10 = 238;
- * - `periodo.md`, 2.1: a faixa sai de `min`/`max` dos números; com um dia só,
- *   sai o número sozinho. `periodoTexto` é sempre faixa, sempre `dd/mm/aaaa`;
+ * - decisão de 17/09/2026: o `RDO Nº` do documento é a **lista** dos números,
+ *   nunca a faixa — faixa afirmaria continuidade que o conjunto pode não ter.
+ *   `periodoTexto`, esse sim, é sempre faixa de datas, em `dd/mm/aaaa`;
  * - DP7: `BM'S` lista **todos** os períodos que o conjunto cobre;
  * - `regras-rdo` §7: nunca encadear o dia seguinte a partir do anterior — é
  *   assim que aparece o dia 31 de setembro (caso obrigatório 10);
@@ -36,16 +37,16 @@ describe('identificação do período', () => {
     expect(rdo.identificacao.eContiguo).toBe(true);
   });
 
-  it('numera a faixa de RDO do menor ao maior número do conjunto', async () => {
+  it('lista os números de RDO do conjunto, em ordem', async () => {
     const rdo = await montaPeriodoOuFalha(['2026-09-29', '2026-09-30', '2026-10-01']);
 
-    expect(rdo.identificacao.faixaDeRdoTexto).toBe('236 a 238');
+    expect(rdo.identificacao.numerosDoRdoTexto).toBe('236, 237, 238');
   });
 
   it('num período de um dia só, escreve o número sozinho e não uma faixa', async () => {
     const rdo = await montaPeriodoOuFalha(['2026-09-02']);
 
-    expect(rdo.identificacao.faixaDeRdoTexto).toBe('209');
+    expect(rdo.identificacao.numerosDoRdoTexto).toBe('209');
   });
 
   it('lista todos os BMS que o conjunto cobre', async () => {
