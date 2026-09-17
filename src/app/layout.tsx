@@ -26,10 +26,28 @@ export const viewport: Viewport = {
   ],
 };
 
+/**
+ * `suppressHydrationWarning` em `<html>` e `<body>`, e em nenhum outro lugar.
+ *
+ * Extensão de navegador escreve atributo nesses dois elementos antes de o React
+ * hidratar — em 17/09/2026 foi `data-xt-extension-active` em `<html>`. O React
+ * compara o DOM com o que veio do servidor, vê um atributo que o servidor não
+ * mandou e reclama. Não é defeito do sistema: quem não tem a extensão não vê o
+ * erro, e a página funciona nos dois casos.
+ *
+ * É seguro **aqui e só aqui** porque a marca vale para o próprio elemento, não
+ * para a árvore abaixo dele (`next/dist/docs/01-app/02-guides/`,
+ * "Understanding suppressHydrationWarning"): divergência dentro das telas
+ * continua aparecendo. E porque estes dois elementos não recebem nenhum
+ * atributo calculado pela aplicação — não há nada nosso para a marca esconder.
+ *
+ * Se aparecer vontade de repetir isto num componente de tela, pare: lá a marca
+ * esconde defeito de verdade.
+ */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR">
-      <body>{children}</body>
+    <html lang="pt-BR" suppressHydrationWarning>
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }

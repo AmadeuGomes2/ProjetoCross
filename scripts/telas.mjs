@@ -20,6 +20,8 @@
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
+import { descobreContexto } from './contexto.mjs';
+
 const BASE = process.env.RDO_BASE ?? 'http://localhost:3000';
 const SAIDA = 'tmp/telas';
 
@@ -69,16 +71,8 @@ export const TELAS = [
 ];
 
 async function main() {
-  const ctx = JSON.parse(
-    process.env.RDO_CONTEXTO ?? '{"obra":"","dia":"","diaVazio":"","eng":"","enc":""}',
-  );
-  if (ctx.obra === '' || ctx.eng === '') {
-    console.warn(
-      'Faltou contexto. Rode `node scripts/contexto-de-telas.mjs` antes, ' +
-        'que descobre a obra e abre as sessões.',
-    );
-    process.exit(1);
-  }
+  // O próprio Node descobre; não há plumbing de shell entre um passo e outro.
+  const ctx = descobreContexto();
 
   mkdirSync(SAIDA, { recursive: true });
   const navegador = await chromium.launch();
