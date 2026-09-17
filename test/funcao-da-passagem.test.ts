@@ -70,7 +70,7 @@ function troca(pessoaId: string, funcao: string, aPartirDe: string) {
 }
 
 /** O bloco 5 como o RDO o monta, no dia pedido. */
-function efetivoPessoal(dia: string): BlocoDeEfetivo {
+async function efetivoPessoal(dia: string): Promise<BlocoDeEfetivo> {
   const mobilizacao = await listaMobilizacaoDePessoalProtegida(e1, obraId, cenario.amb);
   if (!mobilizacao.ok) throw new Error(mobilizacao.erro.mensagem);
   const funcoes = await listaFuncoesParaEfetivo(paraTaxonomia(cenario.amb));
@@ -92,23 +92,25 @@ function comQuantidade(bloco: BlocoDeEfetivo): [string, number][] {
 }
 
 /** O cenário da decisão: Motorista até 20/03, Operador II de 21/03 em diante. */
-function pessoaQueTrocouDeFuncao(): string {
+async function pessoaQueTrocouDeFuncao(): Promise<string> {
   const criada = await cadastra('P1', 'Motorista', '2026-02-10');
   if (!criada.ok) throw new Error(criada.erro.mensagem);
   const trocada = await troca(criada.valor, 'Operador II', '2026-03-21');
   if (!trocada.ok) throw new Error(trocada.erro.mensagem);
-  return await criada.valor;
+  return criada.valor;
 }
 
 describe('decisão 29.1 — a função do efetivo vem da passagem que cobre o dia', () => {
   it('conta a pessoa em Motorista no RDO de 15/03', async () => {
-    pessoaQueTrocouDeFuncao();
-    expect(comQuantidade(efetivoPessoal('2026-03-15'))).toEqual([['Motorista', 1]]);
+    await pessoaQueTrocouDeFuncao();
+    expect(comQuantidade(await efetivoPessoal('2026-03-15'))).toEqual([['Motorista', 1]]);
   });
 
   it('conta a pessoa em Operador II no RDO de 25/03', async () => {
-    pessoaQueTrocouDeFuncao();
-    expect(comQuantidade(efetivoPessoal('2026-03-25'))).toEqual([['Operador II', 1]]);
+    await pessoaQueTrocouDeFuncao();
+    expect(comQuantidade(await efetivoPessoal('2026-03-25'))).toEqual([
+      ['Operador II', 1],
+    ]);
   });
 
   it('mantém Motorista no RDO de 15/03 depois da troca de função', async () => {
@@ -120,9 +122,9 @@ describe('decisão 29.1 — a função do efetivo vem da passagem que cobre o di
     expect(criada.ok).toBe(true);
     if (!criada.ok) return;
 
-    const antesDaTroca = await comQuantidade(efetivoPessoal('2026-03-15'));
-    expect(troca(criada.valor, 'Operador II', '2026-03-21').ok).toBe(true);
-    const depoisDaTroca = comQuantidade(efetivoPessoal('2026-03-15'));
+    const antesDaTroca = comQuantidade(await efetivoPessoal('2026-03-15'));
+    expect((await troca(criada.valor, 'Operador II', '2026-03-21')).ok).toBe(true);
+    const depoisDaTroca = comQuantidade(await efetivoPessoal('2026-03-15'));
 
     expect(antesDaTroca).toEqual([['Motorista', 1]]);
     expect(depoisDaTroca).toEqual(antesDaTroca);
@@ -131,27 +133,29 @@ describe('decisão 29.1 — a função do efetivo vem da passagem que cobre o di
   it('conta a pessoa uma vez no dia do corte, e só na função nova', async () => {
     // Fronteira do corte: 21/03 é o PRIMEIRO dia na função nova, e a passagem
     // anterior termina em 20/03. Contar nas duas dobraria o TOTAL do bloco 5.
-    pessoaQueTrocouDeFuncao();
-    expect(comQuantidade(efetivoPessoal('2026-03-21'))).toEqual([['Operador II', 1]]);
-    expect(efetivoPessoal('2026-03-21').total).toBe(1);
+    await pessoaQueTrocouDeFuncao();
+    expect(comQuantidade(await efetivoPessoal('2026-03-21'))).toEqual([
+      ['Operador II', 1],
+    ]);
+    expect((await efetivoPessoal('2026-03-21')).total).toBe(1);
   });
 
   it('conta a pessoa em Motorista na véspera do corte', async () => {
     // A outra metade da fronteira: 20/03 é o ÚLTIMO dia na função antiga,
     // porque a saída é o último dia trabalhado (decisão 1.1).
-    pessoaQueTrocouDeFuncao();
-    expect(comQuantidade(efetivoPessoal('2026-03-20'))).toEqual([['Motorista', 1]]);
+    await pessoaQueTrocouDeFuncao();
+    expect(comQuantidade(await efetivoPessoal('2026-03-20'))).toEqual([['Motorista', 1]]);
   });
 });
 
 describe('decisão 29.1 — a troca encerra uma passagem e abre outra', () => {
   it('encerra a passagem antiga na véspera e abre a nova no dia do corte', async () => {
-    const pessoaId = pessoaQueTrocouDeFuncao();
+    const pessoaId = await pessoaQueTrocouDeFuncao();
 
     const lista = await listaPessoalProtegida(e1, obraId, cenario.amb);
     expect(lista.ok).toBe(true);
     if (!lista.ok) return;
-    const p1 = await lista.valor.find((p) => p.pessoaId === pessoaId);
+    const p1 = lista.valor.find((p) => p.pessoaId === pessoaId);
 
     expect(p1?.passagens.map((p) => [p.funcaoTermo, p.entrada, p.saida])).toEqual([
       ['Motorista', '2026-02-10', '2026-03-20'],
@@ -164,9 +168,9 @@ describe('decisão 29.1 — a troca encerra uma passagem e abre outra', () => {
     const criada = await cadastra('P1', 'Motorista', '2026-02-10', '2026-04-30');
     expect(criada.ok).toBe(true);
     if (!criada.ok) return;
-    expect(troca(criada.valor, 'Operador II', '2026-03-21').ok).toBe(true);
+    expect((await troca(criada.valor, 'Operador II', '2026-03-21')).ok).toBe(true);
 
-    const lista = listaPessoalProtegida(e1, obraId, cenario.amb);
+    const lista = await listaPessoalProtegida(e1, obraId, cenario.amb);
     expect(
       lista.ok && lista.valor[0]?.passagens.map((p) => [p.entrada, p.saida]),
     ).toEqual([
@@ -174,29 +178,35 @@ describe('decisão 29.1 — a troca encerra uma passagem e abre outra', () => {
       ['2026-03-21', '2026-04-30'],
     ]);
     // Fora do período na obra ela não conta, antes nem depois da troca.
-    expect(comQuantidade(efetivoPessoal('2026-05-01'))).toEqual([]);
+    expect(comQuantidade(await efetivoPessoal('2026-05-01'))).toEqual([]);
   });
 
   it('não muda o cadastro de pessoa: a função mora na passagem', async () => {
     // Decisão 29.1. Se a coluna continuasse em `pessoa`, haveria duas
     // verdades sobre a mesma função, e elas divergiriam na primeira troca.
-    const pessoaId = pessoaQueTrocouDeFuncao();
+    const pessoaId = await pessoaQueTrocouDeFuncao();
 
-    const colunas = cenario.conexao.sqlite
-      .prepare(`SELECT name FROM pragma_table_info('pessoa')`)
-      .all()
-      .map((linha) => (linha as { name: string }).name);
-    expect(colunas).not.toContain('funcao_id');
+    // `information_schema` no lugar de `pragma_table_info`: o banco é Postgres
+    // desde 17/09/2026 e o PRAGMA do SQLite não existe aqui. A pergunta é a
+    // mesma — a coluna está na tabela? —, e continua sendo feita ao banco, que
+    // é a única fonte que não pode mentir sobre o layout físico.
+    const colunas = await cenario.conexao.consulta<{ nome: string }>(
+      `SELECT column_name AS nome FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = $1`,
+      ['pessoa'],
+    );
+    expect(colunas.map((linha) => linha.nome)).not.toContain('funcao_id');
 
-    const funcoesDasPassagens = cenario.conexao.sqlite
-      .prepare(
-        `SELECT f.termo AS termo FROM passagem_pessoa pp
+    const funcoesDasPassagens = await cenario.conexao.consulta<{ termo: string }>(
+      `SELECT f.termo AS termo FROM passagem_pessoa pp
          JOIN funcao f ON f.id = pp.funcao_id
-         WHERE pp.pessoa_id = ? ORDER BY pp.entrada`,
-      )
-      .all(pessoaId)
-      .map((linha) => (linha as { termo: string }).termo);
-    expect(funcoesDasPassagens).toEqual(['Motorista', 'Operador II']);
+         WHERE pp.pessoa_id = $1 ORDER BY pp.entrada`,
+      [pessoaId],
+    );
+    expect(funcoesDasPassagens.map((linha) => linha.termo)).toEqual([
+      'Motorista',
+      'Operador II',
+    ]);
   });
 
   it('recusa a troca numa data que nenhuma passagem cobre', async () => {
@@ -236,7 +246,7 @@ describe('decisão 29.1 — a troca encerra uma passagem e abre outra', () => {
     const resultado = await troca(criada.valor, 'Encanador', '2026-03-21');
 
     expect(resultado.ok).toBe(false);
-    const funcoes = listaFuncoesParaEfetivo(paraTaxonomia(cenario.amb));
+    const funcoes = await listaFuncoesParaEfetivo(paraTaxonomia(cenario.amb));
     expect(funcoes.ok && funcoes.valor.some((f) => f.termo === 'Encanador')).toBe(false);
   });
 
@@ -247,9 +257,9 @@ describe('decisão 29.1 — a troca encerra uma passagem e abre outra', () => {
     expect(criada.ok).toBe(true);
     if (!criada.ok) return;
 
-    expect(troca(criada.valor, 'Encanador', '2026-03-21').ok).toBe(false);
+    expect((await troca(criada.valor, 'Encanador', '2026-03-21')).ok).toBe(false);
 
-    const lista = listaPessoalProtegida(e1, obraId, cenario.amb);
+    const lista = await listaPessoalProtegida(e1, obraId, cenario.amb);
     expect(
       lista.ok && lista.valor[0]?.passagens.map((p) => [p.funcaoTermo, p.saida]),
     ).toEqual([['Motorista', null]]);

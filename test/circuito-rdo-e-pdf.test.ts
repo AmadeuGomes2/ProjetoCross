@@ -46,8 +46,9 @@ import {
 } from '../src/app/_composicao/cadastro';
 import { casosDeLancamento, portasDeLancamento } from '../src/app/_composicao/lancamento';
 import { consultaRdoProtegida } from '../src/app/_composicao/rdo-diario';
+import { registroExportacao } from '../src/db/schema';
 import { abreSessao, NOME_DO_COOKIE_DE_SESSAO, type Ator } from '../src/modules/acesso';
-import { CODIGO_ERRO } from '../src/shared/result';
+import { CODIGO_ERRO, type Result } from '../src/shared/result';
 import type { ObraId, ServicoControladoId } from '../src/shared/id';
 import { relogioFixo } from './fixtures/banco-de-teste';
 import {
@@ -68,34 +69,31 @@ let e1: Ator;
 let obraId: ObraId;
 let servicoId: ServicoControladoId;
 
-function exige<T>(resultado: { ok: boolean }, o_que: string): T {
-  if (!resultado.ok) {
-    const comErro = resultado as { erro?: { mensagem?: string } };
-    throw new Error(`${o_que}: ${comErro.erro?.mensagem ?? 'recusado'}`);
-  }
-  return (resultado as unknown as { valor: T }).valor;
+/**
+ * Desempacota a resposta da composição, ou derruba o cenário com o motivo.
+ *
+ * Recebe a Promise inteira, e não o valor já aguardado: com a composição
+ * assíncrona, `exige(algumaCoisa(...))` sem `await` recebia a Promise, que é
+ * sempre `truthy`, e a montagem do cenário passaria por cima de qualquer recusa.
+ */
+async function exige<T>(
+  promessa: Promise<Result<T, { readonly mensagem: string }>>,
+  o_que: string,
+): Promise<T> {
+  const resultado = await promessa;
+  if (!resultado.ok) throw new Error(`${o_que}: ${resultado.erro.mensagem}`);
+  return resultado.valor;
 }
 
-/** Libera o encarregado por SQL cru: o convite tem teste próprio. */
-function daAcessoDeEncarregado(ator: Ator, obra: ObraId, acessoId: string): Ator {
-  cenario.conexao.sqlite
-    .prepare(
-      `INSERT INTO acesso (id, obra_id, usuario_id, perfil, liberado_por, liberado_em)
-       VALUES (?, ?, ?, 'encarregado', ?, ?)`,
-    )
-    .run(acessoId, obra, ator.usuarioId, e1.usuarioId, AGORA);
-  return ator;
-}
-
-function requisicaoDoPdf(ator: Ator, obra: ObraId, dia: string): Request {
-  const sessao = abreSessao(ator.usuarioId, paraAcesso(cenario.amb));
-  return await new Request(`https://exemplo.invalido/rdo/${obra}/${dia}/pdf`, {
+async function requisicaoDoPdf(ator: Ator, obra: ObraId, dia: string): Promise<Request> {
+  const sessao = await abreSessao(ator.usuarioId, paraAcesso(cenario.amb));
+  return new Request(`https://exemplo.invalido/rdo/${obra}/${dia}/pdf`, {
     headers: { cookie: `${NOME_DO_COOKIE_DE_SESSAO}=${sessao.token}` },
   });
 }
 
-function chamaRotaDoPdf(ator: Ator, obra: ObraId, dia: string): Promise<Response> {
-  return exportaPdfDaRota(requisicaoDoPdf(ator, obra, dia), {
+async function chamaRotaDoPdf(ator: Ator, obra: ObraId, dia: string): Promise<Response> {
+  return exportaPdfDaRota(await requisicaoDoPdf(ator, obra, dia), {
     params: Promise.resolve({ obraId: obra, dia }),
   });
 }
@@ -108,7 +106,7 @@ beforeEach(async () => {
   obraId = await criaObraDoPrd(e1, cenario.amb);
 
   // 1. cadastro: período de BMS que cobre o dia, pessoal, equipamento, serviço.
-  exige(
+  await exige(
     cadastraPeriodoBmsProtegido(
       e1,
       obraId,
@@ -118,7 +116,7 @@ beforeEach(async () => {
     'período de BMS',
   );
 
-  exige(
+  await exige(
     cadastraPessoaProtegida(
       e1,
       obraId,
@@ -128,7 +126,7 @@ beforeEach(async () => {
     'pessoa P1',
   );
   // P2 sai no próprio dia consultado: a saída é o último dia trabalhado (1.1).
-  exige(
+  await exige(
     cadastraPessoaProtegida(
       e1,
       obraId,
@@ -138,7 +136,7 @@ beforeEach(async () => {
     'pessoa P2',
   );
   // P3 saiu na véspera: não conta no dia consultado.
-  exige(
+  await exige(
     cadastraPessoaProtegida(
       e1,
       obraId,
@@ -148,7 +146,7 @@ beforeEach(async () => {
     'pessoa P3',
   );
 
-  exige(
+  await exige(
     cadastraEquipamentoProtegido(
       e1,
       obraId,
@@ -158,7 +156,7 @@ beforeEach(async () => {
     'equipamento CF-29',
   );
 
-  exige(
+  await exige(
     defineResponsavelTecnicoProtegido(
       e1,
       obraId,
@@ -172,14 +170,14 @@ beforeEach(async () => {
     'responsável técnico',
   );
 
-  const servicos = exige<{ servicoId: ServicoControladoId; nome: string }[]>(
+  const servicos = await exige(
     listaServicosProtegida(e1, obraId, cenario.amb),
     'serviços controlados',
   );
   const primeiro = servicos[0];
   if (primeiro === undefined) throw new Error('A obra nasceu sem serviço controlado.');
   servicoId = primeiro.servicoId;
-  exige(
+  await exige(
     defineQuantidadeDeProjetoProtegida(e1, obraId, servicoId, '10000', cenario.amb),
     'quantidade de projeto',
   );
@@ -187,8 +185,8 @@ beforeEach(async () => {
   // 2. lançamento do dia: atividade, produção (em dois dias), pluviometria e
   // observação, pelos casos de uso de verdade da frente B.
   const casos = casosDeLancamento(portasDeLancamento());
-  exige(
-    await casos.recebeProducao(
+  await exige(
+    casos.recebeProducao(
       {
         obraId,
         data: VESPERA,
@@ -199,8 +197,8 @@ beforeEach(async () => {
     ),
     'produção da véspera',
   );
-  exige(
-    await casos.recebeAtividade(
+  await exige(
+    casos.recebeAtividade(
       {
         obraId,
         data: DIA,
@@ -211,8 +209,8 @@ beforeEach(async () => {
     ),
     'atividade do dia',
   );
-  exige(
-    await casos.recebeProducao(
+  await exige(
+    casos.recebeProducao(
       {
         obraId,
         data: DIA,
@@ -223,15 +221,15 @@ beforeEach(async () => {
     ),
     'produção do dia',
   );
-  exige(
-    await casos.recebePluviometria(
+  await exige(
+    casos.recebePluviometria(
       { obraId, data: DIA, noiteAnterior: 'B', manha: 'C', tarde: 'B', indiceMm: '12' },
       e1,
     ),
     'pluviometria do dia',
   );
-  exige(
-    await casos.recebeObservacao(
+  await exige(
+    casos.recebeObservacao(
       { obraId, data: DIA, texto: 'Frente liberada pela fiscalização.' },
       e1,
     ),
@@ -348,12 +346,17 @@ describe('o PDF sai pela rota, e a exportação fica registrada', () => {
   it('grava a trilha com id do usuário, obra, dia e formato — nunca nome', async () => {
     await chamaRotaDoPdf(e1, obraId, DIA);
 
-    const linhas = cenario.conexao.sqlite
-      .prepare('SELECT obra_id, usuario_id, data_rdo, formato FROM registro_exportacao')
-      .all();
+    const linhas = await cenario.conexao.db
+      .select({
+        obraId: registroExportacao.obraId,
+        usuarioId: registroExportacao.usuarioId,
+        dataRdo: registroExportacao.dataRdo,
+        formato: registroExportacao.formato,
+      })
+      .from(registroExportacao);
 
     expect(linhas).toEqual([
-      { obra_id: obraId, usuario_id: e1.usuarioId, data_rdo: DIA, formato: 'PDF' },
+      { obraId, usuarioId: e1.usuarioId, dataRdo: DIA, formato: 'PDF' },
     ]);
   });
 });
@@ -368,11 +371,7 @@ describe('a fronteira de confiança recusa quem não é da obra', () => {
     const obraB = await criaObraDoPrd(e1, cenario.amb, {
       contrato: 'P9999/01-25 - BLOCO 09',
     });
-    c1DeOutraObra = await daAcessoDeEncarregado(
-      await cenario.novoAtor('c1@exemplo.invalido'),
-      obraB,
-      'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-    );
+    c1DeOutraObra = await cenario.novoEncarregado('c1@exemplo.invalido', obraB);
   });
 
   it('recusa a consulta do RDO e não revela nada da obra alheia', async () => {
@@ -389,18 +388,14 @@ describe('a fronteira de confiança recusa quem não é da obra', () => {
     const resposta = await chamaRotaDoPdf(c1DeOutraObra, obraId, DIA);
 
     expect(resposta.status).toBe(403);
-    const linhas = cenario.conexao.sqlite
-      .prepare('SELECT id FROM registro_exportacao')
-      .all();
+    const linhas = await cenario.conexao.db
+      .select({ id: registroExportacao.id })
+      .from(registroExportacao);
     expect(linhas).toEqual([]);
   });
 
   it('recusa o PDF ao encarregado da própria obra: só o engenheiro exporta', async () => {
-    const c2 = await daAcessoDeEncarregado(
-      await cenario.novoAtor('c2@exemplo.invalido'),
-      obraId,
-      'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-    );
+    const c2 = await cenario.novoEncarregado('c2@exemplo.invalido', obraId);
 
     const resposta = await chamaRotaDoPdf(c2, obraId, DIA);
 

@@ -30,7 +30,6 @@ import {
   cadastraPessoaProtegida,
   listaEquipamentosProtegida,
   listaPeriodosBmsProtegida,
-  listaPessoalProtegida,
 } from '../src/app/_composicao/cadastro';
 import {
   houveImpacto,
@@ -64,6 +63,19 @@ async function lancaODia(data: string): Promise<void> {
   if (!r.ok) throw new Error(`não lancei ${data}: ${r.erro.mensagem}`);
 }
 
+/**
+ * Cadastra a pessoa e devolve o id dela.
+ *
+ * Falha alto de propósito: cenário montado pela metade daria zero dias
+ * impactados, e o teste passaria dizendo que o aviso está certo quando na
+ * verdade não havia pessoa nenhuma para impactar.
+ */
+async function cadastraPessoa(dados: Record<string, string>): Promise<string> {
+  const r = await cadastraPessoaProtegida(engenheira, obraId, dados, cenario.amb);
+  if (!r.ok) throw new Error(`não cadastrei a pessoa: ${r.erro.mensagem}`);
+  return r.valor;
+}
+
 beforeEach(async () => {
   cenario = await montaCenario();
   defineAmbienteParaTeste(criaAmbienteDaComposicao(cenario.conexao, relogioFixo(AGORA)));
@@ -79,40 +91,33 @@ afterEach(async () => {
 
 describe('impacto de mexer numa pessoa', () => {
   it('conta os dias lançados cobertos pela passagem, com as duas pontas', async () => {
-    cadastraPessoaProtegida(
-      engenheira,
-      obraId,
-      { nome: 'P1', funcao: 'Motorista', entrada: '2026-09-02', saida: '2026-09-04' },
-      cenario.amb,
-    );
+    const pessoaId = await cadastraPessoa({
+      nome: 'P1',
+      funcao: 'Motorista',
+      entrada: '2026-09-02',
+      saida: '2026-09-04',
+    });
     await lancaODia('2026-09-01'); // antes da entrada
     await lancaODia('2026-09-02'); // primeiro dia: conta
     await lancaODia('2026-09-03');
     await lancaODia('2026-09-04'); // último dia: conta
     await lancaODia('2026-09-05'); // depois da saída
 
-    const pessoas = listaPessoalProtegida(engenheira, obraId, cenario.amb);
-    const pessoaId = (await pessoas.ok) ? (pessoas.valor[0]?.pessoaId ?? '') : '';
-
-    const impacto = impactoDaPessoa(engenheira, obraId, pessoaId);
+    const impacto = await impactoDaPessoa(engenheira, obraId, pessoaId);
 
     expect(impacto.diasLancados).toBe(3);
   });
 
   it('não conta dia que ninguém lançou: não há RDO para impactar', async () => {
-    cadastraPessoaProtegida(
-      engenheira,
-      obraId,
-      { nome: 'P1', funcao: 'Motorista', entrada: '2026-09-02' },
-      cenario.amb,
-    );
+    const pessoaId = await cadastraPessoa({
+      nome: 'P1',
+      funcao: 'Motorista',
+      entrada: '2026-09-02',
+    });
     await lancaODia('2026-09-02');
     // 03, 04 e 05 ficam sem lançamento, embora a passagem os cubra.
 
-    const pessoas = listaPessoalProtegida(engenheira, obraId, cenario.amb);
-    const pessoaId = (await pessoas.ok) ? (pessoas.valor[0]?.pessoaId ?? '') : '';
-
-    const impacto = impactoDaPessoa(engenheira, obraId, pessoaId);
+    const impacto = await impactoDaPessoa(engenheira, obraId, pessoaId);
 
     expect(impacto.diasLancados).toBe(1);
     expect(impacto.diasFechados).toBe(0);
@@ -120,16 +125,13 @@ describe('impacto de mexer numa pessoa', () => {
   });
 
   it('pessoa sem nenhum dia lançado não dispara aviso', async () => {
-    cadastraPessoaProtegida(
-      engenheira,
-      obraId,
-      { nome: 'P1', funcao: 'Motorista', entrada: '2026-09-02' },
-      cenario.amb,
-    );
-    const pessoas = listaPessoalProtegida(engenheira, obraId, cenario.amb);
-    const pessoaId = (await pessoas.ok) ? (pessoas.valor[0]?.pessoaId ?? '') : '';
+    const pessoaId = await cadastraPessoa({
+      nome: 'P1',
+      funcao: 'Motorista',
+      entrada: '2026-09-02',
+    });
 
-    const impacto = impactoDaPessoa(engenheira, obraId, pessoaId);
+    const impacto = await impactoDaPessoa(engenheira, obraId, pessoaId);
 
     expect(houveImpacto(impacto)).toBe(false);
   });
@@ -141,24 +143,25 @@ describe('impacto de mexer no cabeçalho da obra', () => {
     await lancaODia('2026-09-02');
     await lancaODia('2026-09-03');
 
-    const impacto = impactoDoCabecalho(engenheira, obraId);
+    const impacto = await impactoDoCabecalho(engenheira, obraId);
 
     expect(impacto.diasLancados).toBe(3);
   });
 
   it('obra sem dia lançado não dispara aviso', async () => {
-    expect(houveImpacto(impactoDoCabecalho(engenheira, obraId))).toBe(false);
+    expect(houveImpacto(await impactoDoCabecalho(engenheira, obraId))).toBe(false);
   });
 });
 
 describe('impacto de mexer num período de BM,S', () => {
   it('conta só os dias dentro da janela do período', async () => {
-    cadastraPeriodoBmsProtegido(
+    const cadastrado = await cadastraPeriodoBmsProtegido(
       engenheira,
       obraId,
       { numero: '7', dataInicial: '2026-09-02', dataFinal: '2026-09-03' },
       cenario.amb,
     );
+    if (!cadastrado.ok) throw new Error(cadastrado.erro.mensagem);
     await lancaODia('2026-09-01'); // fora
     await lancaODia('2026-09-02'); // dentro
     await lancaODia('2026-09-03'); // dentro
@@ -167,13 +170,13 @@ describe('impacto de mexer num período de BM,S', () => {
     // A obra do PRD já nasce com BM'S 1, de fevereiro (decisão 21.1: ao menos
     // um período é obrigatório). Pegar o índice 0 pegaria aquele, e o teste
     // mediria a janela errada — foi o que aconteceu na primeira escrita.
-    const periodos = listaPeriodosBmsProtegida(engenheira, obraId, cenario.amb);
-    const periodoId = (await periodos.ok)
+    const periodos = await listaPeriodosBmsProtegida(engenheira, obraId, cenario.amb);
+    const periodoId = periodos.ok
       ? (periodos.valor.find((periodo) => periodo.numero === 7)?.id ?? '')
       : '';
     expect(periodoId).not.toBe('');
 
-    const impacto = impactoDoPeriodoBms(engenheira, obraId, periodoId);
+    const impacto = await impactoDoPeriodoBms(engenheira, obraId, periodoId);
 
     expect(impacto.diasLancados).toBe(2);
   });
@@ -184,7 +187,7 @@ describe('a fronteira da obra vale também para contagem', () => {
     await lancaODia('2026-09-01');
     await lancaODia('2026-09-02');
 
-    const impacto = impactoDoCabecalho(estranho, obraId);
+    const impacto = await impactoDoCabecalho(estranho, obraId);
 
     expect(impacto.diasLancados).toBe(0);
     expect(houveImpacto(impacto)).toBe(false);
@@ -202,14 +205,14 @@ describe('os números que o aviso mostra, quando não são zero', () => {
       if (!r.ok) throw new Error(`não fechei ${data}: ${r.erro.mensagem}`);
     }
 
-    const impacto = impactoDoCabecalho(engenheira, obraId);
+    const impacto = await impactoDoCabecalho(engenheira, obraId);
 
     expect(impacto.diasLancados).toBe(3);
     expect(impacto.diasFechados).toBe(2);
   });
 
   it('conta o equipamento pelos dias da passagem dele', async () => {
-    cadastraEquipamentoProtegido(
+    const cadastrado = await cadastraEquipamentoProtegido(
       engenheira,
       obraId,
       {
@@ -220,16 +223,17 @@ describe('os números que o aviso mostra, quando não são zero', () => {
       },
       cenario.amb,
     );
+    if (!cadastrado.ok) throw new Error(cadastrado.erro.mensagem);
     await lancaODia('2026-09-01'); // antes
     await lancaODia('2026-09-02'); // dentro
     await lancaODia('2026-09-03'); // dentro, último dia
     await lancaODia('2026-09-04'); // depois
 
-    const frota = listaEquipamentosProtegida(engenheira, obraId, cenario.amb);
-    const equipamentoId = (await frota.ok) ? (frota.valor[0]?.equipamentoId ?? '') : '';
+    const frota = await listaEquipamentosProtegida(engenheira, obraId, cenario.amb);
+    const equipamentoId = frota.ok ? (frota.valor[0]?.equipamentoId ?? '') : '';
     expect(equipamentoId).not.toBe('');
 
-    const impacto = impactoDoEquipamento(engenheira, obraId, equipamentoId);
+    const impacto = await impactoDoEquipamento(engenheira, obraId, equipamentoId);
 
     expect(impacto.diasLancados).toBe(2);
   });
@@ -246,32 +250,38 @@ describe('os números que o aviso mostra, quando não são zero', () => {
      * `shared/date/intervalo.ts`, mas a primeira linha de defesa é esta — o
      * dado torto não entra.
      */
-    cenario.conexao.sqlite
-      .prepare(
-        `INSERT INTO pessoa (id, obra_id, nome, criado_por, criado_em)
-         VALUES (?, ?, 'P9', ?, ?)`,
-      )
-      .run('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', obraId, engenheira.usuarioId, AGORA);
-    const funcao = cenario.conexao.sqlite
-      .prepare('SELECT id FROM funcao LIMIT 1')
-      .get() as { id: string };
+    const PESSOA = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    await cenario.conexao.executa(
+      `INSERT INTO pessoa (id, obra_id, nome, criado_por, criado_em)
+         VALUES ($1, $2, 'P9', $3, $4)`,
+      [PESSOA, obraId, engenheira.usuarioId, AGORA],
+    );
+    const funcoes = await cenario.conexao.consulta<{ id: string }>(
+      'SELECT id FROM funcao LIMIT 1',
+    );
+    const funcaoId = funcoes[0]?.id;
+    if (funcaoId === undefined) throw new Error('a carga inicial não semeou função');
 
     const invertida = () =>
-      cenario.conexao.sqlite
-        .prepare(
-          `INSERT INTO passagem_pessoa
+      cenario.conexao.executa(
+        `INSERT INTO passagem_pessoa
              (id, obra_id, pessoa_id, funcao_id, entrada, saida, registrado_por, registrado_em)
-           VALUES (?, ?, ?, ?, '2026-09-10', '2026-09-01', ?, ?)`,
-        )
-        .run(
+           VALUES ($1, $2, $3, $4, '2026-09-10', '2026-09-01', $5, $6)`,
+        [
           'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
           obraId,
-          'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-          funcao.id,
+          PESSOA,
+          funcaoId,
           engenheira.usuarioId,
           AGORA,
-        );
+        ],
+      );
 
-    expect(invertida).toThrow(/ck_passagem_pessoa_intervalo/);
+    // A escrita virou assíncrona com o Postgres, então a recusa chega como
+    // Promise rejeitada e não como exceção síncrona. A mensagem também mudou de
+    // dono: quem a escreve é o Postgres, com `violates check constraint`.
+    await expect(invertida()).rejects.toThrow(
+      /violates check constraint "ck_passagem_pessoa_intervalo"/,
+    );
   });
 });
