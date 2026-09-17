@@ -40,36 +40,46 @@ export interface ComandoServico {
   readonly nome: string;
 }
 
-export function cadastraServicoControlado(
+/**
+ * Cadastra um serviço avulso, **conferência e gravação na mesma transação**.
+ *
+ * Duas coisas dependem do que a leitura viu: a recusa do nome repetido e a
+ * `ordem`, que é `existentes.length + 1` e é a posição do serviço no bloco 7.
+ * Sem transação, dois cadastros simultâneos sairiam com a mesma ordem e o bloco
+ * teria duas linhas disputando a mesma posição.
+ */
+export async function cadastraServicoControlado(
   cmd: ComandoServico,
   amb: Ambiente,
-): Result<ServicoControladoId, ErroDeDominio> {
+): Promise<Result<ServicoControladoId, ErroDeDominio>> {
   const nome = normalizaTermo(cmd.nome);
   if (nome === '') {
     return erro(erroDeDominio(CODIGO_ERRO.TERMO_VAZIO, 'Informe o nome do serviço.'));
   }
 
-  const existentes = repositorio.listaServicos(amb.db, cmd.obraId);
-  const chave = chaveDeTermo(nome);
-  const repetido = existentes.find((s) => chaveDeTermo(s.nome) === chave);
-  if (repetido !== undefined) {
-    return erro(
-      erroDeDominio(
-        CODIGO_ERRO.JA_EXISTE,
-        `Já existe o serviço "${repetido.nome}" nesta obra.`,
-      ),
-    );
-  }
+  return amb.db.transaction<Result<ServicoControladoId, ErroDeDominio>>(async (tx) => {
+    const existentes = await repositorio.listaServicos(tx, cmd.obraId);
+    const chave = chaveDeTermo(nome);
+    const repetido = existentes.find((s) => chaveDeTermo(s.nome) === chave);
+    if (repetido !== undefined) {
+      return erro(
+        erroDeDominio(
+          CODIGO_ERRO.JA_EXISTE,
+          `Já existe o serviço "${repetido.nome}" nesta obra.`,
+        ),
+      );
+    }
 
-  const id = geraId<'servico_controlado'>();
-  repositorio.insereServico(amb.db, {
-    id,
-    obraId: cmd.obraId,
-    nome,
-    nomeNormalizado: chave,
-    ordem: existentes.length + 1,
+    const id = geraId<'servico_controlado'>();
+    await repositorio.insereServico(tx, {
+      id,
+      obraId: cmd.obraId,
+      nome,
+      nomeNormalizado: chave,
+      ordem: existentes.length + 1,
+    });
+    return ok(id);
   });
-  return ok(id);
 }
 
 export interface ComandoQuantidadeProjeto {
@@ -82,12 +92,12 @@ export interface ComandoQuantidadeProjeto {
   readonly quantidade: Quantidade;
 }
 
-export function defineQuantidadeDeProjeto(
+export async function defineQuantidadeDeProjeto(
   cmd: ComandoQuantidadeProjeto,
   ator: AtorDaObra,
   amb: Ambiente,
-): Result<void, ErroDeDominio> {
-  const servico = repositorio.buscaServico(amb.db, cmd.obraId, cmd.servicoId);
+): Promise<Result<void, ErroDeDominio>> {
+  const servico = await repositorio.buscaServico(amb.db, cmd.obraId, cmd.servicoId);
   if (servico === null) {
     return erro(
       erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Serviço não encontrado nesta obra.'),
@@ -105,7 +115,7 @@ export function defineQuantidadeDeProjeto(
     );
   }
 
-  repositorio.insereVersaoDeQuantidade(amb.db, {
+  await repositorio.insereVersaoDeQuantidade(amb.db, {
     id: geraId<'quantidade_projeto_versao'>(),
     obraId: cmd.obraId,
     servicoId: cmd.servicoId,
@@ -129,11 +139,18 @@ export function defineQuantidadeDeProjeto(
  * alteração passa a valer para o percentual de qualquer RDO, inclusive os já
  * exportados (CT-053). É a decisão registrada, não um efeito colateral.
  */
-export function listaServicosControlados(
+export async function listaServicosControlados(
   obraId: ObraId,
   amb: Ambiente,
-): Result<ServicoControladoComProjeto[], ErroDeDominio> {
-  const versoes = repositorio.listaVersoesDaObra(amb.db, obraId);
+): Promise<Result<ServicoControladoComProjeto[], ErroDeDominio>> {
+  // Duas consultas, e só duas: as versões de toda a obra de uma vez, não uma
+  // por serviço. `Promise.all` porque uma não depende da outra, e o bloco 7 é
+  // desenhado a cada abertura do RDO.
+  const [versoes, servicos] = await Promise.all([
+    repositorio.listaVersoesDaObra(amb.db, obraId),
+    repositorio.listaServicos(amb.db, obraId),
+  ]);
+
   const vigentePorServico = new Map<string, number>();
   for (const versao of versoes) {
     // A consulta já vem da mais recente para a mais antiga: a primeira vence.
@@ -143,7 +160,7 @@ export function listaServicosControlados(
   }
 
   return ok(
-    repositorio.listaServicos(amb.db, obraId).map((servico) => {
+    servicos.map((servico) => {
       const milesimos = vigentePorServico.get(servico.id);
       return {
         servicoId: servico.id,
@@ -156,13 +173,14 @@ export function listaServicosControlados(
 }
 
 /** Histórico completo, do mais recente para o mais antigo (R15, CT-052). */
-export function listaHistoricoDeQuantidade(
+export async function listaHistoricoDeQuantidade(
   obraId: ObraId,
   servicoId: ServicoControladoId,
   amb: Ambiente,
-): Result<VersaoDeQuantidade[], ErroDeDominio> {
+): Promise<Result<VersaoDeQuantidade[], ErroDeDominio>> {
+  const versoes = await repositorio.listaVersoesDoServico(amb.db, obraId, servicoId);
   return ok(
-    repositorio.listaVersoesDoServico(amb.db, obraId, servicoId).map((versao) => ({
+    versoes.map((versao) => ({
       quantidade: deMilesimos(versao.quantidadeMilesimos),
       definidoPor: versao.definidoPor,
       definidoEm: versao.definidoEm,

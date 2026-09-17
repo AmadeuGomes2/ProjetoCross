@@ -32,7 +32,14 @@ import {
 import * as repositorio from './repositorio';
 import type { Ambiente, AtorDaObra, PeriodoBms, PeriodoBmsNovo } from './tipos';
 
-/** Derivado, nunca gravado. `final − inicial + 1`. */
+/**
+ * Derivado, nunca gravado. `final − inicial + 1`.
+ *
+ * Continua **síncrono e de calendário**, não de banco: a conta é de dia puro, e
+ * `shared/date` é quem a faz. O `DATE` do Postgres mudou a comparação e a
+ * ordenação **dentro** do banco; a aritmética que sai no campo `dias` do
+ * cabeçalho nunca passou por lá.
+ */
 export function diasDoPeriodo(dataInicial: DiaPuro, dataFinal: DiaPuro): number {
   return diferencaEmDias(dataInicial, dataFinal) + 1;
 }
@@ -43,6 +50,11 @@ export function diasDoPeriodo(dataInicial: DiaPuro, dataFinal: DiaPuro): number 
  *
  * A comparação mora em `shared/date/intervalo`, como já acontece em `pessoal` e
  * `equipamento`. O que é deste módulo é só a mensagem.
+ *
+ * Roda **antes** do banco e continua sendo a validação que vale: o `CHECK`
+ * `ck_periodo_bms_final_apos_inicial` é a rede, e desde que a coluna é `DATE`
+ * ele compara data de verdade — mas quem responde "a data final não pode ser
+ * anterior à inicial" em português é esta função, e ela não consulta nada.
  */
 export function validaIntervalo(
   dataInicial: DiaPuro,
@@ -128,17 +140,29 @@ export function validaConjuntoDePeriodos(
   return ok(undefined);
 }
 
-/** Grava os períodos. Usado pela criação da obra e pelo cadastro avulso. */
-export function gravaPeriodos(
+/**
+ * Grava os períodos. Usado pela criação da obra e pelo cadastro avulso.
+ *
+ * **Não abre transação, e é de propósito:** quem chama já está dentro de uma.
+ * Em `criaObra` a transação segura obra, acesso, períodos e serviços juntos; em
+ * `cadastraPeriodoBms` ela segura a conferência de sobreposição e a gravação.
+ * Abrir outra aqui aninharia savepoint sem ganho e esconderia de quem lê que a
+ * atomicidade é responsabilidade do caso de uso.
+ *
+ * Em série, e não em `Promise.all`: são vários inserts na mesma transação, e
+ * uma transação atende uma consulta de cada vez.
+ */
+export async function gravaPeriodos(
   db: Ambiente['db'],
   obraId: ObraId,
   novos: readonly PeriodoBmsNovo[],
   criadoPor: UsuarioId,
   criadoEm: Instante,
-): PeriodoBmsId[] {
-  return novos.map((periodo) => {
+): Promise<PeriodoBmsId[]> {
+  const ids: PeriodoBmsId[] = [];
+  for (const periodo of novos) {
     const id = geraId<'periodo_bms'>();
-    repositorio.inserePeriodo(db, {
+    await repositorio.inserePeriodo(db, {
       id,
       obraId,
       numero: periodo.numero,
@@ -147,8 +171,9 @@ export function gravaPeriodos(
       criadoPor,
       criadoEm,
     });
-    return id;
-  });
+    ids.push(id);
+  }
+  return ids;
 }
 
 export interface ComandoPeriodoBms {
@@ -158,41 +183,53 @@ export interface ComandoPeriodoBms {
   readonly dataFinal: DiaPuro;
 }
 
-export function cadastraPeriodoBms(
+/**
+ * Cadastra um período avulso, **conferência e gravação na mesma transação**.
+ *
+ * A sobreposição não é expressável em `CHECK` (ver o rodapé de
+ * `src/db/schema/obra.ts`): é um `SELECT` seguido de um `INSERT`. No SQLite
+ * síncrono nada podia se intercalar entre os dois; com Postgres pode, e sem a
+ * transação dois pedidos simultâneos gravariam dois períodos sobrepostos — duas
+ * respostas de `BM'S` para o mesmo dia, que é o que a decisão 11 da arquitetura
+ * proíbe porque o `BM'S` amarra a fatura.
+ */
+export async function cadastraPeriodoBms(
   cmd: ComandoPeriodoBms,
   ator: AtorDaObra,
   amb: Ambiente,
-): Result<PeriodoBmsId, ErroDeDominio> {
-  if (repositorio.buscaObra(amb.db, cmd.obraId) === null) {
-    return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Obra não encontrada.'));
-  }
+): Promise<Result<PeriodoBmsId, ErroDeDominio>> {
+  const criadoEm = instanteAgora(amb.relogio);
 
-  const existentes = repositorio.listaPeriodos(amb.db, cmd.obraId);
-  const conferencia = validaConjuntoDePeriodos([cmd], existentes);
-  if (!conferencia.ok) return conferencia;
+  return amb.db.transaction<Result<PeriodoBmsId, ErroDeDominio>>(async (tx) => {
+    if ((await repositorio.buscaObra(tx, cmd.obraId)) === null) {
+      return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Obra não encontrada.'));
+    }
 
-  const ids = gravaPeriodos(
-    amb.db,
-    cmd.obraId,
-    [cmd],
-    ator.usuarioId,
-    instanteAgora(amb.relogio),
-  );
-  const id = ids[0];
-  if (id === undefined) {
-    return erro(
-      erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Não foi possível cadastrar o período.'),
-    );
-  }
-  return ok(id);
+    const existentes = await repositorio.listaPeriodos(tx, cmd.obraId);
+    const conferencia = validaConjuntoDePeriodos([cmd], existentes);
+    if (!conferencia.ok) return erro(conferencia.erro);
+
+    const ids = await gravaPeriodos(tx, cmd.obraId, [cmd], ator.usuarioId, criadoEm);
+    const id = ids[0];
+    if (id === undefined) {
+      return erro(
+        erroDeDominio(
+          CODIGO_ERRO.NAO_ENCONTRADO,
+          'Não foi possível cadastrar o período.',
+        ),
+      );
+    }
+    return ok(id);
+  });
 }
 
-export function listaPeriodosBms(
+export async function listaPeriodosBms(
   obraId: ObraId,
   amb: Ambiente,
-): Result<PeriodoBms[], ErroDeDominio> {
+): Promise<Result<PeriodoBms[], ErroDeDominio>> {
+  const periodos = await repositorio.listaPeriodos(amb.db, obraId);
   return ok(
-    repositorio.listaPeriodos(amb.db, obraId).map((p) => ({
+    periodos.map((p) => ({
       id: p.id,
       numero: p.numero,
       dataInicial: p.dataInicial,
@@ -212,15 +249,23 @@ export function listaPeriodosBms(
  * Data não coberta devolve `null` **sem erro** (decisão 21.1): o campo sai
  * vazio, a tela avisa e o RDO é gerado. A planilha imprime um 7 arbitrário sem
  * tabela que o sustente; vazio com aviso é honesto, número inventado não é.
+ *
+ * **Uma consulta, sempre.** Está no caminho do RDO diário, que é quente: a
+ * busca traz os períodos da obra de uma vez e o intervalo é decidido em
+ * memória, pela mesma `diaEstaNoIntervalo` de `shared/date`. Empurrar o
+ * intervalo para um `WHERE` por dia daria uma ida à rede por dia consultado, e
+ * o RDO de um período pergunta o `BM'S` de cada dia da lista. Uma obra tem
+ * dezenas de períodos, não milhares.
  */
-export function resolveBmsDoDia(
+export async function resolveBmsDoDia(
   obraId: ObraId,
   dia: DiaPuro,
   amb: Ambiente,
-): Result<number | null, ErroDeDominio> {
-  const periodo = repositorio
-    .listaPeriodos(amb.db, obraId)
-    .find((p) => diaEstaNoIntervalo(dia, p.dataInicial, p.dataFinal));
+): Promise<Result<number | null, ErroDeDominio>> {
+  const periodos = await repositorio.listaPeriodos(amb.db, obraId);
+  const periodo = periodos.find((p) =>
+    diaEstaNoIntervalo(dia, p.dataInicial, p.dataFinal),
+  );
   return ok(periodo?.numero ?? null);
 }
 
@@ -235,30 +280,36 @@ export function resolveBmsDoDia(
  * de BM'S sai no cabeçalho dos RDOs daqueles dias, porque `resolveBmsDoDia`
  * resolve por data a cada consulta. Quem chama avisa o tamanho disso antes
  * (`_composicao/impacto.ts`).
+ *
+ * Mesma razão de `cadastraPeriodoBms` para a transação: a conferência de
+ * sobreposição é `SELECT` seguido de `UPDATE`, e o que os mantinha indivisíveis
+ * era a sincronia do SQLite, que acabou.
  */
-export function atualizaPeriodoBms(
+export async function atualizaPeriodoBms(
   cmd: ComandoPeriodoBms & { readonly periodoId: PeriodoBmsId },
   amb: Ambiente,
-): Result<void, ErroDeDominio> {
-  if (repositorio.buscaObra(amb.db, cmd.obraId) === null) {
-    return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Obra não encontrada.'));
-  }
+): Promise<Result<void, ErroDeDominio>> {
+  return amb.db.transaction<Result<void, ErroDeDominio>>(async (tx) => {
+    if ((await repositorio.buscaObra(tx, cmd.obraId)) === null) {
+      return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Obra não encontrada.'));
+    }
 
-  const existentes = repositorio.listaPeriodos(amb.db, cmd.obraId);
-  if (!existentes.some((p) => p.id === cmd.periodoId)) {
-    return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Período não encontrado.'));
-  }
+    const existentes = await repositorio.listaPeriodos(tx, cmd.obraId);
+    if (!existentes.some((p) => p.id === cmd.periodoId)) {
+      return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Período não encontrado.'));
+    }
 
-  const outros = existentes.filter((p) => p.id !== cmd.periodoId);
-  const conferencia = validaConjuntoDePeriodos([cmd], outros);
-  if (!conferencia.ok) return conferencia;
+    const outros = existentes.filter((p) => p.id !== cmd.periodoId);
+    const conferencia = validaConjuntoDePeriodos([cmd], outros);
+    if (!conferencia.ok) return erro(conferencia.erro);
 
-  repositorio.atualizaPeriodo(amb.db, cmd.obraId, cmd.periodoId, {
-    numero: cmd.numero,
-    dataInicial: cmd.dataInicial,
-    dataFinal: cmd.dataFinal,
+    await repositorio.atualizaPeriodo(tx, cmd.obraId, cmd.periodoId, {
+      numero: cmd.numero,
+      dataInicial: cmd.dataInicial,
+      dataFinal: cmd.dataFinal,
+    });
+    return ok(undefined);
   });
-  return ok(undefined);
 }
 
 /**
@@ -272,16 +323,19 @@ export function atualizaPeriodoBms(
  *
  * Quem chama mostra o tamanho do impacto antes (`_composicao/impacto.ts`).
  */
-export function excluiPeriodoBms(
+export async function excluiPeriodoBms(
   obraId: ObraId,
   periodoId: PeriodoBmsId,
   amb: Ambiente,
-): Result<void, ErroDeDominio> {
-  const existentes = repositorio.listaPeriodos(amb.db, obraId);
+): Promise<Result<void, ErroDeDominio>> {
+  const existentes = await repositorio.listaPeriodos(amb.db, obraId);
   if (!existentes.some((p) => p.id === periodoId)) {
     return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Período não encontrado.'));
   }
 
-  repositorio.excluiPeriodo(amb.db, obraId, periodoId);
+  // Sem transação, ao contrário de cadastrar e de editar: aqui a leitura só
+  // escolhe a mensagem. O `DELETE` já carrega o `obra_id` e o `id` no `WHERE`,
+  // então dois pedidos simultâneos apagam a mesma linha uma vez só.
+  await repositorio.excluiPeriodo(amb.db, obraId, periodoId);
   return ok(undefined);
 }

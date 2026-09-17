@@ -3,6 +3,10 @@
  *
  * Possui `funcao`, `tipo_equipamento`, `status_atividade` e
  * `sugestao_motivo_parada` (docs/arquitetura/v1.md, 2.7 a 2.10). Nenhuma outra.
+ *
+ * Assíncrono desde 17/09/2026, com o Postgres: `.get()`, `.all()` e `.run()`
+ * são do `better-sqlite3` e não existem neste dialeto. Uma linha vira
+ * `limit(1)` mais o primeiro elemento; muitas são o `await` do construtor.
  */
 
 import { asc, eq, sql } from 'drizzle-orm';
@@ -31,19 +35,36 @@ function tabelaDe(tipo: TipoDeTaxonomia) {
   }
 }
 
-export function listaTermosDaTabela(db: BancoRdo, tipo: TipoDeTaxonomia): Termo[] {
+/**
+ * A linha crua das três tabelas de taxonomia.
+ *
+ * Anotada, e não inferida: `tabelaDe` devolve a **união** das três tabelas, e
+ * dessa união o Drizzle não consegue tirar um tipo de linha só — sem a
+ * anotação o parâmetro do `map` cairia em `any`, que é erro de lint
+ * (padroes-codigo, Tipos). `ativo` é `integer` 0/1, convenção do esquema.
+ */
+interface LinhaDeTermo {
+  readonly id: string;
+  readonly termo: string;
+  readonly ordem: number;
+  readonly ativo: number;
+}
+
+export async function listaTermosDaTabela(
+  db: BancoRdo,
+  tipo: TipoDeTaxonomia,
+): Promise<Termo[]> {
   const t = tabelaDe(tipo);
-  return db
+  const linhas: LinhaDeTermo[] = await db
     .select({ id: t.id, termo: t.termo, ordem: t.ordem, ativo: t.ativo })
     .from(t)
-    .orderBy(asc(t.ordem))
-    .all()
-    .map((linha) => ({
-      id: linha.id,
-      termo: linha.termo,
-      ordem: linha.ordem,
-      ativo: linha.ativo === 1,
-    }));
+    .orderBy(asc(t.ordem));
+  return linhas.map((linha) => ({
+    id: linha.id,
+    termo: linha.termo,
+    ordem: linha.ordem,
+    ativo: linha.ativo === 1,
+  }));
 }
 
 /**
@@ -53,17 +74,18 @@ export function listaTermosDaTabela(db: BancoRdo, tipo: TipoDeTaxonomia): Termo[
  * `"Perca de produção"`. No Excel a comparação ignora caixa e o defeito não
  * aparece; em código, aparece.
  */
-export function buscaPorChave(
+export async function buscaPorChave(
   db: BancoRdo,
   tipo: TipoDeTaxonomia,
   bruto: string,
-): Termo | null {
+): Promise<Termo | null> {
   const t = tabelaDe(tipo);
-  const linha = db
+  const linhas: LinhaDeTermo[] = await db
     .select({ id: t.id, termo: t.termo, ordem: t.ordem, ativo: t.ativo })
     .from(t)
     .where(eq(t.termoNormalizado, chaveDeTermo(bruto)))
-    .get();
+    .limit(1);
+  const linha = linhas[0];
   if (linha === undefined) return null;
   return {
     id: linha.id,
@@ -73,13 +95,12 @@ export function buscaPorChave(
   };
 }
 
-export function proximaOrdem(db: BancoRdo, tipo: TipoDeTaxonomia): number {
+export async function proximaOrdem(db: BancoRdo, tipo: TipoDeTaxonomia): Promise<number> {
   const t = tabelaDe(tipo);
-  const linha = db
+  const linhas: { maior: number | null }[] = await db
     .select({ maior: sql<number | null>`max(${t.ordem})` })
-    .from(t)
-    .get();
-  return (linha?.maior ?? 0) + 1;
+    .from(t);
+  return (linhas[0]?.maior ?? 0) + 1;
 }
 
 interface TermoNovo {
@@ -98,42 +119,35 @@ interface TermoNovo {
  * proíbe (padroes-codigo, Tipos). Três linhas repetidas valem menos que um
  * `as`.
  */
-export function insereTermo(
+export async function insereTermo(
   db: BancoRdo,
   tipo: TipoDeTaxonomia,
   dados: TermoNovo,
-): string {
+): Promise<string> {
   switch (tipo) {
     case 'funcao': {
       const id = geraId<'funcao'>();
-      db.insert(funcao)
-        .values({ id, ...dados, ativo: 1 })
-        .run();
+      await db.insert(funcao).values({ id, ...dados, ativo: 1 });
       return id;
     }
     case 'tipo_equipamento': {
       const id = geraId<'tipo_equipamento'>();
-      db.insert(tipoEquipamento)
-        .values({ id, ...dados, ativo: 1 })
-        .run();
+      await db.insert(tipoEquipamento).values({ id, ...dados, ativo: 1 });
       return id;
     }
     case 'status_atividade': {
       const id = geraId<'status_atividade'>();
-      db.insert(statusAtividade)
-        .values({ id, ...dados, ativo: 1 })
-        .run();
+      await db.insert(statusAtividade).values({ id, ...dados, ativo: 1 });
       return id;
     }
   }
 }
 
-export function listaSugestoes(db: BancoRdo): string[] {
-  return db
+export async function listaSugestoes(db: BancoRdo): Promise<string[]> {
+  const linhas = await db
     .select({ texto: sugestaoMotivoParada.texto })
     .from(sugestaoMotivoParada)
     .where(eq(sugestaoMotivoParada.ativo, 1))
-    .orderBy(asc(sugestaoMotivoParada.ordem))
-    .all()
-    .map((linha) => linha.texto);
+    .orderBy(asc(sugestaoMotivoParada.ordem));
+  return linhas.map((linha) => linha.texto);
 }

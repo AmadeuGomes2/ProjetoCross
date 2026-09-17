@@ -11,17 +11,24 @@
  * CT-014 ("o bloco 11 mostra os três valores") não está aqui: é montagem de
  * RDO, e pertence à frente C. O que esta frente prova é que os três valores
  * ficam na **obra**, que é o que o CT-013 pede.
+ *
+ * As conferências que antes iam ao `conexao.sqlite` agora passam pelo Drizzle,
+ * contra as tabelas do esquema: o banco é Postgres desde 17/09/2026 e o
+ * `better-sqlite3` não existe mais. Continuam **sem** passar pelos módulos que
+ * gravaram o dado — é a tabela que responde, não o caso de uso.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { and, count, eq } from 'drizzle-orm';
 
 import {
   criaObraProtegida,
   defineResponsavelTecnicoProtegido,
   obtemCabecalhoProtegido,
 } from '../../app/_composicao/cadastro';
-import { obra as tabelaDeObra } from '../../db/schema';
+import { acesso, obra as tabelaDeObra, usuario } from '../../db/schema';
 import { CODIGO_ERRO } from '../../shared/result';
+import { geraId, type ObraId, type UsuarioId } from '../../shared/id';
 import {
   criaObraDoPrd,
   DADOS_DA_OBRA,
@@ -31,22 +38,51 @@ import {
 import { listaServicosControlados } from './servico-controlado';
 import { paraObra } from '../../app/_composicao/ambiente-de-cadastro';
 
+const AGORA = '2026-09-16T12:00:00.000Z';
+
 let cenario: Cenario;
 
-beforeEach(() => {
-  cenario = montaCenario();
+beforeEach(async () => {
+  cenario = await montaCenario();
 });
 
-afterEach(() => {
-  cenario.fecha();
+afterEach(async () => {
+  await cenario.fecha();
 });
+
+/**
+ * Libera um encarregado na obra escrevendo direto na tabela `acesso`.
+ *
+ * De propósito não passa pelo módulo `acesso`: o que estes casos provam é a
+ * recusa do servidor a quem **tem** perfil de encarregado, e um defeito na
+ * liberação não pode ser o motivo de o teste passar.
+ */
+async function liberaEncarregado(
+  obraId: ObraId,
+  usuarioId: UsuarioId,
+  por: UsuarioId,
+): Promise<void> {
+  await cenario.conexao.db.insert(acesso).values({
+    id: geraId<'acesso'>(),
+    obraId,
+    usuarioId,
+    perfil: 'encarregado',
+    liberadoPor: por,
+    liberadoEm: AGORA,
+  });
+}
+
+async function totalDeObras(): Promise<number> {
+  const linhas = await cenario.conexao.db.select({ total: count() }).from(tabelaDeObra);
+  return linhas[0]?.total ?? 0;
+}
 
 describe('F1.1 — criar a obra', () => {
-  it('CT-001 guarda os nove campos do cabeçalho exatamente como informados', () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    const obraId = criaObraDoPrd(e1, cenario.amb);
+  it('CT-001 guarda os nove campos do cabeçalho exatamente como informados', async () => {
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    const obraId = await criaObraDoPrd(e1, cenario.amb);
 
-    const cabecalho = obtemCabecalhoProtegido(e1, obraId, cenario.amb);
+    const cabecalho = await obtemCabecalhoProtegido(e1, obraId, cenario.amb);
     expect(cabecalho.ok).toBe(true);
     if (!cabecalho.ok) return;
 
@@ -64,31 +100,28 @@ describe('F1.1 — criar a obra', () => {
     expect(cabecalho.valor.local).toBe('VIAS URBANAS  DA CIDADE MONTES CLAROS - MG');
   });
 
-  it('CT-002 guarda quem criou a obra e quando', () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    const obraId = criaObraDoPrd(e1, cenario.amb);
+  it('CT-002 guarda quem criou a obra e quando', async () => {
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    const obraId = await criaObraDoPrd(e1, cenario.amb);
 
-    const linha = cenario.conexao.sqlite
-      .prepare('SELECT criado_por, criado_em FROM obra WHERE id = ?')
-      .get(obraId);
+    const linhas = await cenario.conexao.db
+      .select({ criadoPor: tabelaDeObra.criadoPor, criadoEm: tabelaDeObra.criadoEm })
+      .from(tabelaDeObra)
+      .where(eq(tabelaDeObra.id, obraId));
 
-    expect(linha).toEqual({
-      criado_por: e1.usuarioId,
-      criado_em: '2026-09-16T12:00:00.000Z',
-    });
+    expect(linhas).toEqual([{ criadoPor: e1.usuarioId, criadoEm: AGORA }]);
   });
 
-  it('CT-003 dá ao criador acesso de engenheiro à obra que ele criou', () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    const obraId = criaObraDoPrd(e1, cenario.amb);
+  it('CT-003 dá ao criador acesso de engenheiro à obra que ele criou', async () => {
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    const obraId = await criaObraDoPrd(e1, cenario.amb);
 
-    const linha = cenario.conexao.sqlite
-      .prepare(
-        'SELECT perfil, revogado_em FROM acesso WHERE obra_id = ? AND usuario_id = ?',
-      )
-      .get(obraId, e1.usuarioId);
+    const linhas = await cenario.conexao.db
+      .select({ perfil: acesso.perfil, revogadoEm: acesso.revogadoEm })
+      .from(acesso)
+      .where(and(eq(acesso.obraId, obraId), eq(acesso.usuarioId, e1.usuarioId)));
 
-    expect(linha).toEqual({ perfil: 'engenheiro', revogado_em: null });
+    expect(linhas).toEqual([{ perfil: 'engenheiro', revogadoEm: null }]);
   });
 
   it('CT-004 tem um único campo de contrato e nenhum campo de código interno', () => {
@@ -101,9 +134,9 @@ describe('F1.1 — criar a obra', () => {
     expect(colunas.some((c) => c.toLowerCase().includes('codigo'))).toBe(false);
   });
 
-  it('CT-005 aceita data de término igual à data de início', () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    const resultado = criaObraProtegida(
+  it('CT-005 aceita data de término igual à data de início', async () => {
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    const resultado = await criaObraProtegida(
       e1,
       {
         ...DADOS_DA_OBRA,
@@ -117,9 +150,9 @@ describe('F1.1 — criar a obra', () => {
     expect(resultado.ok).toBe(true);
   });
 
-  it('CT-006 recusa data de término um dia anterior à de início', () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    const resultado = criaObraProtegida(
+  it('CT-006 recusa data de término um dia anterior à de início', async () => {
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    const resultado = await criaObraProtegida(
       e1,
       { ...DADOS_DA_OBRA, dataInicio: '2026-02-05', dataTermino: '2026-02-04' },
       cenario.amb,
@@ -133,9 +166,9 @@ describe('F1.1 — criar a obra', () => {
     );
   });
 
-  it('CT-007 recusa o período de -716 dias que existe na planilha real', () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    const resultado = criaObraProtegida(
+  it('CT-007 recusa o período de -716 dias que existe na planilha real', async () => {
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    const resultado = await criaObraProtegida(
       e1,
       { ...DADOS_DA_OBRA, dataInicio: '2024-12-01', dataTermino: '2022-12-15' },
       cenario.amb,
@@ -144,9 +177,9 @@ describe('F1.1 — criar a obra', () => {
     expect(resultado.ok).toBe(false);
   });
 
-  it('CT-008 recusa contrato vazio e aponta o campo contrato', () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    const resultado = criaObraProtegida(
+  it('CT-008 recusa contrato vazio e aponta o campo contrato', async () => {
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    const resultado = await criaObraProtegida(
       e1,
       { ...DADOS_DA_OBRA, contrato: '' },
       cenario.amb,
@@ -160,9 +193,9 @@ describe('F1.1 — criar a obra', () => {
     );
   });
 
-  it('CT-009 recusa nome do projeto vazio e aponta o campo nome', () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    const resultado = criaObraProtegida(
+  it('CT-009 recusa nome do projeto vazio e aponta o campo nome', async () => {
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    const resultado = await criaObraProtegida(
       e1,
       { ...DADOS_DA_OBRA, nomeProjeto: '   ' },
       cenario.amb,
@@ -175,9 +208,9 @@ describe('F1.1 — criar a obra', () => {
     );
   });
 
-  it('CT-010 recusa 29/02/2026, que não existe: 2026 não é bissexto', () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    const resultado = criaObraProtegida(
+  it('CT-010 recusa 29/02/2026, que não existe: 2026 não é bissexto', async () => {
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    const resultado = await criaObraProtegida(
       e1,
       { ...DADOS_DA_OBRA, dataInicio: '2026-02-29' },
       cenario.amb,
@@ -189,9 +222,9 @@ describe('F1.1 — criar a obra', () => {
     expect(resultado.erro.mensagem).toContain('não tem o dia 29');
   });
 
-  it('CT-011 recusa 31/09/2026, a data que a aba 31 da planilha produz', () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    const resultado = criaObraProtegida(
+  it('CT-011 recusa 31/09/2026, a data que a aba 31 da planilha produz', async () => {
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    const resultado = await criaObraProtegida(
       e1,
       { ...DADOS_DA_OBRA, dataTermino: '2026-09-31' },
       cenario.amb,
@@ -202,44 +235,27 @@ describe('F1.1 — criar a obra', () => {
     expect(resultado.erro.codigo).toBe(CODIGO_ERRO.DIA_FORA_DO_CALENDARIO);
   });
 
-  it('CT-012 recusa no servidor o pedido de criar obra vindo de um encarregado', () => {
+  it('CT-012 recusa no servidor o pedido de criar obra vindo de um encarregado', async () => {
     // "C1" é encarregado de uma obra existente. Esconder o botão não é
     // controle de acesso: a recusa tem de ser do servidor (R19).
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    const obraId = criaObraDoPrd(e1, cenario.amb);
-    const c1 = cenario.novoAtor('c1@exemplo.invalido');
-    cenario.conexao.sqlite
-      .prepare(
-        `INSERT INTO acesso (id, obra_id, usuario_id, perfil, liberado_por, liberado_em)
-         VALUES (?, ?, ?, 'encarregado', ?, ?)`,
-      )
-      .run(
-        '11111111-1111-4111-8111-111111111111',
-        obraId,
-        c1.usuarioId,
-        e1.usuarioId,
-        '2026-09-16T12:00:00.000Z',
-      );
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    const obraId = await criaObraDoPrd(e1, cenario.amb);
+    const c1 = await cenario.novoAtor('c1@exemplo.invalido');
+    await liberaEncarregado(obraId, c1.usuarioId, e1.usuarioId);
 
-    const antes = cenario.conexao.sqlite
-      .prepare('SELECT count(*) AS total FROM obra')
-      .get() as { total: number };
-
-    const resultado = criaObraProtegida(c1, DADOS_DA_OBRA, cenario.amb);
-
-    const depois = cenario.conexao.sqlite
-      .prepare('SELECT count(*) AS total FROM obra')
-      .get() as { total: number };
+    const antes = await totalDeObras();
+    const resultado = await criaObraProtegida(c1, DADOS_DA_OBRA, cenario.amb);
+    const depois = await totalDeObras();
 
     expect(resultado.ok).toBe(false);
-    expect(depois.total).toBe(antes.total);
+    expect(depois).toBe(antes);
   });
 
-  it('CT-013 guarda nome, titulação e CREA do responsável técnico na obra', () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    const obraId = criaObraDoPrd(e1, cenario.amb);
+  it('CT-013 guarda nome, titulação e CREA do responsável técnico na obra', async () => {
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    const obraId = await criaObraDoPrd(e1, cenario.amb);
 
-    const definido = defineResponsavelTecnicoProtegido(
+    const definido = await defineResponsavelTecnicoProtegido(
       e1,
       obraId,
       {
@@ -251,7 +267,7 @@ describe('F1.1 — criar a obra', () => {
     );
     expect(definido.ok).toBe(true);
 
-    const cabecalho = obtemCabecalhoProtegido(e1, obraId, cenario.amb);
+    const cabecalho = await obtemCabecalhoProtegido(e1, obraId, cenario.amb);
     expect(cabecalho.ok).toBe(true);
     if (!cabecalho.ok) return;
     expect(cabecalho.valor.respTecnico).toEqual({
@@ -260,18 +276,25 @@ describe('F1.1 — criar a obra', () => {
       crea: 'CREA - MG 000000/D',
     });
 
-    // Decisão 18.1: mora na obra, não no perfil do usuário que operou.
-    const usuario = cenario.conexao.sqlite
-      .prepare('SELECT * FROM usuario WHERE id = ?')
-      .get(e1.usuarioId) as Record<string, unknown>;
-    expect(Object.keys(usuario).some((c) => c.includes('crea'))).toBe(false);
+    // Decisão 18.1: mora na obra, não no perfil do usuário que operou. A linha
+    // é lida da tabela, e não do esquema: o que interessa é o que o banco
+    // devolve para quem consultar o usuário.
+    const linhas = await cenario.conexao.db
+      .select()
+      .from(usuario)
+      .where(eq(usuario.id, e1.usuarioId));
+    const linha = linhas[0];
+    expect(linha).toBeDefined();
+    expect(Object.keys(linha ?? {}).some((c) => c.toLowerCase().includes('crea'))).toBe(
+      false,
+    );
   });
 
-  it('CT-058 cria a obra já com os quatro serviços controlados, na grafia herdada', () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    const obraId = criaObraDoPrd(e1, cenario.amb);
+  it('CT-058 cria a obra já com os quatro serviços controlados, na grafia herdada', async () => {
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    const obraId = await criaObraDoPrd(e1, cenario.amb);
 
-    const servicos = listaServicosControlados(obraId, paraObra(cenario.amb));
+    const servicos = await listaServicosControlados(obraId, paraObra(cenario.amb));
     expect(servicos.ok).toBe(true);
     if (!servicos.ok) return;
 
@@ -297,15 +320,15 @@ describe('F1.1 — criar a obra', () => {
  * criadas antes desta decisão continuam existindo.
  */
 describe('32.1 — responsável técnico obrigatório para criar a obra', () => {
-  const semCampo = (campo: string) =>
+  const semCampo = async (campo: string) =>
     criaObraProtegida(
-      cenario.novoEngenheiro('e1@exemplo.invalido'),
+      await cenario.novoEngenheiro('e1@exemplo.invalido'),
       { ...DADOS_DA_OBRA, [campo]: '   ' },
       cenario.amb,
     );
 
-  it('recusa a obra sem o nome do responsável técnico', () => {
-    const resultado = semCampo('respTecnicoNome');
+  it('recusa a obra sem o nome do responsável técnico', async () => {
+    const resultado = await semCampo('respTecnicoNome');
 
     expect(resultado.ok).toBe(false);
     if (resultado.ok) return;
@@ -314,8 +337,8 @@ describe('32.1 — responsável técnico obrigatório para criar a obra', () => 
     );
   });
 
-  it('recusa a obra sem a titulação do responsável técnico', () => {
-    const resultado = semCampo('respTecnicoTitulo');
+  it('recusa a obra sem a titulação do responsável técnico', async () => {
+    const resultado = await semCampo('respTecnicoTitulo');
 
     expect(resultado.ok).toBe(false);
     if (resultado.ok) return;
@@ -324,8 +347,8 @@ describe('32.1 — responsável técnico obrigatório para criar a obra', () => 
     );
   });
 
-  it('recusa a obra sem o registro no CREA', () => {
-    const resultado = semCampo('respTecnicoCrea');
+  it('recusa a obra sem o registro no CREA', async () => {
+    const resultado = await semCampo('respTecnicoCrea');
 
     expect(resultado.ok).toBe(false);
     if (resultado.ok) return;
@@ -334,16 +357,16 @@ describe('32.1 — responsável técnico obrigatório para criar a obra', () => 
     );
   });
 
-  it('recusa a obra quando os três campos nem chegam no formulário', () => {
+  it('recusa a obra quando os três campos nem chegam no formulário', async () => {
     // Antes da 32.1 este era o caminho aceito: os três ausentes viravam
     // `respTecnico` nulo e a obra nascia com o bloco 11 vazio.
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
     const semResponsavel: Record<string, unknown> = { ...DADOS_DA_OBRA };
     delete semResponsavel['respTecnicoNome'];
     delete semResponsavel['respTecnicoTitulo'];
     delete semResponsavel['respTecnicoCrea'];
 
-    const resultado = criaObraProtegida(e1, semResponsavel, cenario.amb);
+    const resultado = await criaObraProtegida(e1, semResponsavel, cenario.amb);
 
     expect(resultado.ok).toBe(false);
     if (resultado.ok) return;
@@ -352,20 +375,17 @@ describe('32.1 — responsável técnico obrigatório para criar a obra', () => 
     );
   });
 
-  it('não grava obra nenhuma quando o responsável técnico falta', () => {
-    semCampo('respTecnicoCrea');
+  it('não grava obra nenhuma quando o responsável técnico falta', async () => {
+    await semCampo('respTecnicoCrea');
 
-    const total = cenario.conexao.sqlite
-      .prepare('SELECT count(*) AS total FROM obra')
-      .get() as { total: number };
-    expect(total.total).toBe(0);
+    expect(await totalDeObras()).toBe(0);
   });
 
-  it('a obra criada já sai com o bloco de assinaturas preenchido', () => {
-    const e1 = cenario.novoEngenheiro('e1@exemplo.invalido');
-    const obraId = criaObraDoPrd(e1, cenario.amb);
+  it('a obra criada já sai com o bloco de assinaturas preenchido', async () => {
+    const e1 = await cenario.novoEngenheiro('e1@exemplo.invalido');
+    const obraId = await criaObraDoPrd(e1, cenario.amb);
 
-    const cabecalho = obtemCabecalhoProtegido(e1, obraId, cenario.amb);
+    const cabecalho = await obtemCabecalhoProtegido(e1, obraId, cenario.amb);
     expect(cabecalho.ok).toBe(true);
     if (!cabecalho.ok) return;
     expect(cabecalho.valor.respTecnico).toEqual({

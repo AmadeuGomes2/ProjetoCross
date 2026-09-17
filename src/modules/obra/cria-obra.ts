@@ -13,6 +13,11 @@
  *    inacessível e ninguém consegue nem cadastrar nem liberar ninguém;
  * 3. ao menos um período de BMS (decisão 21.1) e os quatro serviços
  *    controlados (CT-058), que são o bloco 7 e existem desde o primeiro dia.
+ *
+ * Com Postgres, desde 17/09/2026, a transação deixou de ser detalhe de escrita
+ * e passou a ser o que segura as quatro gravações juntas: no SQLite síncrono
+ * nada podia se intercalar entre elas, e agora pode. O `await` dentro do bloco
+ * não é cerimônia — sem ele o `commit` sairia antes das linhas.
  */
 
 import { type DiaPuro } from '../../shared/date/dia';
@@ -59,11 +64,11 @@ function validaDatasDaObra(
   return ok(undefined);
 }
 
-export function criaObra(
+export async function criaObra(
   cmd: ComandoCriarObra,
   ator: AtorDaObra,
   amb: Ambiente,
-): Result<ObraId, ErroDeDominio> {
+): Promise<Result<ObraId, ErroDeDominio>> {
   const datas = validaDatasDaObra(cmd.dataInicio, cmd.dataTermino);
   if (!datas.ok) return datas;
 
@@ -84,8 +89,8 @@ export function criaObra(
   const criadoEm = instanteAgora(amb.relogio);
   const resp = cmd.respTecnico;
 
-  amb.db.transaction((tx) => {
-    repositorio.insereObra(tx, {
+  await amb.db.transaction(async (tx) => {
+    await repositorio.insereObra(tx, {
       id: obraId,
       contrato: cmd.contrato,
       contratante: cmd.contratante,
@@ -103,9 +108,9 @@ export function criaObra(
       criadoEm,
     });
 
-    amb.concedeAcessoDeEngenheiro(tx, obraId, ator.usuarioId, criadoEm);
-    gravaPeriodos(tx, obraId, cmd.periodosBms, ator.usuarioId, criadoEm);
-    criaServicosIniciais(tx, obraId);
+    await amb.concedeAcessoDeEngenheiro(tx, obraId, ator.usuarioId, criadoEm);
+    await gravaPeriodos(tx, obraId, cmd.periodosBms, ator.usuarioId, criadoEm);
+    await criaServicosIniciais(tx, obraId);
   });
 
   // Log por id. Nem contrato nem nome de pessoa entram aqui.
@@ -123,31 +128,36 @@ export function criaObra(
  * Não entram no seed do sistema: serviço tem `obra_id` e pertence à obra
  * (decisão 19.2 vale para taxonomia, não para serviço). As posições são fixas
  * no bloco 7, que sempre mostra as quatro linhas mesmo zeradas.
+ *
+ * `for`, e não `forEach`: o corpo passou a ser assíncrono, e `forEach` descarta
+ * a `Promise` que ele devolve — a transação fecharia antes dos quatro inserts.
+ * Em série, e não em `Promise.all`, porque as quatro correm na mesma transação
+ * e uma transação atende uma consulta de cada vez.
  */
-function criaServicosIniciais(db: Ambiente['db'], obraId: ObraId): void {
-  SERVICOS_CONTROLADOS_INICIAIS.forEach((nome, indice) => {
-    repositorio.insereServico(db, {
+async function criaServicosIniciais(db: Ambiente['db'], obraId: ObraId): Promise<void> {
+  for (const [indice, nome] of SERVICOS_CONTROLADOS_INICIAIS.entries()) {
+    await repositorio.insereServico(db, {
       id: geraId<'servico_controlado'>(),
       obraId,
       nome,
       nomeNormalizado: chaveDeTermo(nome),
       ordem: indice + 1,
     });
-  });
+  }
 }
 
-export function editaCadastroDaObra(
+export async function editaCadastroDaObra(
   cmd: ComandoEditarObra,
   amb: Ambiente,
-): Result<void, ErroDeDominio> {
-  if (repositorio.buscaObra(amb.db, cmd.obraId) === null) {
+): Promise<Result<void, ErroDeDominio>> {
+  if ((await repositorio.buscaObra(amb.db, cmd.obraId)) === null) {
     return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Obra não encontrada.'));
   }
 
   const datas = validaDatasDaObra(cmd.dataInicio, cmd.dataTermino);
   if (!datas.ok) return datas;
 
-  repositorio.atualizaCabecalho(amb.db, cmd.obraId, {
+  await repositorio.atualizaCabecalho(amb.db, cmd.obraId, {
     contrato: cmd.contrato,
     contratante: cmd.contratante,
     contratada: cmd.contratada,
@@ -168,12 +178,12 @@ export function editaCadastroDaObra(
  * opera o sistema (CT-013). São dados pessoais: saem no bloco 11 e em nenhum
  * log, mensagem ou metadado.
  */
-export function defineResponsavelTecnico(
+export async function defineResponsavelTecnico(
   obraId: ObraId,
   resp: ResponsavelTecnico,
   amb: Ambiente,
-): Result<void, ErroDeDominio> {
-  if (repositorio.buscaObra(amb.db, obraId) === null) {
+): Promise<Result<void, ErroDeDominio>> {
+  if ((await repositorio.buscaObra(amb.db, obraId)) === null) {
     return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Obra não encontrada.'));
   }
 
@@ -189,18 +199,18 @@ export function defineResponsavelTecnico(
     );
   }
 
-  repositorio.atualizaResponsavelTecnico(amb.db, obraId, nome, titulo, crea);
+  await repositorio.atualizaResponsavelTecnico(amb.db, obraId, nome, titulo, crea);
   registra('info', geraId<'correlacao'>(), 'obra.responsavel_tecnico_definido', {
     obraId,
   });
   return ok(undefined);
 }
 
-export function obtemCabecalhoDaObra(
+export async function obtemCabecalhoDaObra(
   obraId: ObraId,
   amb: Ambiente,
-): Result<CabecalhoDaObra, ErroDeDominio> {
-  const linha = repositorio.buscaObra(amb.db, obraId);
+): Promise<Result<CabecalhoDaObra, ErroDeDominio>> {
+  const linha = await repositorio.buscaObra(amb.db, obraId);
   if (linha === null) {
     return erro(erroDeDominio(CODIGO_ERRO.NAO_ENCONTRADO, 'Obra não encontrada.'));
   }
