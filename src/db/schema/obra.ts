@@ -9,7 +9,15 @@
  */
 
 import { sql } from 'drizzle-orm';
-import { check, index, integer, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core';
+import {
+  check,
+  customType,
+  index,
+  integer,
+  pgTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 
 import type { ObraId, PeriodoBmsId } from '../../shared/id';
 import {
@@ -19,6 +27,17 @@ import {
   colunaInstante,
 } from './convencoes';
 import { colunaAutor } from './usuario';
+
+/**
+ * `BYTEA` do Postgres, para os bytes da logo.
+ *
+ * O Drizzle não traz um tipo binário pronto no `pg-core`, então ele é declarado
+ * aqui, uma vez. O valor entra e sai como `Buffer`, que é o que `@react-pdf` e
+ * o `Response` do Next consomem sem conversão.
+ */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => 'bytea',
+});
 
 export const obra = pgTable(
   'obra',
@@ -42,10 +61,32 @@ export const obra = pgTable(
     respTecnicoNome: text('resp_tecnico_nome'),
     respTecnicoTitulo: text('resp_tecnico_titulo'),
     respTecnicoCrea: text('resp_tecnico_crea'),
+    /**
+     * A logo da contratada, que sai no cabeçalho do RDO (17/09/2026).
+     *
+     * **Guardada no banco, e não em arquivo.** A Vercel não tem disco
+     * persistente: um arquivo salvo numa invocação não existe na seguinte. Como
+     * bytes na própria linha da obra, a logo acompanha o backup e não exige
+     * segundo serviço, segunda chave nem segunda fronteira de vazamento.
+     *
+     * O teto de tamanho é da borda, não do banco: `CHECK` sobre `length()` de
+     * `bytea` funcionaria, mas devolveria violação de restrição onde o usuário
+     * precisa de uma frase dizendo para diminuir a imagem.
+     *
+     * As duas colunas andam juntas — `CHECK` abaixo. Bytes sem tipo não sabem
+     * como ser servidos, e tipo sem bytes é promessa vazia no cabeçalho.
+     */
+    logo: bytea('logo'),
+    logoTipo: text('logo_tipo'),
     criadoPor: colunaAutor('criado_por'),
     criadoEm: colunaInstante('criado_em'),
   },
   (t) => [
+    check(
+      'ck_obra_logo',
+      sql`(${t.logo} IS NULL AND ${t.logoTipo} IS NULL)
+         OR (${t.logo} IS NOT NULL AND ${t.logoTipo} IN ('image/png', 'image/jpeg', 'image/webp'))`,
+    ),
     checkTextoNaoVazio('ck_obra_contrato', t.contrato),
     checkTextoNaoVazio('ck_obra_contratante', t.contratante),
     checkTextoNaoVazio('ck_obra_contratada', t.contratada),

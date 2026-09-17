@@ -64,8 +64,13 @@ export async function criaBancoDeTeste(): Promise<ConexaoRdo> {
   const db = drizzle(pg, { schema });
   const conexao: ConexaoRdo = {
     db,
-    executa: async (comando: string) => {
-      await pg.exec(comando);
+    executa: async (comando: string, parametros: readonly unknown[] = []) => {
+      if (parametros.length === 0) await pg.exec(comando);
+      else await pg.query(comando, [...parametros]);
+    },
+    consulta: async <T>(comando: string, parametros: readonly unknown[] = []) => {
+      const r = await pg.query(comando, [...parametros]);
+      return r.rows as T[];
     },
     fecha: async () => {
       await pg.close();

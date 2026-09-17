@@ -50,8 +50,18 @@ export type BancoRdo = PgDatabase<PgQueryResultHKT, typeof schema>;
 
 export interface ConexaoRdo {
   readonly db: BancoRdo;
-  /** Execução crua, para migration. Não use para consulta de domínio. */
-  executa(sql: string): Promise<void>;
+  /**
+   * Execução crua, para migration e para o teste de esquema.
+   *
+   * **Não use para consulta de domínio**: o que passa por aqui não tem tipo,
+   * não tem marca de `DiaPuro` e não passa por borda nenhuma.
+   */
+  executa(sql: string, parametros?: readonly unknown[]): Promise<void>;
+  /** Leitura crua. Mesmo aviso: é para teste de esquema, não para domínio. */
+  consulta<T = Record<string, unknown>>(
+    sql: string,
+    parametros?: readonly unknown[],
+  ): Promise<T[]>;
   fecha(): Promise<void>;
 }
 
@@ -81,8 +91,12 @@ export function criaBanco(url: string = urlDoBanco()): ConexaoRdo {
   const pool = new Pool({ connectionString: url });
   return {
     db: drizzleNeon(pool, { schema }),
-    executa: async (comando: string) => {
-      await pool.query(comando);
+    executa: async (comando: string, parametros: readonly unknown[] = []) => {
+      await pool.query(comando, [...parametros]);
+    },
+    consulta: async <T>(comando: string, parametros: readonly unknown[] = []) => {
+      const r = await pool.query(comando, [...parametros]);
+      return r.rows as T[];
     },
     fecha: async () => {
       await pool.end();

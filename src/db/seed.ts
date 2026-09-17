@@ -45,25 +45,22 @@ function linhasDeTermo<T extends string>(termos: readonly string[], criadoEm: In
   }));
 }
 
-export function semeiaTaxonomias(
+export async function semeiaTaxonomias(
   db: BancoRdo,
   criadoEm: Instante = instanteAgora(),
-): void {
-  db.transaction((tx) => {
+): Promise<void> {
+  await db.transaction(async (tx) => {
     tx.insert(funcao)
       .values(linhasDeTermo<'funcao'>(FUNCOES_INICIAIS, criadoEm))
-      .onConflictDoNothing()
-      .run();
+      .onConflictDoNothing();
 
     tx.insert(tipoEquipamento)
       .values(linhasDeTermo<'tipo_equipamento'>(TIPOS_EQUIPAMENTO_INICIAIS, criadoEm))
-      .onConflictDoNothing()
-      .run();
+      .onConflictDoNothing();
 
     tx.insert(statusAtividade)
       .values(linhasDeTermo<'status_atividade'>(STATUS_ATIVIDADE_INICIAIS, criadoEm))
-      .onConflictDoNothing()
-      .run();
+      .onConflictDoNothing();
 
     // As oito sugestões de motivo de dia parado. NÃO são taxonomia fechada
     // (decisão 20.1): só preenchem um campo de texto livre, e por isso nenhuma
@@ -78,8 +75,7 @@ export function semeiaTaxonomias(
           ativo: 1,
         })),
       )
-      .onConflictDoNothing()
-      .run();
+      .onConflictDoNothing();
   });
 }
 

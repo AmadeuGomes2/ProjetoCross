@@ -39,30 +39,30 @@ export const DADOS_DA_OBRA = {
 export interface Cenario {
   readonly conexao: ConexaoRdo;
   readonly amb: AmbienteDeCadastro;
-  fecha(): void;
+  fecha(): Promise<void>;
   /** Conta comum: a que nasce na web. Não cria obra (decisão 25.1). */
-  novoAtor(email: string): Ator;
+  novoAtor(email: string): Promise<Ator>;
   /**
    * Conta de engenheiro, como a que `npm run criar-engenheiro` fabrica: a
    * coluna `usuario.e_engenheiro` ligada. É quem cria obra.
    */
-  novoEngenheiro(email: string): Ator;
+  novoEngenheiro(email: string): Promise<Ator>;
 }
 
-export function montaCenario(instante: string = AGORA): Cenario {
-  const conexao = criaBancoDeTeste();
+export async function montaCenario(instante: string = AGORA): Promise<Cenario> {
+  const conexao = await criaBancoDeTeste();
   const amb: AmbienteDeCadastro = { db: conexao.db, relogio: relogioFixo(instante) };
 
   return {
     conexao,
     amb,
     fecha: () => conexao.fecha(),
-    novoAtor(email: string): Ator {
-      const usuarioId = insereUsuario(conexao, `Pessoa ${email}`, email);
+    async novoAtor(email: string): Promise<Ator> {
+      const usuarioId = await insereUsuario(conexao, `Pessoa ${email}`, email);
       return { usuarioId, sessaoId: geraId<'sessao'>() };
     },
-    novoEngenheiro(email: string): Ator {
-      const usuarioId = insereUsuario(conexao, `Pessoa ${email}`, email, {
+    async novoEngenheiro(email: string): Promise<Ator> {
+      const usuarioId = await insereUsuario(conexao, `Pessoa ${email}`, email, {
         eEngenheiro: true,
       });
       return { usuarioId, sessaoId: geraId<'sessao'>() };
@@ -71,12 +71,12 @@ export function montaCenario(instante: string = AGORA): Cenario {
 }
 
 /** Cria a obra do PRD e devolve o id. Falha alto se o cadastro for recusado. */
-export function criaObraDoPrd(
+export async function criaObraDoPrd(
   ator: Ator,
   amb: AmbienteDeCadastro,
   ajustes: Partial<Record<string, unknown>> = {},
-): ObraId {
-  const resultado = criaObraProtegida(ator, { ...DADOS_DA_OBRA, ...ajustes }, amb);
+): Promise<ObraId> {
+  const resultado = await criaObraProtegida(ator, { ...DADOS_DA_OBRA, ...ajustes }, amb);
   if (!resultado.ok) {
     throw new Error(`A montagem do cenário falhou: ${resultado.erro.mensagem}`);
   }
