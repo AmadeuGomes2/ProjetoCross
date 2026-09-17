@@ -55,7 +55,7 @@ describe('o que o documento não recebe', () => {
     expect(rdo.resumoDoDia).not.toBeUndefined();
     expect(rdo.avisos.length).toBeGreaterThan(0);
 
-    const documento = paraDocumento(rdo);
+    const documento = paraDocumento(rdo, null);
     const serializado = JSON.stringify(documento);
     expect(serializado).not.toContain('resumo');
     expect(serializado).not.toContain('aviso');
@@ -65,7 +65,7 @@ describe('o que o documento não recebe', () => {
     const rdo = await montaOuFalha('2026-08-15', {
       periodos: [{ numero: 1, inicial: '2026-02-05', final: '2026-02-28' }],
     });
-    expect(paraDocumento(rdo).identificacao.bms).toBe('');
+    expect(paraDocumento(rdo, null).identificacao.bms).toBe('');
   });
 });
 
@@ -74,7 +74,7 @@ describe('textos fixos (decisão 17.1, CT-255)', () => {
     const rdo = await montaOuFalha('2026-09-03', {
       cabecalho: { ...CABECALHO_PADRAO, area: 'MONTES CLAROS - MG ' },
     });
-    const documento = paraDocumento(rdo);
+    const documento = paraDocumento(rdo, null);
     expect(documento.caracteristicas.area).toBe('MONTES CLAROS - MG');
     expect(documento.caracteristicas.nome).toBe('SERVIÇOS DE PAVIMENTAÇÃO  - BLOCO 02');
   });
@@ -86,7 +86,7 @@ describe('divisão de página (decisão 11.1)', () => {
     const rdo = await montaOuFalha('2026-09-03', {
       atividades: { '2026-09-03': muitasAtividades(15) },
     });
-    const documento = paraDocumento(rdo);
+    const documento = paraDocumento(rdo, null);
     expect(documento.atividades.pagina1).toHaveLength(15);
     expect(documento.atividades.continuacao).toHaveLength(0);
     expect(documento.temContinuacao).toBe(false);
@@ -98,7 +98,7 @@ describe('divisão de página (decisão 11.1)', () => {
     const rdo = await montaOuFalha('2026-09-03', {
       atividades: { '2026-09-03': muitasAtividades(16) },
     });
-    const documento = paraDocumento(rdo);
+    const documento = paraDocumento(rdo, null);
     expect(documento.atividades.pagina1).toHaveLength(15);
     expect(documento.atividades.continuacao.map((a) => a.descricao)).toEqual([
       'Atividade 16',
@@ -111,12 +111,12 @@ describe('divisão de página (decisão 11.1)', () => {
     const quatro = await montaOuFalha('2026-09-04', {
       observacoes: { '2026-09-04': [observacao('o-1', 'a\nb\nc\nd')] },
     });
-    expect(paraDocumento(quatro).comentariosCros.continuacao).toHaveLength(0);
+    expect(paraDocumento(quatro, null).comentariosCros.continuacao).toHaveLength(0);
 
     const cinco = await montaOuFalha('2026-09-05', {
       observacoes: { '2026-09-05': [observacao('o-2', 'a\nb\nc\nd\ne')] },
     });
-    const documento = paraDocumento(cinco);
+    const documento = paraDocumento(cinco, null);
     expect(documento.comentariosCros.pagina1).toHaveLength(4);
     expect(documento.comentariosCros.continuacao).toEqual(['e']);
   });
@@ -127,7 +127,7 @@ describe('divisão de página (decisão 11.1)', () => {
       funcoes: funcoes(42),
       pessoas: pessoas(42),
     });
-    const documento = paraDocumento(rdo);
+    const documento = paraDocumento(rdo, null);
     expect(documento.efetivoPessoal.pagina1).toHaveLength(41);
     expect(documento.efetivoPessoal.continuacao.map((c) => c.rotulo)).toEqual([
       'Funcao 42',
@@ -140,7 +140,7 @@ describe('divisão de página (decisão 11.1)', () => {
 describe('convenções de zero no papel', () => {
   it('deixa a quantidade de efetivo zero em branco', async () => {
     const rdo = await montaOuFalha('2026-09-03');
-    const documento = paraDocumento(rdo);
+    const documento = paraDocumento(rdo, null);
     const topografo = documento.efetivoPessoal.pagina1.find(
       (c) => c.rotulo === 'Topografo',
     );
@@ -158,7 +158,7 @@ describe('convenções de zero no papel', () => {
         },
       },
     });
-    const documento = paraDocumento(rdo);
+    const documento = paraDocumento(rdo, null);
     expect(documento.atividades.pagina1).toEqual([
       { chave: 'motivo-de-parada', descricao: 'Domingo', status: '' },
     ]);

@@ -246,12 +246,22 @@ dentro do processo e gravando em `tmp/banco-local`. É o mesmo motor que a suít
 de testes usa: mesmo dialeto, mesmas migrations, mesmas restrições. Não é um
 segundo dialeto, e por isso não recria o problema que a migração resolveu.
 
-Duas coisas para saber sobre ele:
+Três coisas para saber sobre ele:
 
+- **a pasta fica fora do projeto**, no temporário do sistema
+  (`%TEMP%
+do-banco-local` no Windows, `/tmp/rdo-banco-local` no resto).
+  Não é capricho: **um diretório de dados de banco dentro de pasta sincronizada
+  se corrompe**. O sincronizador do OneDrive, do Dropbox ou do Google Drive abre,
+  copia e devolve os arquivos no seu ritmo, enquanto o banco espera ser o único
+  a escrever neles. Foi o que aconteceu quando a pasta era `tmp/banco-local`,
+  dentro do repositório: `failed to initialize` três vezes numa tarde.
+  `RDO_BANCO_LOCAL=<caminho>` aponta para onde você quiser;
 - **um processo por vez.** A pasta abre com exclusividade, então pare o
   `npm run dev:local` antes de rodar `npm run demonstracao`;
-- **encerrar à força corrompe a pasta.** Se o banco não abrir mais, apague
-  `tmp/banco-local` e rode a demonstração de novo — ela repovoa tudo.
+- **encerrar à força pode corromper a pasta.** Ctrl+C é seguro — o banco fecha
+  sozinho —, mas `kill -9` não dá chance. Se não abrir mais, apague a pasta e
+  rode a demonstração de novo: ela repovoa tudo.
 
 | Comando                    | Quando se usa                                                             |
 | -------------------------- | ------------------------------------------------------------------------- |

@@ -24,6 +24,7 @@ import {
   revogaAcesso,
   type AcessoDaObra,
   type Ator,
+  type PortadorDeAcesso,
   type ConviteGerado,
   type ObraResumo,
   type Perfil,
@@ -52,12 +53,16 @@ import {
   criaObra,
   defineQuantidadeDeProjeto,
   defineResponsavelTecnico,
+  defineLogoDaObra,
   listaHistoricoDeQuantidade,
   listaPeriodosBms,
   listaServicosControlados,
   obtemCabecalhoDaObra,
+  obtemLogoDaObra,
+  removeLogoDaObra,
   resolveBmsDoDia,
   type CabecalhoDaObra,
+  type LogoDaObra,
   type PeriodoBms,
   type ServicoControladoComProjeto,
   type VersaoDeQuantidade,
@@ -109,9 +114,16 @@ function idDePassagemDeEquipamento(valor: string): PassagemEquipamentoId {
   return idConfiavel<'passagem_equipamento'>(valor);
 }
 
-/** Toda operação protegida começa por aqui. Sem exceção. */
+/**
+ * Toda operação protegida começa por aqui. Sem exceção.
+ *
+ * Pede `PortadorDeAcesso`, que é só o id de quem age, porque é o que
+ * `exigeAcessoNaObra` usa. `Ator` satisfaz por forma, então nenhuma chamada
+ * existente muda — e a rota da logo, que recebe um `AtorNaObra` sem `sessaoId`,
+ * deixa de precisar inventar um campo para caber no tipo.
+ */
 async function autoriza(
-  ator: Ator,
+  ator: PortadorDeAcesso,
   obraId: ObraId,
   perfilMinimo: 'engenheiro' | 'encarregado',
   amb: Amb,
@@ -634,4 +646,65 @@ export async function excluiPeriodoBmsProtegido(
   );
   if (!excluido.ok) return erro(excluido.erro);
   return ok(undefined);
+}
+
+// ------------------------------------------------------------ logo da obra
+
+/**
+ * Grava a logo da obra. **Só o engenheiro.**
+ *
+ * A logo sai no cabeçalho do RDO, que é documento contratual: quem troca a
+ * marca da contratada muda todo relatório que for reimprimido, inclusive os já
+ * entregues. É a mesma razão que restringe as informações gerais.
+ *
+ * Quem valida o arquivo é `defineLogoDaObra`, no módulo — a checagem de formato
+ * é por bytes, e não pelo tipo que o navegador declarou.
+ */
+export async function defineLogoProtegida(
+  ator: Ator,
+  obraId: ObraId,
+  bytes: Buffer,
+  amb: Amb = ambienteDeCadastroPadrao(),
+): Promise<Resposta<void>> {
+  const permitido = await autoriza(ator, obraId, 'engenheiro', amb);
+  if (!permitido.ok) return permitido;
+
+  const gravada = await defineLogoDaObra({ obraId, bytes }, amb.db, ator.usuarioId);
+  if (!gravada.ok) return erro(gravada.erro);
+  return ok(undefined);
+}
+
+export async function removeLogoProtegida(
+  ator: Ator,
+  obraId: ObraId,
+  amb: Amb = ambienteDeCadastroPadrao(),
+): Promise<Resposta<void>> {
+  const permitido = await autoriza(ator, obraId, 'engenheiro', amb);
+  if (!permitido.ok) return permitido;
+
+  const removida = await removeLogoDaObra(obraId, amb.db, ator.usuarioId);
+  if (!removida.ok) return erro(removida.erro);
+  return ok(undefined);
+}
+
+/**
+ * Lê a logo para servir ou para desenhar no PDF.
+ *
+ * **Encarregado vê**, ao contrário de escrever: a logo aparece na tela da obra,
+ * que ele abre, e é a marca da empresa em que ele trabalha — não é dado de
+ * pessoa nem número de medição. O que ele não pode é trocá-la.
+ */
+export async function obtemLogoProtegida(
+  // `PortadorDeAcesso`, e não `Ator`: esta leitura só precisa do id de quem
+  // age, e quem a chama é a rota `GET /obras/<id>/logo`, onde o embrulho
+  // `comAtorNaObra` já entregou um `AtorNaObra` — que não carrega `sessaoId`.
+  // Pedir o tipo mais largo obrigaria a rota a inventar um campo que não usa.
+  ator: PortadorDeAcesso,
+  obraId: ObraId,
+  amb: Amb = ambienteDeCadastroPadrao(),
+): Promise<Resposta<LogoDaObra | null>> {
+  const permitido = await autoriza(ator, obraId, 'encarregado', amb);
+  if (!permitido.ok) return permitido;
+
+  return ok(await obtemLogoDaObra(obraId, amb.db));
 }

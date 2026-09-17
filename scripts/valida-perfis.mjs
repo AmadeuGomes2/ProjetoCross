@@ -20,7 +20,7 @@ const BASE = process.env.RDO_BASE ?? 'http://localhost:3000';
 
 /**
  * As regras, como frases. `perfil` é quem abre, `esperado` é o que tem de
- * acontecer, e `prova` recebe a página já carregada.
+ * acontecer, e `prova` recebe a página já carregada e a resposta da navegação.
  */
 function regras(ctx) {
   const obra = ctx.obra;
@@ -242,6 +242,41 @@ function regras(ctx) {
         return abas.some((t) => t.includes('Pluviometria')) ? 'a aba apareceu' : null;
       },
     },
+    // ------------------------------------------------- logo da contratada
+    {
+      perfil: 'eng',
+      nome: 'engenheiro tem como subir a logo',
+      url: `/obras/${obra}`,
+      prova: async (p) => {
+        const campo = p.locator('input[name="logo"]');
+        if ((await campo.count()) === 0) return 'sem campo de envio';
+        // Só os três formatos, e o `accept` é conveniência: quem decide é o
+        // servidor, pelos bytes. Aqui se confere que a tela não oferece SVG.
+        const aceita = (await campo.first().getAttribute('accept')) ?? '';
+        return aceita.includes('svg') ? 'a tela oferece SVG' : null;
+      },
+    },
+    {
+      perfil: 'enc',
+      nome: 'encarregado não troca a logo',
+      url: `/obras/${obra}`,
+      prova: async (p) =>
+        (await p.locator('input[name="logo"]').count()) > 0
+          ? 'viu o campo de envio'
+          : null,
+    },
+    {
+      perfil: 'enc',
+      nome: 'encarregado LÊ a logo: é a marca da empresa dele',
+      url: `/obras/${obra}/logo`,
+      prova: async (p, resposta) => {
+        // 404 é resposta legítima: a obra pode não ter logo. O que não pode é
+        // 403 — a leitura é do encarregado também.
+        const status = resposta?.status() ?? 0;
+        return status === 200 || status === 404 ? null : `status ${status}`;
+      },
+    },
+
     {
       perfil: 'eng',
       nome: 'engenheiro chega à pluviometria pela aba da obra',
@@ -298,7 +333,9 @@ async function main() {
             ? null
             : `status ${status}, esperado ${regra.esperaStatus}`;
       } else {
-        problema = await regra.prova(pagina);
+        // A resposta vai junto: algumas regras olham o status sem querer fixar
+        // um número — a leitura da logo aceita 200 e 404, e recusa 403.
+        problema = await regra.prova(pagina, resposta);
       }
     } catch (e) {
       problema = 'erro: ' + e.message.split('\n')[0];

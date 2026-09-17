@@ -70,6 +70,14 @@ export interface PluviometriaDoPeriodoNoPapel {
 }
 
 export interface RdoDePeriodoParaDocumento {
+  /**
+   * `data:` URI da logo, ou `null`.
+   *
+   * O modo "consolidado com os diários" põe os dois documentos no MESMO
+   * arquivo. Sem este campo o consolidado saía sem marca e os diários com ela —
+   * um PDF com dois cabeçalhos diferentes, que é defeito de fidelidade.
+   */
+  readonly logo: string | null;
   readonly identificacao: IdentificacaoDoPeriodoNoPapel;
   readonly informacoesGerais: {
     readonly contrato: string;
@@ -117,8 +125,13 @@ function paraEfetivo(bloco: RdoDePeriodo['efetivoPessoal']): BlocoDeEfetivoMedio
   };
 }
 
-export function paraDocumentoDePeriodo(rdo: RdoDePeriodo): RdoDePeriodoParaDocumento {
+export function paraDocumentoDePeriodo(
+  rdo: RdoDePeriodo,
+  /** Obrigatório, pelo mesmo motivo de `paraDocumento`: padrão esconde esquecimento. */
+  logo: string | null,
+): RdoDePeriodoParaDocumento {
   return {
+    logo,
     identificacao: {
       primeiroDia: rdo.identificacao.primeiroDia,
       ultimoDia: rdo.identificacao.ultimoDia,

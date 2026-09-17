@@ -123,6 +123,12 @@ export interface CabecalhoDaObra {
   readonly local: string;
   /** Nulo enquanto não informado; o bloco 11 sai incompleto e a tela avisa. */
   readonly respTecnico: ResponsavelTecnico | null;
+  /**
+   * A obra tem logo. **Não são os bytes**: é a resposta que a tela e o
+   * documento precisam para decidir se desenham a imagem, sem arrastar até meio
+   * megabyte em toda leitura de cabeçalho.
+   */
+  readonly temLogo: boolean;
 }
 
 export interface PeriodoBms {

@@ -108,6 +108,8 @@ export interface PluviometriaDoPeriodoNoPapel {
 }
 
 export interface RdoDePeriodoParaDocumento {
+  /** `data:` URI da logo, ou `null`. Mesma marca dos diários do mesmo arquivo. */
+  readonly logo: string | null;
   readonly identificacao: IdentificacaoDoPeriodoNoPapel;
   readonly informacoesGerais: InformacoesGeraisNoPapel;
   readonly caracteristicas: CaracteristicasNoPapel;

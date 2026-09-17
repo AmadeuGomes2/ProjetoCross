@@ -6,8 +6,9 @@ metadata:
 ---
 
 Verificado em `d5dce94` (16/09) e re-verificado em `886227d` (17/09). Laudos em
-`docs/seguranca/2026-09-16-fatia-vertical-v1.md` e
-`docs/seguranca/2026-09-17-periodo-e-perfis.md`. São defesas **de tipo ou de
+`docs/seguranca/2026-09-16-fatia-vertical-v1.md`,
+`docs/seguranca/2026-09-17-periodo-e-perfis.md` e
+`docs/seguranca/2026-09-17-logo-da-obra.md`. São defesas **de tipo ou de
 esquema**, não de disciplina: continuam valendo até alguém as contornar.
 
 - `ContextoDeLog` (`src/shared/log/index.ts`) não tem campo de texto: nome não
@@ -38,7 +39,17 @@ esquema**, não de disciplina: continuam valendo até alguém as contornar.
   indistinguível de "não houve impacto", então contagem não vaza obra alheia.
 - Exportação grava trilha **antes** de entregar o arquivo, numa transação, uma
   linha por dia com `loteId`; trilha que falha impede a entrega.
+- **Upload da logo (17/09)**: o tipo servido vem da coluna `logo_tipo`, que só
+  recebe o retorno de `identificaImagem` (assinatura de bytes), é limitado pelo
+  `CHECK ck_obra_logo` e é **reconferido contra a lista na leitura**, sem `as`;
+  a rota manda `nosniff` e `Content-Disposition: inline` sem `filename`; nome e
+  `type` do arquivo enviado nunca são lidos; SVG é recusado. A memória de
+  `criaLeitorDeLogo` é chaveada por `obraId` e nasce por invocação, nunca em
+  escopo de módulo. **O que falta nesse caminho está em
+  [[limites-do-renderizador-de-pdf]].**
 - Nenhuma planilha, PDF, banco ou imagem entrou no histórico, em commit nenhum.
+  Cuidado: o `.gitignore` bloqueia planilha, CSV e PDF, mas **não bloqueia
+  `*.png`, `*.jpg` nem `*.webp`** — e desde 17/09 o produto pede imagem.
 - `npm ls xlsx` vazio; overrides `uuid ^11.1.1` e `esbuild ^0.25.0` presentes;
   `npm audit` limpo; 830 testes passando.
 

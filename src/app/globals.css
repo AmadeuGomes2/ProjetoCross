@@ -229,6 +229,26 @@ img {
   margin: 0;
 }
 
+/*
+ * A logo da contratada, ao lado do contrato.
+ *
+ * `object-fit: contain` numa caixa quadrada: a marca chega em qualquer
+ * proporção, e esticar a marca de uma empresa é defeito, não adaptação.
+ * `align-self: center` porque o cabeçalho alinha por `baseline`, e uma imagem
+ * não tem linha de base — sem isto ela pendura abaixo do título.
+ */
+.logoDaObra {
+  align-self: center;
+  width: 4rem;
+  height: 4rem;
+  object-fit: contain;
+  /* Marca clara sobre fundo escuro precisa de contraste no tema escuro. */
+  background: var(--papel);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-pequeno);
+  padding: 0.2rem;
+}
+
 .subtitulo {
   margin: 0;
   color: var(--tinta-tenue);
@@ -1370,4 +1390,16 @@ tbody tr:last-child td {
   flex-basis: 100%;
   font-size: 0.9rem;
   color: var(--tinta-fraca);
+}
+
+/*
+ * Respiro antes de uma ação destrutiva que fica embaixo de outra.
+ *
+ * Sem isto, "Tirar a logo" encostava em "Trocar a logo" e os dois liam como um
+ * par de opções equivalentes. Distância é parte do aviso.
+ */
+.acaoDestrutiva {
+  margin-top: var(--e4);
+  padding-top: var(--e3);
+  border-top: 1px solid var(--borda);
 }

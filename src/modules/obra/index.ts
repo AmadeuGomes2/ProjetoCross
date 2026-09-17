@@ -29,6 +29,20 @@ export {
 } from './servico-controlado';
 
 export {
+  defineLogoDaObra,
+  identificaImagem,
+  obtemLogoDaObra,
+  removeLogoDaObra,
+  limpaMetadados,
+  LIMITE_DA_LOGO_EM_BYTES,
+  LIMITE_DA_LOGO_EM_KB,
+  TIPOS_DE_IMAGEM,
+  type ComandoDefinirLogo,
+  type LogoDaObra,
+  type TipoDeImagem,
+} from './logo';
+
+export {
   analisaCriarObra,
   analisaEditarObra,
   analisaPeriodoBms,

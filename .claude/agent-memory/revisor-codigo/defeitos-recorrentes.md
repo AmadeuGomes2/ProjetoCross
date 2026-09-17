@@ -32,6 +32,15 @@ ou abstração faltando em `src/shared/`.
 P1 (raiz de composição entregue como esboço) **não reapareceu**: as portas do
 período estão ligadas e `_composicao/rdo-de-periodo.test.ts` cobre a costura.
 
+## Revisão 3 — diff não commitado, 17/09/2026 (logo da obra, 26 arquivos, 3 frentes)
+
+| #    | Padrão                                                                                                                                                                                                                                                                                      | Ocorrências | Onde                                                                                         |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------- |
+| P7   | **Comentário que afirma garantia que o código não cumpre** (reincidência, 3 nesta revisão, 6 no total): "recusa antes de olhar o conteúdo" com o Buffer já materializado; "aprovado pelo dono do produto" sem registro em `docs/`; "o leitor memoriza" onde o `await` já está fora do laço. | 6           | `obra/logo.ts`, `export/documento/documento-rdo.tsx`, `_composicao/exportacao-de-periodo.ts` |
+| P9   | **Campo novo de documento ligado em um caminho de saída e esquecido no irmão**: o cabeçalho existe em dois arquivos (diário e consolidado do período) e só um recebeu a logo — o mesmo arquivo entregue sai com dois cabeçalhos.                                                            | 1           | `export/periodo/documento/documento-de-periodo.tsx`                                          |
+| P10  | **Limite do domínio escrito depois do ponto em que a plataforma já recusou**: a guarda de 512 KB só é alcançável até 1 MB, o teto de Server Action do Next. Acima disso o usuário vê o erro genérico da plataforma, não a mensagem do domínio.                                              | 1           | `app/(cadastro)/acoes.ts`                                                                    |
+| P4'' | **Lista de domínio exportada e recopiada à mão na tela** (família de P4): `TIPOS_DE_IMAGEM` existe e é exportada; a tela escreve os três tipos no `accept`. `Math.floor(LIMITE/1024)` aparece três vezes.                                                                                   | 4           | `page.tsx`, `acoes.ts`, `logo.ts`                                                            |
+
 ## O que NÃO foi defeito (não reapontar sem prova nova)
 
 - `any`: zero ocorrências. Nenhum `eslint-disable`, `@ts-ignore` nem `as any`.
@@ -65,5 +74,20 @@ período estão ligadas e `_composicao/rdo-de-periodo.test.ts` cobre a costura.
 6. Propor no `padroes-codigo`, seção Comentário: **comentário que afirma garantia
    de outro arquivo cita `arquivo:função`** — assim a garantia que muda de lugar
    quebra a busca, em vez de virar mentira silenciosa (P7).
+
+## Mudanças estruturais propostas na revisão 3
+
+7. **P7 chegou a 6 ocorrências em três revisões.** Não é mais descuido: virar
+   regra dura no `padroes-codigo`, seção Comentário — comentário que afirma
+   limite, aprovação ou otimização precisa citar `arquivo:função`, número de
+   decisão em `docs/` ou teste que a prove; sem isso, não entra.
+8. O cabeçalho do documento está escrito **duas vezes**
+   (`export/documento/documento-rdo.tsx` e
+   `export/periodo/documento/documento-de-periodo.tsx`). Todo campo novo de
+   cabeçalho vai precisar ser lembrado nos dois. Propor um bloco de título único
+   em `export/documento/`, consumido pelos dois documentos (P9).
+9. Verificar, em toda mudança que impõe limite de tamanho de corpo, se a
+   plataforma corta antes: `serverActions.bodySizeLimit` do Next é 1 MB por
+   padrão e não está configurado em `next.config.ts` (P10).
 
 Ver [[frentes-paralelas-v1]].

@@ -53,6 +53,18 @@ export interface LinhaDeObra {
   readonly respTecnicoCrea: string | null;
 }
 
+/**
+ * O que a LEITURA devolve: a linha mais o tipo da logo.
+ *
+ * Tipo separado, e não um campo a mais em `LinhaDeObra`, por um motivo que
+ * quase passou batido: `LinhaDeObra` é também a forma da **escrita**.
+ * `atualizaCabecalho` recebe `Omit<LinhaDeObra, ...>` e manda tudo num `SET` —
+ * com `logoTipo` ali dentro, **toda edição das informações gerais apagaria a
+ * logo**, sem erro e sem aviso. Ler e escrever se parecem e não são a mesma
+ * coisa.
+ */
+export type LinhaDeObraLida = LinhaDeObra & { readonly logoTipo: string | null };
+
 const colunasDaObra = {
   id: obra.id,
   contrato: obra.contrato,
@@ -67,12 +79,21 @@ const colunasDaObra = {
   respTecnicoNome: obra.respTecnicoNome,
   respTecnicoTitulo: obra.respTecnicoTitulo,
   respTecnicoCrea: obra.respTecnicoCrea,
+  /*
+   * O TIPO da logo, nunca os bytes.
+   *
+   * `buscaObra` é chamada em toda montagem de RDO. Trazer a coluna `bytea`
+   * junto arrastaria até meio megabyte por leitura, para um dado que a maioria
+   * dos chamadores nem olha. Quem quer a imagem chama `obtemLogoDaObra`, que
+   * existe só para isso.
+   */
+  logoTipo: obra.logoTipo,
 } as const;
 
 export async function buscaObra(
   db: BancoRdo,
   obraId: ObraId,
-): Promise<LinhaDeObra | null> {
+): Promise<LinhaDeObraLida | null> {
   const linhas = await db
     .select(colunasDaObra)
     .from(obra)

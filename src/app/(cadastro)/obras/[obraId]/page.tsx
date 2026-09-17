@@ -25,10 +25,13 @@ import { BotaoDeEnvio } from '../../../_componentes/botao-de-envio';
 import { formataBr } from '../../../../shared/date/dia';
 import { hojeNaObra } from '../../../../shared/date/fuso';
 import { idConfiavel } from '../../../../shared/id';
+import { LIMITE_DA_LOGO_EM_KB, TIPOS_DE_IMAGEM } from '../../../../modules/obra';
 import {
   cadastrarPeriodoAction,
   definirResponsavelAction,
   editarObraAction,
+  enviarLogoAction,
+  removerLogoAction,
   editarPeriodoAction,
   excluirPeriodoAction,
 } from '../../acoes';
@@ -120,6 +123,25 @@ export default async function Obra({
       <Trilha degraus={[{ texto: 'Obras', href: '/obras' }, { texto: obra.contrato }]} />
 
       <header className="cabecalhoDaPagina">
+        {/*
+          A logo vem da rota, e não de um `data:` embutido na página: a rota
+          autoriza a cada pedido, o navegador guarda em cache privado, e meio
+          megabyte de base64 não entra no HTML de toda visita.
+
+          `alt` vazio de propósito: a marca é decoração ao lado do contrato, que
+          já está escrito ao lado dela. Descrevê-la faria o leitor de tela
+          repetir o que a linha seguinte diz.
+        */}
+        {obra.temLogo && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={`/obras/${obraId}/logo`}
+            alt=""
+            className="logoDaObra"
+            width={96}
+            height={96}
+          />
+        )}
         <div>
           <h1>{obra.contrato}</h1>
           <p className="subtitulo">{obra.nomeProjeto}</p>
@@ -140,6 +162,53 @@ export default async function Obra({
 
       {/* Exportar é do engenheiro (R19). O servidor recusa de qualquer forma. */}
       {ehEngenheiro && <SeletorDePeriodo obraId={obraId} hoje={hoje} />}
+
+      {ehEngenheiro && (
+        <Bloco titulo="Logo da contratada">
+          <p className="ajuda">
+            Sai no cabeçalho do RDO, ao lado do contrato. PNG ou JPEG, até{' '}
+            {LIMITE_DA_LOGO_EM_KB} KB.
+          </p>
+          <AvisoDeImpacto
+            impacto={impactoDoTopo}
+            oQueMuda="A logo nova vale para todos os RDOs, inclusive os já emitidos:
+              reimprimir um RDO antigo passa a sair com ela."
+            oQueNaoMuda={NAO_MEXE_NO_QUE_JA_FOI_LANCADO}
+          />
+          <form action={enviarLogoAction}>
+            <input type="hidden" name="obraId" value={obraId} />
+            <label className="rotulo" htmlFor="logo">
+              Arquivo de imagem
+            </label>
+            <input
+              id="logo"
+              type="file"
+              name="logo"
+              /* Da lista do domínio, não reescrita à mão: é a mesma que o
+                 servidor aplica e que o `CHECK` do banco repete. */
+              accept={TIPOS_DE_IMAGEM.join(',')}
+              required
+              className="campo"
+            />
+            <BotaoDeEnvio>
+              {obra.temLogo ? 'Trocar a logo' : 'Enviar a logo'}
+            </BotaoDeEnvio>
+          </form>
+          {obra.temLogo && (
+            /*
+              `perigo`, e não a variante padrão. Na captura os dois botões eram
+              verdes idênticos, colados um no outro: quem mira "Trocar" acerta
+              "Tirar". Ação destrutiva não pode ter o mesmo peso da principal.
+            */
+            <form action={removerLogoAction} className="acaoDestrutiva">
+              <input type="hidden" name="obraId" value={obraId} />
+              <BotaoDeEnvio variante="perigo" enviando="Tirando…">
+                Tirar a logo
+              </BotaoDeEnvio>
+            </form>
+          )}
+        </Bloco>
+      )}
 
       <Bloco titulo="Informações gerais">
         <dl className="fichaTecnica">

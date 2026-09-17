@@ -95,6 +95,18 @@ export interface AssinaturaNoPapel {
 }
 
 export interface RdoParaDocumento {
+  /**
+   * A logo da contratada, como `data:` URI pronto, ou `null`.
+   *
+   * URI, e não `Buffer`: o documento é montado uma vez e desenhado por
+   * `@react-pdf/renderer`, que aceita os dois — mas `Buffer` faria a árvore que
+   * o teste de fidelidade lê carregar meio megabyte de binário, e ela é
+   * comparada e impressa em diagnóstico.
+   *
+   * Quem monta o URI é a composição, que é quem tem o banco. O documento
+   * continua sem decidir nada: recebe pronto e desenha.
+   */
+  readonly logo: string | null;
   readonly identificacao: IdentificacaoNoPapel;
   readonly informacoesGerais: InformacoesGeraisNoPapel;
   readonly caracteristicas: CaracteristicasNoPapel;

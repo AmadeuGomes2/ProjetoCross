@@ -82,10 +82,30 @@ export const obra = pgTable(
     criadoEm: colunaInstante('criado_em'),
   },
   (t) => [
+    /*
+     * As duas colunas andam juntas, e o tipo é um dos dois que o PDF desenha.
+     *
+     * `image/webp` saiu em 17/09/2026, na mesma passagem em que saiu da borda:
+     * `@react-pdf/image` não sabe desenhá-lo, e o renderizador engole o erro em
+     * silêncio — o PDF saía sem a marca enquanto a tela a mostrava. O `CHECK`
+     * acompanha a regra para que uma escrita futura por outro caminho não
+     * consiga gravar o que o documento não imprime.
+     *
+     * ## `IS NOT NULL` explícito, e não só o `IN`
+     *
+     * A primeira versão terminava em `logo_tipo IN ('image/png', 'image/jpeg')`
+     * e **não barrava bytes sem tipo**. É a lógica de três valores do SQL:
+     * `NULL IN (...)` é `NULL`, `true AND NULL` é `NULL`, e `CHECK` só recusa
+     * quando o resultado é `false` — nulo passa. A restrição existia e não
+     * restringia, que é pior que não existir, porque dá confiança falsa.
+     *
+     * Quem encontrou foi o teste desta restrição, escrito depois dela.
+     */
     check(
       'ck_obra_logo',
       sql`(${t.logo} IS NULL AND ${t.logoTipo} IS NULL)
-         OR (${t.logo} IS NOT NULL AND ${t.logoTipo} IN ('image/png', 'image/jpeg', 'image/webp'))`,
+         OR (${t.logo} IS NOT NULL AND ${t.logoTipo} IS NOT NULL
+             AND ${t.logoTipo} IN ('image/png', 'image/jpeg'))`,
     ),
     checkTextoNaoVazio('ck_obra_contrato', t.contrato),
     checkTextoNaoVazio('ck_obra_contratante', t.contratante),

@@ -15,6 +15,8 @@
 
 import { redirect } from 'next/navigation';
 
+import { LIMITE_DA_LOGO_EM_BYTES, LIMITE_DA_LOGO_EM_KB } from '../../modules/obra';
+
 import {
   aceitaConviteEEntra,
   iniciaSessaoComSenha,
@@ -30,9 +32,11 @@ import {
   excluiPeriodoBmsProtegido,
   cadastraPessoaProtegida,
   criaObraProtegida,
+  defineLogoProtegida,
   defineQuantidadeDeProjetoProtegida,
   defineResponsavelTecnicoProtegido,
   geraConviteProtegido,
+  removeLogoProtegida,
   revogaAcessoProtegido,
   trocaFuncaoProtegida,
 } from '../_composicao/cadastro';
@@ -376,5 +380,61 @@ export async function excluirPeriodoAction(dados: FormData): Promise<void> {
     texto(dados, 'periodoId'),
   );
   if (!excluido.ok) voltaCom(`/obras/${obraId}`, excluido.erro.mensagem);
+  redirect(`/obras/${obraId}`);
+}
+
+// ------------------------------------------------------------ logo da obra
+
+/**
+ * Envia a logo da contratada, que sai no cabeçalho do RDO.
+ *
+ * O arquivo chega como `File` dentro do `FormData`. **Nada do que ele declara é
+ * usado**: nem o nome, nem o `type` — quem decide o formato é
+ * `identificaImagem`, pelos primeiros bytes, dentro do módulo. O nome do
+ * arquivo nem é lido, porque é texto que veio de fora e não tem para onde ir.
+ *
+ * Sobre o tamanho, três tetos, do mais externo ao mais interno:
+ *
+ * 1. `serverActions.bodySizeLimit` em `next.config.ts`, 1 MB. É o único que de
+ *    fato impede o corpo de chegar; acima dele a plataforma recusa antes desta
+ *    função existir;
+ * 2. a checagem aqui, 512 KB, por `arquivo.size` — que o `File` já conhece, sem
+ *    materializar os bytes. É a que produz a mensagem que diz o que corrigir;
+ * 3. a checagem no módulo, para que nenhum chamador futuro dependa das duas
+ *    acima.
+ *
+ * A primeira versão deste comentário dizia "antes de ler o corpo", o que era
+ * falso: quando esta função roda, o Next já bufferizou tudo.
+ */
+export async function enviarLogoAction(dados: FormData): Promise<void> {
+  const obraId = obraDaForma(dados);
+  const { ator } = await exigeAtor();
+  const destino = `/obras/${obraId}`;
+
+  const arquivo = dados.get('logo');
+  if (!(arquivo instanceof File) || arquivo.size === 0) {
+    voltaCom(destino, 'Escolha um arquivo de imagem para enviar.');
+  }
+  if (arquivo.size > LIMITE_DA_LOGO_EM_BYTES) {
+    voltaCom(destino, `A imagem passa do tamanho aceito, de ${LIMITE_DA_LOGO_EM_KB} KB.`);
+  }
+
+  const gravada = await defineLogoProtegida(
+    ator,
+    obraId,
+    Buffer.from(await arquivo.arrayBuffer()),
+  );
+  if (!gravada.ok) voltaCom(destino, gravada.erro.mensagem);
+
+  redirect(destino);
+}
+
+export async function removerLogoAction(dados: FormData): Promise<void> {
+  const obraId = obraDaForma(dados);
+  const { ator } = await exigeAtor();
+
+  const removida = await removeLogoProtegida(ator, obraId);
+  if (!removida.ok) voltaCom(`/obras/${obraId}`, removida.erro.mensagem);
+
   redirect(`/obras/${obraId}`);
 }

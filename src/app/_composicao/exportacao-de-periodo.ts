@@ -46,6 +46,7 @@ import { erro, ok, CODIGO_ERRO, type Result } from '../../shared/result';
 import type { ObraId } from '../../shared/id';
 import type { PortadorDeAcesso } from '../../modules/acesso';
 import { ambienteDaComposicao, type AmbienteDaComposicao } from './ambiente';
+import { criaLeitorDeLogo } from './logo-para-documento';
 import { criaPortasDoRdo } from './rdo-diario';
 import { portasDoRdoDePeriodoProtegidas } from './rdo-de-periodo';
 
@@ -53,6 +54,16 @@ export function criaPortasDoExportDePeriodo(
   ator: PortadorDeAcesso,
   ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
 ): PortasDoExportDePeriodo {
+  /*
+   * Um leitor de logo para o pacote inteiro.
+   *
+   * Ele memoriza, e é isso que faz o consolidado e os trinta diários do mesmo
+   * arquivo lerem o binário **uma vez** — e, mais importante, lerem o MESMO.
+   * Dois cabeçalhos diferentes num arquivo só é defeito de fidelidade, e foi o
+   * que aconteceu enquanto o consolidado não recebia logo nenhuma.
+   */
+  const leLogo = criaLeitorDeLogo(ambiente);
+
   return {
     montaPacote: async (obraId, dias, modo) => {
       const portas = await portasDoRdoDePeriodoProtegidas(ator, obraId, dias, ambiente);
@@ -74,11 +85,12 @@ export function criaPortasDoExportDePeriodo(
        */
       const montaDiarios = async () => {
         const portasDoDiario = criaPortasDoRdo(ambiente);
+        const logo = await leLogo(obraId);
         const feitos: ReturnType<typeof paraDocumento>[] = [];
         for (const dia of dias) {
           const montado = await montaRdoDiario(obraId, dia, portasDoDiario);
           if (!montado.ok) return erro(montado.erro);
-          feitos.push(paraDocumento(montado.valor));
+          feitos.push(paraDocumento(montado.valor, logo));
         }
         return ok(feitos);
       };
@@ -86,7 +98,10 @@ export function criaPortasDoExportDePeriodo(
       const montaConsolidado = async () => {
         const montado = await montaRdoDePeriodo(obraId, dias, portas.valor);
         if (!montado.ok) return erro(montado.erro);
-        return ok(paraDocumentoDePeriodo(montado.valor));
+        // A mesma logo dos diários: no modo "consolidado com os diários" os dois
+        // documentos vão no MESMO arquivo, e dois cabeçalhos diferentes num
+        // arquivo só é defeito de fidelidade.
+        return ok(paraDocumentoDePeriodo(montado.valor, await leLogo(obraId)));
       };
 
       /*

@@ -32,12 +32,14 @@ import { instanteAgora } from '../../shared/date/fuso';
 import type { ObraId } from '../../shared/id';
 import { CODIGO_ERRO, erro, ok } from '../../shared/result';
 import { ambienteDaComposicao, type AmbienteDaComposicao } from './ambiente';
+import { criaLeitorDeLogo } from './logo-para-documento';
 import { criaPortasDoRdo } from './rdo-diario';
 
 export function criaPortasDoExport(
   ambiente: AmbienteDaComposicao = ambienteDaComposicao(),
 ): PortasDoExport {
   const portasDoRdo = criaPortasDoRdo(ambiente);
+  const leLogo = criaLeitorDeLogo(ambiente);
 
   return {
     montaRdo: async (obraId, dia) => {
@@ -48,7 +50,12 @@ export function criaPortasDoExport(
       if (!montado.ok) return erro(montado.erro);
       // A projeção poda o resumo do dia e os avisos: o que não chega ao
       // `export` não pode vazar para o papel (decisões 3.3 e 12.1).
-      const documento: RdoParaDocumento = paraDocumento(montado.valor);
+      // A logo entra só aqui, no caminho do papel: a tela do RDO não a carrega,
+      // e montar o diário continua sem tocar em binário nenhum.
+      const documento: RdoParaDocumento = paraDocumento(
+        montado.valor,
+        await leLogo(obraId),
+      );
       return ok(documento);
     },
     registraExportacao: async (evento) =>

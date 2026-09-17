@@ -27,7 +27,7 @@
  */
 
 import type { ReactElement } from 'react';
-import { type DocumentProps, Page, Text, View } from '@react-pdf/renderer';
+import { type DocumentProps, Image, Page, Text, View } from '@react-pdf/renderer';
 
 import { estilos } from '../../documento/estilos';
 import '../../documento/hifenizacao';
@@ -98,8 +98,30 @@ function blocoIdentificacao(rdo: RdoDePeriodoParaDocumento): ReactElement {
 function cabecalhoDaPagina(rdo: RdoDePeriodoParaDocumento): ReactElement {
   return (
     <View fixed>
-      <Text style={estilos.titulo}>{ROTULO.TITULO}</Text>
+      {blocoTitulo(rdo.logo)}
       {blocoIdentificacao(rdo)}
+    </View>
+  );
+}
+
+/**
+ * Título, com a logo à esquerda quando a obra tem uma.
+ *
+ * Igual ao do diário, e isso importa mais do que parece: no modo "consolidado
+ * com os diários" os dois documentos vão no **mesmo arquivo**. Enquanto este
+ * cabeçalho não conhecia logo, o arquivo saía com duas cabeças diferentes — o
+ * resumo sem marca, os anexos com ela.
+ */
+function blocoTitulo(logo: string | null): ReactElement {
+  if (logo === null) return <Text style={estilos.titulo}>{ROTULO.TITULO}</Text>;
+
+  return (
+    <View style={estilos.faixaDoTitulo}>
+      {/* eslint-disable-next-line jsx-a11y/alt-text */}
+      <Image src={logo} style={estilos.logo} />
+      <Text style={estilos.titulo}>{ROTULO.TITULO}</Text>
+      {/* Espelho sem desenho: mantém o título no centro da página. */}
+      <View style={estilos.logo} />
     </View>
   );
 }

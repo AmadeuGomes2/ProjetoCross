@@ -45,6 +45,14 @@ export interface LinhaDeAtividadeNoPapel {
 }
 
 export interface RdoParaDocumento {
+  /**
+   * A logo da contratada, como `data:` URI pronto, ou `null`.
+   *
+   * Chega de fora, e não do `RdoDiario`: a logo é `bytea` na linha da obra, e
+   * carregá-la em toda montagem de RDO arrastaria até meio megabyte para um
+   * dado que só a exportação usa. Quem exporta pede; quem só olha na tela, não.
+   */
+  readonly logo: string | null;
   readonly identificacao: {
     readonly dia: DiaPuro;
     readonly data: string;
@@ -118,7 +126,19 @@ function blocoNoPapel(
   };
 }
 
-export function paraDocumento(rdo: RdoDiario): RdoParaDocumento {
+export function paraDocumento(
+  rdo: RdoDiario,
+  /**
+   * `data:` URI da logo, ou `null` quando a obra não tem uma.
+   *
+   * **Obrigatório, sem valor padrão.** A primeira versão tinha `= null`, e o
+   * padrão silencioso fez exatamente o que padrão silencioso faz: o consolidado
+   * do período ficou sem logo enquanto os diários anexados **no mesmo arquivo**
+   * saíam com ela, e nada acusou. Quem acrescentar um caminho de exportação
+   * agora é obrigado a decidir.
+   */
+  logo: string | null,
+): RdoParaDocumento {
   const atividades = divideEmPaginas(
     rdo.atividades.map<LinhaDeAtividadeNoPapel>((linha) =>
       linha.tipo === 'atividade'
@@ -145,6 +165,7 @@ export function paraDocumento(rdo: RdoDiario): RdoParaDocumento {
   );
 
   return {
+    logo,
     identificacao: {
       dia: rdo.identificacao.dia,
       data: rdo.identificacao.dataBr,

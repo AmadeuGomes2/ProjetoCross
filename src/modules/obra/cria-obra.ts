@@ -230,6 +230,7 @@ export async function obtemCabecalhoDaObra(
     nomeProjeto: linha.nomeProjeto,
     area: linha.area,
     local: linha.local,
+    temLogo: linha.logoTipo !== null,
     respTecnico:
       nome === null || titulo === null || crea === null ? null : { nome, titulo, crea },
   });

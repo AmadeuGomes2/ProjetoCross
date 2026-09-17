@@ -61,6 +61,8 @@ export const DIARIOS_DO_CONJUNTO: readonly RdoParaDocumento[] = [
 ];
 
 export const CONSOLIDADO_DE_EXEMPLO: RdoDePeriodoParaDocumento = {
+  // Sem logo: é o caso comum e é o que o teste de fidelidade compara.
+  logo: null,
   identificacao: {
     primeiroDia: diaPuroConfiavel('2026-09-02'),
     ultimoDia: diaPuroConfiavel('2026-09-09'),
@@ -144,6 +146,8 @@ export const CONSOLIDADO_DE_EXEMPLO: RdoDePeriodoParaDocumento = {
  */
 export function consolidadoDeUmDia(diario: RdoParaDocumento): RdoDePeriodoParaDocumento {
   return {
+    // A MESMA marca do diário: um arquivo, um cabeçalho.
+    logo: diario.logo,
     identificacao: {
       primeiroDia: diario.identificacao.dia,
       ultimoDia: diario.identificacao.dia,

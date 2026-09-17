@@ -130,6 +130,58 @@ afterEach(async () => {
   await conexao.fecha();
 });
 
+/**
+ * `ck_obra_logo` — a segunda camada da regra da logo.
+ *
+ * A borda em `modules/obra/logo.ts` recusa com mensagem; este `CHECK` recusa por
+ * garantia. Duas camadas, como manda a 5.2: esconder botão não é controle, e
+ * borda sozinha não sobrevive a um caminho de escrita novo.
+ *
+ * Três coisas para provar, e as três vêm da regra, não da implementação:
+ * as colunas andam juntas, o tipo é um dos dois que o PDF desenha, e `webp` —
+ * que a primeira versão aceitava — não entra mais.
+ */
+describe('a restrição da logo da obra', () => {
+  function defineLogo(bytes: Buffer | null, tipo: string | null): Promise<void> {
+    return conexao.executa(`UPDATE obra SET logo = $1, logo_tipo = $2 WHERE id = $3`, [
+      bytes,
+      tipo,
+      OBRA,
+    ]);
+  }
+
+  const BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+
+  it('aceita PNG e JPEG, que são o que o documento desenha', async () => {
+    await montaBase();
+    await expect(defineLogo(BYTES, 'image/png')).resolves.toBeUndefined();
+    await expect(defineLogo(BYTES, 'image/jpeg')).resolves.toBeUndefined();
+  });
+
+  it('recusa WebP, que o renderizador do PDF não sabe desenhar', async () => {
+    await montaBase();
+    // Aceito até 17/09/2026. Saiu quando se mediu que o PDF saía sem a marca,
+    // em silêncio, enquanto a tela a mostrava.
+    await expect(defineLogo(BYTES, 'image/webp')).rejects.toThrow();
+  });
+
+  it('recusa SVG, que é XML e executa', async () => {
+    await montaBase();
+    await expect(defineLogo(BYTES, 'image/svg+xml')).rejects.toThrow();
+  });
+
+  it('recusa meia logo: bytes sem tipo, e tipo sem bytes', async () => {
+    await montaBase();
+    await expect(defineLogo(BYTES, null)).rejects.toThrow();
+    await expect(defineLogo(null, 'image/png')).rejects.toThrow();
+  });
+
+  it('aceita as duas colunas a nulo: é a obra sem logo', async () => {
+    await montaBase();
+    await expect(defineLogo(null, null)).resolves.toBeUndefined();
+  });
+});
+
 describe('conexão', () => {
   // Era `liga PRAGMA foreign_keys em toda conexão`, contra a arquitetura seção
   // 0: "PRAGMA foreign_keys = ON em toda conexão. Sem isso, metade das

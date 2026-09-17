@@ -29,6 +29,9 @@ export const ENCARREGADO: AtorDaExportacao = {
 export const MOMENTO: Instante = '2026-09-03T18:00:00.000Z';
 
 export const RDO_DE_EXEMPLO: RdoParaDocumento = {
+  // Sem logo: é o caso comum, e é o documento que o teste de fidelidade compara
+  // contra o gabarito da planilha, que não tem imagem nenhuma.
+  logo: null,
   identificacao: {
     dia: diaPuroConfiavel('2026-09-03'),
     data: '03/09/2026',

@@ -17,7 +17,14 @@
  */
 
 import type { ReactElement } from 'react';
-import { Document, type DocumentProps, Page, Text, View } from '@react-pdf/renderer';
+import {
+  Document,
+  type DocumentProps,
+  Image,
+  Page,
+  Text,
+  View,
+} from '@react-pdf/renderer';
 
 import type {
   CelulaDeEfetivo,
@@ -37,8 +44,38 @@ function campo(rotulo: string, valor: string): ReactElement {
   );
 }
 
-function blocoTitulo(): ReactElement {
-  return <Text style={estilos.titulo}>{ROTULO.TITULO}</Text>;
+/**
+ * Título, com a logo da contratada à esquerda quando a obra tem uma.
+ *
+ * A logo é acréscimo ao gabarito, pedido pelo dono do produto em 17/09/2026 —
+ * registrado em `docs/decisoes-do-rdo.md`, seção "A logo da contratada".
+ * Entra **ao lado** do título, e não no lugar dele: `RELATÓRIO DIÁRIO DE OBRAS`
+ * é o que o fiscal procura primeiro na folha, e ele continua centralizado na
+ * largura da página.
+ *
+ * Sem logo, a árvore é a mesma de antes — um `Text` e nada mais. O documento de
+ * quem não subiu imagem nenhuma não muda em um ponto sequer.
+ */
+function blocoTitulo(logo: string | null): ReactElement {
+  if (logo === null) return <Text style={estilos.titulo}>{ROTULO.TITULO}</Text>;
+
+  return (
+    <View style={estilos.faixaDoTitulo}>
+      {/*
+        `jsx-a11y/alt-text` acha que este é o `<img>` do HTML. Não é: é o
+        `Image` do `@react-pdf/renderer`, que desenha num PDF e não tem atributo
+        `alt` — PDF descreve imagem por `/Alt` na árvore de estrutura, que este
+        renderizador não expõe. A regra não se aplica, e silenciá-la aqui é mais
+        honesto que inventar uma prop que o componente ignora.
+      */}
+      {/* eslint-disable-next-line jsx-a11y/alt-text */}
+      <Image src={logo} style={estilos.logo} />
+      <Text style={estilos.titulo}>{ROTULO.TITULO}</Text>
+      {/* Espelho da logo, sem desenhar nada: mantém o título no centro da
+          página em vez de empurrá-lo para a direita. */}
+      <View style={estilos.logo} />
+    </View>
+  );
 }
 
 function blocoIdentificacao(rdo: RdoParaDocumento): ReactElement {
@@ -76,7 +113,7 @@ function blocoIdentificacao(rdo: RdoParaDocumento): ReactElement {
 function cabecalhoDaPagina(rdo: RdoParaDocumento): ReactElement {
   return (
     <View fixed>
-      {blocoTitulo()}
+      {blocoTitulo(rdo.logo)}
       {blocoIdentificacao(rdo)}
       <Text
         style={estilos.marcaDeContinuacao}

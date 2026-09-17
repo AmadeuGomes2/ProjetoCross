@@ -38,6 +38,7 @@
  */
 
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { PGlite } from '@electric-sql/pglite';
@@ -57,8 +58,25 @@ import { semeiaTaxonomias } from './seed';
  */
 const PASTA_DE_MIGRATIONS = join(process.cwd(), 'src', 'db', 'migrations');
 
-/** Pasta padrão, dentro de `tmp/`, que o `.gitignore` já bloqueia. */
-export const PASTA_PADRAO = 'tmp/banco-local';
+/**
+ * Pasta padrao: **fora da arvore do projeto**, no temporario do sistema.
+ *
+ * A primeira versao gravava em `tmp/banco-local`, dentro do repositorio, que
+ * e o lugar obvio e estava errado. Esta copia do projeto mora dentro de uma
+ * pasta do OneDrive, e um diretorio de dados do Postgres dentro de pasta
+ * sincronizada e reescrito por baixo: o sincronizador abre, copia e devolve os
+ * arquivos no seu ritmo, enquanto o banco espera ser o unico a escrever neles.
+ * O resultado foi `failed to initialize` tres vezes numa tarde, e a explicacao
+ * que eu tinha escrito -- "alguem encerrou a forca" -- era so a primeira
+ * suspeita, nao a causa.
+ *
+ * Vale para OneDrive, Dropbox, Google Drive e pasta de rede. Nao e defeito do
+ * PGlite: nenhum banco sobrevive a alguem mexendo nos seus arquivos.
+ *
+ * `RDO_BANCO_LOCAL=<caminho>` aponta para outro lugar, para quem quiser a
+ * pasta junto do projeto e saiba que ela nao esta sincronizada.
+ */
+export const PASTA_PADRAO = join(tmpdir(), 'rdo-banco-local');
 
 /**
  * Aplica as migrations lendo o SQL direto, como o apoio de teste faz.
@@ -117,9 +135,12 @@ export async function criaConexaoLocal(pasta = PASTA_PADRAO): Promise<ConexaoRdo
     const mensagem = causa instanceof Error ? causa.message : String(causa);
     if (/failed to initialize/i.test(mensagem)) {
       throw new Error(
-        `O banco local em "${pasta}" não abriu. Isso costuma acontecer quando o ` +
-          'servidor foi encerrado à força. Apague a pasta e rode de novo — ela ' +
-          'só tem dado de desenvolvimento, e `npm run demonstracao` a repovoa.',
+        `O banco local em "${pasta}" não abriu. Duas causas, nesta ordem de ` +
+          'probabilidade: a pasta está dentro de um diretório sincronizado ' +
+          '(OneDrive, Dropbox, Google Drive, unidade de rede), que reescreve os ' +
+          'arquivos por baixo do banco; ou o servidor foi encerrado à força. ' +
+          'Apague a pasta e rode de novo — ela só tem dado de desenvolvimento, e ' +
+          '`npm run demonstracao` a repovoa.',
       );
     }
     throw causa;
@@ -166,4 +187,35 @@ export async function ligaBancoLocalSeConfigurado(): Promise<boolean> {
   const { defineConexaoDoProcesso } = await import('./index');
   defineConexaoDoProcesso(await criaConexaoLocal(pasta === '1' ? PASTA_PADRAO : pasta));
   return true;
+}
+
+/**
+ * Fecha o banco quando o processo receber um sinal de encerramento.
+ *
+ * Não é cortesia: é o que evita perder a pasta. PGlite grava num diretório de
+ * dados, e um processo morto no meio de uma escrita deixa o diretório num
+ * estado em que o Postgres não sobe mais — a próxima subida falha com
+ * `failed to initialize`. Sem isto, todo Ctrl+C arriscava a demonstração que
+ * alguém ia apresentar daqui a uma hora.
+ *
+ * `SIGKILL` continua fora de alcance, porque nenhum processo pode tratá-lo; é
+ * por isso que `criaConexaoLocal` ainda explica como se recuperar.
+ *
+ * `once`, e não `on`: dois sinais seguidos fechariam a conexão duas vezes.
+ *
+ * Mora aqui, e não em `instrumentation.ts`, porque o Next compila aquele
+ * arquivo também para o runtime de borda, onde `process.once` não existe — e o
+ * build avisava a cada linha. Este módulo só é carregado por import dinâmico,
+ * em Node.
+ */
+export function fechaAoEncerrar(conexao: ConexaoRdo): void {
+  let fechando = false;
+  const encerra = (codigo: number) => (): void => {
+    if (fechando) return;
+    fechando = true;
+    void conexao.fecha().finally(() => process.exit(codigo));
+  };
+  process.once('SIGINT', encerra(130));
+  process.once('SIGTERM', encerra(143));
+  process.once('SIGHUP', encerra(129));
 }

@@ -92,3 +92,14 @@ desktop.ini
 
 # Worktrees dos agentes paralelos. Sao copias de trabalho, nao fonte.
 /.claude/worktrees/
+
+# Imagem de obra, desde que a logo entrou no fluxo (17/09/2026).
+#
+# A regra e a mesma da planilha e do PDF: nenhum arquivo de obra real
+# versionado. Uma logo e marca de empresa e costuma vir junto de captura de tela
+# com nome de pessoa. Para versionar alguma, abra excecao nominal, arquivo por
+# arquivo, como se faz com fixture.
+*.png
+*.jpg
+*.jpeg
+*.webp

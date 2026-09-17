@@ -25,7 +25,17 @@ export const estilos = StyleSheet.create({
     fontFamily: 'Helvetica-Bold',
     textAlign: 'center',
     marginBottom: 4,
+    // Cresce para ocupar o meio da faixa; sem logo o estilo é usado sozinho e
+    // `flexGrow` não muda nada, porque não há irmão para dividir espaço.
+    flexGrow: 1,
   },
+  /** A faixa do título quando há logo: imagem, título ao centro, vazio igual. */
+  faixaDoTitulo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  /**
+   * A caixa da logo. `objectFit: contain` porque a marca chega em qualquer
+   * proporção, e esticar a marca de uma empresa é defeito, não adaptação.
+   */
+  logo: { width: 48, height: 32, objectFit: 'contain' },
   identificacao: { flexDirection: 'row', justifyContent: 'flex-end', gap: 6 },
   campoDeIdentificacao: { flexDirection: 'row', gap: 3, border: BORDA, padding: 2 },
   bloco: { marginTop: 4, border: BORDA },

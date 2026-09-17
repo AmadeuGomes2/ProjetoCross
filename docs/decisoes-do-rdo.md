@@ -235,6 +235,63 @@ blocos são os mesmos do diário.
 
 ---
 
+## 4b. Duas coisas novas na tela, e por que elas são assim
+
+### O controle pluviométrico do mês
+
+A aba `PLUVIOMETRIA` da planilha virou tela: uma linha por dia com os três
+turnos, o resumo, o índice em mm e o acumulado corrido, mais o quadro que conta
+quantos dias foram Trabalhado, Perca de produção e Impraticavél. Os rótulos são
+os da planilha, inclusive `INDICE ACUMUALDO` com o erro de digitação — é o que
+está no documento que o fiscal conhece, e trocar por conta própria criaria uma
+diferença onde não havia nenhuma.
+
+Duas decisões que a planilha não conseguia responder, porque os 31 dias dela
+estão todos com índice zero:
+
+- **dia sem lançamento sai com o índice VAZIO, e não com zero.** Ninguém mediu é
+  diferente de não choveu. Os dois casos existem, e no papel eles precisam ser
+  distinguíveis a olho — foi assim que descobrimos o defeito da planilha em que
+  os quatro campos de pluviometria saíam vazios nos 31 dias e ninguém via;
+- **o acumulado continua somando nesse mesmo dia**, carregando o valor anterior.
+  Ele é um total corrido: se zerasse no dia sem medição, a última linha deixaria
+  de ser o total do mês, que é exatamente para o que ela serve.
+
+A tela é sua, engenheiro. O encarregado registra os milímetros na tela do dia
+dele — é ele quem lê o pluviômetro —, mas o quadro do mês inteiro fica do seu
+lado, junto com o RDO.
+
+### A logo da contratada
+
+Você pode subir a logo na tela da obra, e ela passa a sair no cabeçalho do RDO,
+à esquerda do título. O título continua centralizado na folha: a logo entra ao
+lado dele, não no lugar dele.
+
+O que vale saber antes de trocar:
+
+- **a logo nova vale para todos os RDOs, inclusive os já emitidos.** Reimprimir
+  um relatório de março depois de trocar a marca dá o relatório com a marca
+  nova. É o mesmo comportamento das informações gerais, e a tela avisa quantos
+  dias lançados estão em jogo antes de você confirmar;
+- **trocar ou tirar a logo não mexe em nenhum lançamento.** Nenhum número, nenhum
+  efetivo, nenhuma atividade;
+- **aceitamos PNG e JPEG, até 512 KB.** Dois formatos ficaram de fora, cada um
+  por um motivo: **SVG** é um arquivo de texto que pode carregar programa
+  dentro, e um sistema que aceita isso de fora abre uma porta que não sabemos
+  fechar; **WebP** o gerador de PDF não sabe desenhar, e descobrimos que ele
+  falha em silêncio — a logo apareceria na tela e sumiria do relatório entregue
+  ao fiscal, sem aviso nenhum. Preferimos recusar o arquivo a entregar um RDO
+  sem a marca. Se a sua logo só existe em SVG ou WebP, exporte em PNG;
+- **tiramos o metadado da imagem antes de guardar.** Foto e imagem carregam
+  campos escondidos — autor, programa que gerou e, em foto de celular, a
+  coordenada de GPS —, e o PDF embutiria tudo isso junto. O que fica gravado é
+  só o que desenha.
+
+O encarregado **vê** a logo e não pode trocá-la: é a marca da empresa dele, mas
+quem responde pelo documento entregue é você.
+
+---
+
 ## 5. O que ainda depende de você
 
 São perguntas de verdade. Nada foi preenchido por suposição.
