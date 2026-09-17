@@ -7,6 +7,51 @@ import { carregaDadosDaTelaProtegida } from '../../../_dados';
 import estilos from '../../../estilos.module.css';
 
 /**
+ * Um bloco do dia, com quantos lançamentos ele tem.
+ *
+ * O zero recua em vez de competir. Antes `Produção 0` saía com o mesmo peso de
+ * `Atividades 1`, e o olho lia dois números iguais. Agora zero vira "nenhum",
+ * em tinta fraca.
+ *
+ * **Zero não é pendência**, e por isso não leva cor de alerta: um dia pode
+ * legitimamente não ter produção, e marcar isso como falta seria inventar regra
+ * que ninguém escreveu (CLAUDE.md). O que a tela faz é deixar a ausência
+ * legível, não julgá-la.
+ *
+ * A seta existe porque, sem ela, o cartão parecia um painel de leitura. É a
+ * única indicação de que dá para tocar.
+ */
+function CartaoDeSecao({
+  href,
+  titulo,
+  quantidade,
+}: {
+  readonly href: string;
+  readonly titulo: string;
+  readonly quantidade: number;
+}) {
+  return (
+    <Link className={estilos.cartao} href={href}>
+      <span>{titulo}</span>
+      <span className={estilos.cartaoDireita}>
+        <span
+          className={
+            quantidade === 0
+              ? `${estilos.cartaoContagem} ${estilos.cartaoContagemVazia}`
+              : estilos.cartaoContagem
+          }
+        >
+          {quantidade === 0 ? 'nenhum' : quantidade}
+        </span>
+        <span className={estilos.cartaoSeta} aria-hidden="true">
+          ›
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+/**
  * O dia, em cartões.
  *
  * "Nada de exigir o dia inteiro numa tela só": cada bloco tem a sua tela, e
@@ -56,18 +101,21 @@ export default async function PaginaDoDia({
         <Link className={estilos.botao} href={`${base}/${data}/dia`}>
           Confirmar o dia
         </Link>
-        <Link className={estilos.cartao} href={`${base}/${data}/atividades`}>
-          <span>Atividades</span>
-          <span className={estilos.cartaoContagem}>{dados.atividades.length}</span>
-        </Link>
-        <Link className={estilos.cartao} href={`${base}/${data}/producao`}>
-          <span>Produção</span>
-          <span className={estilos.cartaoContagem}>{dados.quantidadeDeProducao}</span>
-        </Link>
-        <Link className={estilos.cartao} href={`${base}/${data}/observacoes`}>
-          <span>Observações</span>
-          <span className={estilos.cartaoContagem}>{dados.observacoes.length}</span>
-        </Link>
+        <CartaoDeSecao
+          href={`${base}/${data}/atividades`}
+          titulo="Atividades"
+          quantidade={dados.atividades.length}
+        />
+        <CartaoDeSecao
+          href={`${base}/${data}/producao`}
+          titulo="Produção"
+          quantidade={dados.quantidadeDeProducao}
+        />
+        <CartaoDeSecao
+          href={`${base}/${data}/observacoes`}
+          titulo="Observações"
+          quantidade={dados.observacoes.length}
+        />
       </div>
 
       <div className={estilos.secao}>

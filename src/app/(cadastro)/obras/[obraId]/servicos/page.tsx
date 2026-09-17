@@ -13,6 +13,7 @@ import {
   listaHistoricoDeQuantidadeProtegido,
   listaServicosProtegida,
 } from '../../../../_composicao/cadastro';
+import { BotaoDeEnvio } from '../../../../_componentes/botao-de-envio';
 import { formataBr as formataQuantidade } from '../../../../../shared/decimal';
 import { formataBr as formataDia } from '../../../../../shared/date/dia';
 import { fusoDaObra, hojeNaObra } from '../../../../../shared/date/fuso';
@@ -116,9 +117,7 @@ export default async function Servicos({
                 dica="2210,392"
               />
               <div className="linhaDeAcoes">
-                <button className="botao" type="submit">
-                  Definir
-                </button>
+                <BotaoDeEnvio>Definir</BotaoDeEnvio>
               </div>
             </form>
 

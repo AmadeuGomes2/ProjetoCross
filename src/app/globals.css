@@ -268,9 +268,31 @@ img {
   color: var(--realce-tinta);
 }
 
-.botao:disabled {
-  opacity: 0.55;
+/*
+ * Desabilitado precisa PARECER desabilitado.
+ *
+ * Era `opacity: 0.55` sobre o verde, o que dá um verde claro sobre branco e se
+ * lê como botao normal esmaecido — a captura de 16/09 mostrou exatamente isso
+ * em "Lancar atividade". Agora troca de superficie: fundo neutro, borda visivel
+ * e tinta fraca. Continua acima de 4,5:1, porque texto desabilitado ainda
+ * precisa ser lido para que se saiba o que esta bloqueado.
+ */
+.botao:disabled,
+.botao:disabled:hover {
+  background: var(--papel-recuo);
+  border-color: var(--borda);
+  color: var(--tinta-tenue);
   cursor: not-allowed;
+}
+
+/* Enviando nao e bloqueio: e trabalho em curso, e o verde sinaliza isso. */
+.botao[aria-busy='true'],
+.botao[aria-busy='true']:hover {
+  background: var(--realce);
+  border-color: var(--realce);
+  color: var(--realce-tinta);
+  opacity: 0.8;
+  cursor: progress;
 }
 
 .botao--secundario {
@@ -1114,17 +1136,23 @@ tbody tr:last-child td {
 }
 
 @media (min-width: 48rem) {
+  /*
+   * `auto-fit`, e nao `auto-fill`: com `auto-fill` o navegador cria as trilhas
+   * vazias do resto da linha, e uma obra sozinha saia como um cartao de 20rem
+   * perdido num monitor de 1440px. `auto-fit` recolhe a trilha vazia e o
+   * cartao ocupa a largura que tem.
+   */
   .grade--cartoes {
-    grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
   }
 }
 
 /* A linha inteira é o alvo, para que funcione com o dedo. */
 .cartaoDeObra {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--e3);
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--e1);
   min-height: var(--toque);
   padding: var(--e4);
   background: var(--papel);
@@ -1140,9 +1168,21 @@ tbody tr:last-child td {
   color: var(--tinta);
 }
 
+.cartaoDeObraTopo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e3);
+}
+
 .cartaoDeObraContrato {
   font-weight: 650;
   letter-spacing: -0.01em;
+}
+
+.cartaoDeObraEstado {
+  font-size: 0.9rem;
+  color: var(--tinta-tenue);
 }
 
 @media (min-width: 40rem) {

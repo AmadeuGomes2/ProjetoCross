@@ -17,6 +17,8 @@ import { redirect } from 'next/navigation';
 import { listaObrasDoUsuarioProtegida } from '../../_composicao/cadastro';
 import { Vazio } from '../componentes';
 import { Trilha } from '../../_componentes/casca';
+import { painelDosUltimosDiasProtegido } from '../../_composicao/lancamento';
+import { hojeNaObra } from '../../../shared/date/fuso';
 import { atorDaRequisicao } from '../sessao';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +29,24 @@ export default async function Obras() {
 
   const obras = listaObrasDoUsuarioProtegida(ator.usuarioId);
   const lista = obras.ok ? obras.valor : [];
+
+  /*
+   * Cada obra vem com o estado da quinzena. Sem isso o cartão era só um nome
+   * num retângulo, e esta tela não respondia à única pergunta que se faz aqui:
+   * qual obra precisa de mim?
+   *
+   * O dia sai do fuso da obra, no servidor. Uma consulta por obra: a lista é
+   * curta por construção — são as obras liberadas para uma pessoa.
+   */
+  const hoje = hojeNaObra();
+  const comEstado = await Promise.all(
+    lista.map(async (obra) => ({
+      ...obra,
+      pendentes: (
+        await painelDosUltimosDiasProtegido(ator, obra.obraId, hoje, 14)
+      ).filter((d) => d.estado === 'nao_lancado').length,
+    })),
+  );
 
   return (
     <main className="pagina pagina--painel">
@@ -60,11 +80,18 @@ export default async function Obras() {
          * que funcione com o dedo.
          */
         <ul className="grade grade--cartoes">
-          {lista.map((obra) => (
+          {comEstado.map((obra) => (
             <li key={obra.obraId}>
               <Link className="cartaoDeObra" href={`/obras/${obra.obraId}`}>
-                <span className="cartaoDeObraContrato">{obra.contrato}</span>
-                <span className="etiqueta etiqueta--neutra">{obra.perfil}</span>
+                <span className="cartaoDeObraTopo">
+                  <span className="cartaoDeObraContrato">{obra.contrato}</span>
+                  <span className="etiqueta etiqueta--neutra">{obra.perfil}</span>
+                </span>
+                <span className="cartaoDeObraEstado">
+                  {obra.pendentes === 0
+                    ? 'Quinzena completa'
+                    : `${obra.pendentes} ${obra.pendentes === 1 ? 'dia' : 'dias'} sem lançamento na quinzena`}
+                </span>
               </Link>
             </li>
           ))}

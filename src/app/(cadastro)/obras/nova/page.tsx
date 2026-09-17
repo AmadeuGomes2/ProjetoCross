@@ -17,6 +17,7 @@
 
 import { redirect } from 'next/navigation';
 
+import { BotaoDeEnvio } from '../../../_componentes/botao-de-envio';
 import { criarObraAction } from '../../acoes';
 import { Bloco, Campo, Erro, Nota } from '../../componentes';
 import { Trilha } from '../../../_componentes/casca';
@@ -86,9 +87,9 @@ export default async function NovaObra({
         </Bloco>
 
         <div className="linhaDeAcoes">
-          <button className="botao botao--campo" type="submit">
+          <BotaoDeEnvio variante="campo" enviando="Criando…">
             Criar obra
-          </button>
+          </BotaoDeEnvio>
         </div>
       </form>
     </main>

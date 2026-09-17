@@ -13,6 +13,7 @@
 
 import { redirect } from 'next/navigation';
 
+import { BotaoDeEnvio } from '../../../../_componentes/botao-de-envio';
 import { listaTermosProtegida } from '../../../../_composicao/cadastro';
 import { listaLetrasDeTurno, TIPOS_DE_TAXONOMIA } from '../../../../../modules/taxonomia';
 import type { TipoDeTaxonomia } from '../../../../../modules/taxonomia';
@@ -107,9 +108,7 @@ export default async function Taxonomias({
               <input type="hidden" name="tipo" value={tipo} />
               <Campo nome="termo" rotulo="Acrescentar termo" obrigatorio />
               <div className="linhaDeAcoes">
-                <button className="botao" type="submit">
-                  Acrescentar
-                </button>
+                <BotaoDeEnvio>Acrescentar</BotaoDeEnvio>
               </div>
             </form>
           </Bloco>

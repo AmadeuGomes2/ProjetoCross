@@ -20,6 +20,7 @@ import {
   listaPessoalProtegida,
   listaTermosProtegida,
 } from '../../../../_composicao/cadastro';
+import { BotaoDeEnvio } from '../../../../_componentes/botao-de-envio';
 import { formataBr } from '../../../../../shared/date/dia';
 import { idConfiavel } from '../../../../../shared/id';
 import { cadastrarPessoaAction, trocarFuncaoAction } from '../../../acoes';
@@ -94,9 +95,7 @@ export default async function Pessoal({
             <Campo nome="saida" rotulo="Saída (deixe vazio se continua)" tipo="date" />
           </div>
           <div className="linhaDeAcoes">
-            <button className="botao" type="submit">
-              Cadastrar
-            </button>
+            <BotaoDeEnvio>Cadastrar</BotaoDeEnvio>
           </div>
         </form>
       </Bloco>
@@ -132,9 +131,7 @@ export default async function Pessoal({
               dos dias anteriores continua como está.
             </Nota>
             <div className="linhaDeAcoes">
-              <button className="botao" type="submit">
-                Trocar
-              </button>
+              <BotaoDeEnvio>Trocar</BotaoDeEnvio>
             </div>
           </form>
         </Bloco>

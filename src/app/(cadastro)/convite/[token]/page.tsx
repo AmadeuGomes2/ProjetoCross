@@ -9,6 +9,7 @@
  * não tem o link não descobre nada aqui.
  */
 
+import { BotaoDeEnvio } from '../../../_componentes/botao-de-envio';
 import { aceitarConviteAction } from '../../acoes';
 import { Bloco, Campo, Erro, Nota } from '../../componentes';
 
@@ -43,9 +44,7 @@ export default async function Convite({
           <Campo nome="email" rotulo="Seu e-mail" tipo="email" />
           <Campo nome="senha" rotulo="Crie uma senha" tipo="password" />
           <div className="linhaDeAcoes">
-            <button className="botao botao--campo" type="submit">
-              Aceitar convite
-            </button>
+            <BotaoDeEnvio variante="campo">Aceitar convite</BotaoDeEnvio>
           </div>
         </form>
       </Bloco>

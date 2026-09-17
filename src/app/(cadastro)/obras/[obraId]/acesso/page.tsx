@@ -13,6 +13,7 @@
 
 import { redirect } from 'next/navigation';
 
+import { BotaoDeEnvio } from '../../../../_componentes/botao-de-envio';
 import { listaAcessosDaObraProtegida } from '../../../../_composicao/cadastro';
 import { idConfiavel } from '../../../../../shared/id';
 import { revogarAcessoAction } from '../../../acoes';
@@ -92,9 +93,9 @@ export default async function Acesso({
                   <form action={revogarAcessoAction}>
                     <input type="hidden" name="obraId" value={obraId} />
                     <input type="hidden" name="acessoId" value={acesso.id} />
-                    <button className="botao botao--perigo" type="submit">
+                    <BotaoDeEnvio variante="perigo" enviando="Revogando…">
                       Revogar
-                    </button>
+                    </BotaoDeEnvio>
                   </form>
                 ) : null}
               </li>

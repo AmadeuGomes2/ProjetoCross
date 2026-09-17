@@ -12,6 +12,7 @@ import {
   listaEquipamentosProtegida,
   listaTermosProtegida,
 } from '../../../../_composicao/cadastro';
+import { BotaoDeEnvio } from '../../../../_componentes/botao-de-envio';
 import { formataBr } from '../../../../../shared/date/dia';
 import { idConfiavel } from '../../../../../shared/id';
 import { cadastrarEquipamentoAction } from '../../../acoes';
@@ -83,9 +84,7 @@ export default async function Equipamentos({
             <Campo nome="saida" rotulo="Saída (deixe vazio se continua)" tipo="date" />
           </div>
           <div className="linhaDeAcoes">
-            <button className="botao" type="submit">
-              Cadastrar
-            </button>
+            <BotaoDeEnvio>Cadastrar</BotaoDeEnvio>
           </div>
         </form>
       </Bloco>

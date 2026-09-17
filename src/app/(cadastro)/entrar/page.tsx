@@ -13,6 +13,7 @@
  * (14.0), que é encarregado e chega pela tela do convite.
  */
 
+import { BotaoDeEnvio } from '../../_componentes/botao-de-envio';
 import { entrarAction } from '../acoes';
 import { Bloco, Campo, Erro } from '../componentes';
 
@@ -39,9 +40,9 @@ export default async function Entrar({
           <Campo nome="email" rotulo="E-mail" tipo="email" obrigatorio />
           <Campo nome="senha" rotulo="Senha" tipo="password" obrigatorio />
           <div className="linhaDeAcoes">
-            <button className="botao botao--campo" type="submit">
+            <BotaoDeEnvio variante="campo" enviando="Entrando…">
               Entrar
-            </button>
+            </BotaoDeEnvio>
           </div>
         </form>
       </Bloco>

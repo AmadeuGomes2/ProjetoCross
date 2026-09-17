@@ -21,6 +21,7 @@ import {
   listaPeriodosBmsProtegida,
   obtemCabecalhoProtegido,
 } from '../../../_composicao/cadastro';
+import { BotaoDeEnvio } from '../../../_componentes/botao-de-envio';
 import { formataBr } from '../../../../shared/date/dia';
 import { hojeNaObra } from '../../../../shared/date/fuso';
 import { idConfiavel } from '../../../../shared/id';
@@ -163,9 +164,7 @@ export default async function Obra({
                 <Campo nome="dataFinal" rotulo="Data final" tipo="date" obrigatorio />
               </div>
               <div className="linhaDeAcoes">
-                <button className="botao" type="submit">
-                  Cadastrar período
-                </button>
+                <BotaoDeEnvio>Cadastrar período</BotaoDeEnvio>
               </div>
             </form>
           </details>
@@ -218,9 +217,7 @@ export default async function Obra({
                 />
               </div>
               <div className="linhaDeAcoes">
-                <button className="botao" type="submit">
-                  Salvar responsável técnico
-                </button>
+                <BotaoDeEnvio>Salvar responsável técnico</BotaoDeEnvio>
               </div>
             </form>
           </details>

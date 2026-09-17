@@ -88,9 +88,29 @@
   font-weight: 600;
 }
 
+.cartaoDireita {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .cartaoContagem {
   color: var(--tinta-fraca);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Ausência não compete com contagem: recua em peso e em tinta. */
+.cartaoContagemVazia {
+  color: var(--tinta-tenue);
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+
+.cartaoSeta {
+  color: var(--tinta-tenue);
+  font-size: 1.4rem;
+  line-height: 1;
 }
 
 .botao {
