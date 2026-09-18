@@ -183,10 +183,42 @@ export async function criaConexaoLocal(pasta = PASTA_PADRAO): Promise<ConexaoRdo
 export async function ligaBancoLocalSeConfigurado(): Promise<boolean> {
   const pasta = process.env['RDO_BANCO_LOCAL'];
   if (pasta === undefined || pasta === '') return false;
+  if (jaLigado()) return true;
 
   const { defineConexaoDoProcesso } = await import('./index');
-  defineConexaoDoProcesso(await criaConexaoLocal(pasta === '1' ? PASTA_PADRAO : pasta));
+  // Marca ANTES de abrir: abrir leva segundos, e um segundo `register` no meio
+  // encontraria a marca ausente e abriria uma segunda conexão na mesma pasta.
+  marcaLigado();
+  const conexao = await criaConexaoLocal(pasta === '1' ? PASTA_PADRAO : pasta);
+  defineConexaoDoProcesso(conexao);
+  // Aqui dentro, e não em quem chama: assim o tratador de sinal é registrado
+  // exatamente uma vez, junto com a conexão que ele fecha.
+  fechaAoEncerrar(conexao);
   return true;
+}
+
+/*
+ * Uma conexão local por processo, marcada em `globalThis`.
+ *
+ * O motivo apareceu do pior jeito: **criar o `.env.local` com o servidor no ar
+ * derrubava o servidor.** O Next percebe a mudança, imprime `Reload env` e chama
+ * `register` de novo; a segunda chamada abria uma segunda conexão na mesma
+ * pasta, que o PGlite reserva para um só, e o processo morria com código 1.
+ *
+ * A marca vive em `globalThis` pela mesma razão que a conexão: o empacotador do
+ * Next carrega o mesmo arquivo em mais de uma instância, e uma variável de
+ * módulo não seria vista pela segunda.
+ */
+const CHAVE_DE_LIGADO = Symbol.for('rdo.banco-local-ligado');
+
+type PortadorDeMarca = { [CHAVE_DE_LIGADO]?: true };
+
+function jaLigado(): boolean {
+  return (globalThis as PortadorDeMarca)[CHAVE_DE_LIGADO] === true;
+}
+
+function marcaLigado(): void {
+  (globalThis as PortadorDeMarca)[CHAVE_DE_LIGADO] = true;
 }
 
 /**

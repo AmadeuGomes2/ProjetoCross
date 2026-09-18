@@ -17,6 +17,16 @@ const config = [
       // sem esta linha o lint reprova por script de uso único que ninguém vai
       // revisar, e lint cronicamente vermelho ensina todo mundo a ignorá-lo.
       'tmp/**',
+      /*
+       * Worktrees dos agentes que rodaram em paralelo.
+       *
+       * Cada uma é uma cópia do MESMO repositório, num commit mais antigo. O
+       * lint as percorria inteiras: os 14 avisos que ele reportava eram todos
+       * daqui — o mesmo defeito, já corrigido no `main`, contado uma vez por
+       * cópia. Avisos que ninguém pode consertar ensinam a ignorar a saída
+       * toda, e é assim que um aviso de verdade passa batido.
+       */
+      '.claude/worktrees/**',
     ],
   },
 

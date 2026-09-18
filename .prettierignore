@@ -15,7 +15,10 @@ src/db/migrations/meta/
 # Rascunho e banco de desenvolvimento.
 tmp/
 
-# Instantaneos do drizzle-kit: artefato de ferramenta, nao fonte.
 # Os do historico sao do dialeto antigo e nao sao mais reformatados.
-src/db/migrations/meta/
 docs/historico/
+
+# Escrito pelo proprio Claude Code quando uma permissao muda, e por isso volta
+# a desformatar sozinho. Policiar o estilo de um arquivo que uma ferramenta
+# reescreve so faz o `npm run lint` falhar por um motivo que nao e de ninguem.
+.claude/settings.json
