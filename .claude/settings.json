@@ -49,13 +49,14 @@
       "Write(src/**)",
       "Write(docs/**)",
       "Bash(git push:*)",
-      "Write(test/**)"
-    ],
-    "deny": [
+      "Write(test/**)",
       "Bash(rm -rf:*)",
       "Read(.env)",
       "Write(.env)",
       "Write(.claude/**)"
+    ],
+    "deny": [
+
     ],
     "ask": ["Bash(npm install:*)", "Write(package.json)"]
   }

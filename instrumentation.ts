@@ -5,42 +5,41 @@
  * quando `RDO_BANCO_LOCAL` está definida. Sem isso, depois da migração para
  * Postgres, `npm run dev` sem uma string do Neon responde 500 em toda rota.
  *
- * O import é dinâmico e condicionado. Em produção a condição é falsa, o módulo
- * não é carregado, e o Postgres em WebAssembly não entra no pacote da Vercel.
+ * ## A ordem das duas guardas é o contrato deste arquivo
  *
- * Só o runtime `nodejs` entra: no runtime de borda não há sistema de arquivos,
- * e a verificação evita uma falha obscura na subida.
+ * As duas verificações acontecem **antes de qualquer `import`**, e isso não é
+ * estilo:
+ *
+ * - `NEXT_RUNTIME`, porque no runtime de borda não há sistema de arquivos;
+ * - `RDO_BANCO_LOCAL`, porque `./src/db/pglite-local` carrega um **Postgres
+ *   compilado para WebAssembly**, de alguns megabytes. Em produção ele não
+ *   serve para nada, e o `import` dinâmico só evita esse peso enquanto estiver
+ *   atrás da condição.
+ *
+ * Uma versão anterior moveu a checagem de `RDO_BANCO_LOCAL` para dentro da
+ * função importada, o que parecia arrumação e **passou a carregar o PGlite em
+ * produção**. Se esse carregamento falhar no ambiente serverless, `register`
+ * estoura, o servidor não sobe e toda rota responde 500. `instrumentation.test.ts`
+ * existe para que isso não volte.
  *
  * ## `register` roda MAIS DE UMA VEZ
  *
  * O Next o chama de novo a cada `Reload env` — criar ou editar `.env.local` com
- * o servidor no ar basta. A primeira versão abria uma conexão PGlite nova a cada
- * chamada, na mesma pasta, e o PGlite reserva a pasta para um processo só: **o
- * servidor morria com código 1 no instante em que alguém salvava o arquivo.**
- *
- * `ligaBancoLocalSeConfigurado` é idempotente — guarda a marca em `globalThis`,
- * e não numa variável de módulo, porque o empacotador do Next carrega o mesmo
- * arquivo em mais de uma instância.
+ * o servidor no ar basta. Por isso `ligaBancoLocalSeConfigurado` é idempotente:
+ * a versão anterior abria uma conexão PGlite nova a cada chamada, na mesma
+ * pasta, e o PGlite reserva a pasta para um processo só.
  */
 
 export async function register(): Promise<void> {
   if (process.env['NEXT_RUNTIME'] !== 'nodejs') return;
 
-  const { ligaBancoLocalSeConfigurado, fechaAoEncerrar } =
-    await import('./src/db/pglite-local');
+  const pasta = process.env['RDO_BANCO_LOCAL'];
+  if (pasta === undefined || pasta === '') return;
 
-  const ligou = await ligaBancoLocalSeConfigurado();
-  if (!ligou) return;
-
-  const { obtemConexao } = await import('./src/db/index');
-  // O tratamento de sinal mora no módulo importado sob demanda, e não aqui: o
-  // Next compila este arquivo para os dois runtimes, e `process.once` não existe
-  // no de borda. O guia manda importar condicionalmente o que não roda em todo
-  // lugar, e é o que este arquivo faz.
-  fechaAoEncerrar(obtemConexao());
+  // Só aqui, do lado de dentro das duas guardas.
+  const { ligaBancoLocalSeConfigurado } = await import('./src/db/pglite-local');
+  await ligaBancoLocalSeConfigurado();
 
   // `console.log` é proibido pela regra do projeto; aviso vai em stderr.
-  console.warn(
-    `[rdo] banco local de desenvolvimento em ${process.env['RDO_BANCO_LOCAL']}`,
-  );
+  console.warn(`[rdo] banco local de desenvolvimento em ${pasta}`);
 }

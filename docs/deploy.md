@@ -80,20 +80,22 @@ passo acima**, com a string direta.
 
 Em **Settings → Environment Variables**, para `Production` e `Preview`:
 
-| Variável       | Valor                                             |
-| -------------- | ------------------------------------------------- |
-| `DATABASE_URL` | a string **com pool**                             |
-| `AUTH_SECRET`  | veja abaixo                                       |
-| `AUTH_URL`     | o endereço público, ex. `https://rdo.exemplo.com` |
+| Variável       | Valor                 |
+| -------------- | --------------------- |
+| `DATABASE_URL` | a string **com pool** |
 
-Gere o segredo assim, e **não reaproveite o de outro ambiente**:
+**É só uma.** Este guia pedia `AUTH_SECRET` e `AUTH_URL` também, e estava
+errado: **nenhuma linha de código lê essas duas variáveis**. Alguém seguiu o
+guia, configurou as três e perdeu tempo com duas que a aplicação ignora.
 
-```bash
-node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
-```
+A sessão não precisa de segredo de assinatura porque não é um token assinado. É
+um valor **opaco de 32 bytes sorteados**, cujo SHA-256 fica no banco
+(`src/modules/acesso/token.ts`): não codifica id de ninguém, não pode ser
+forjado sem adivinhar 256 bits, e vazamento do banco não vira vazamento de
+acesso. Não há o que assinar, então não há segredo para guardar.
 
-Trocar `AUTH_SECRET` invalida toda sessão aberta. É o comportamento certo se ele
-vazar, e é por isso que produção e prévia não compartilham o mesmo.
+Se um dia a sessão virar token assinado, a variável volta — e volta sendo lida
+pelo código, não só pelo guia.
 
 > Se o projeto da Vercel já está **conectado ao Neon** pela integração oficial,
 > `DATABASE_URL` pode já estar preenchida. Confira qual das duas strings ela
